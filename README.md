@@ -1,0 +1,2 @@
+# structedit
+Structured document editor
