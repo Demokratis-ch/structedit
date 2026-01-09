@@ -10,7 +10,7 @@ export interface ContainerDocumentNode {
   // Arbitrary but unique identifier for the node.
   id: string;
   // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
-  label: string | null;
+  number: string | null;
   type: ContainerDocumentNodeType;
   children: DocumentNode[];
 }
@@ -35,7 +35,7 @@ export interface LeafDocumentNode {
   // Arbitrary but unique identifier for the node.
   id: string;
   // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
-  label: string | null;
+  number: string | null;
   type: LeafDocumentNodeType;
   content: NodeContentItem[];
 }
@@ -46,12 +46,12 @@ export type DocumentNode = ContainerDocumentNode | LeafDocumentNode;
 /*
 const exampleDocument: DocumentNode = {
   id: '001',
-  label: null,
+  number: null,
   type: 'document',
   children: [
     {
       id: '002',
-      label: '1',
+      number: '1',
       type: 'heading',
       content: [
         {
@@ -62,7 +62,7 @@ const exampleDocument: DocumentNode = {
     },
     {
       id: '003',
-      label: null,
+      number: null,
       type: 'content',
       content: [
         {
@@ -73,12 +73,12 @@ const exampleDocument: DocumentNode = {
     },
     {
       id: '004',
-      label: 'i.',
+      number: 'i.',
       type: 'footnote',
       children: [
         {
           id: '005',
-          label: null,
+          number: null,
           type: 'content',
           content: [
             {
