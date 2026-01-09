@@ -1,19 +1,98 @@
-export type DocumentNodeType =
+/**
+ * Container nodes have child nodes but no content (text) of their own.
+ */
+export type ContainerDocumentNodeType =
   | 'document'  // Tree root
-  | 'heading'
-  | 'paragraph'
-  | 'ordered_list'
-  | 'unordered_list'
-  | 'list_item'  // Can be child of ordered_list or unordered_list
-  | 'footnote_reference'  // Reference to a footnote within the text
-  | 'footnote'  // Footnote content; should be a child of 'footnote_reference'
-  | 'image';
+  | 'list'
+  | 'footnote';  // Container for footnote content
 
-export interface DocumentNode {
+export interface ContainerDocumentNode {
+  // Arbitrary but unique identifier for the node.
   id: string;
   // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
   label: string | null;
-  type: DocumentNodeType;
-  content: string | null;  // Null for 'container' nodes like 'document', 'ordered_list', 'unordered_list'
+  type: ContainerDocumentNodeType;
   children: DocumentNode[];
 }
+
+
+/**
+ * Leaf nodes must contain content (text) but cannot have child nodes.
+ */
+
+export type LeafDocumentNodeType =
+  | 'heading'
+  | 'content'  // Paragraph or general text content
+  | 'list_item'  // Can be child of ordered_list or unordered_list
+  | 'image';
+
+export interface NodeContentItem {
+  language: 'en' | 'de' | 'fr' | 'it' | 'rm';
+  text: string;
+}
+
+export interface LeafDocumentNode {
+  // Arbitrary but unique identifier for the node.
+  id: string;
+  // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
+  label: string | null;
+  type: LeafDocumentNodeType;
+  content: NodeContentItem[];
+}
+
+export type DocumentNode = ContainerDocumentNode | LeafDocumentNode;
+
+
+/*
+const exampleDocument: DocumentNode = {
+  id: '001',
+  label: null,
+  type: 'document',
+  children: [
+    {
+      id: '002',
+      label: '1',
+      type: 'heading',
+      content: [
+        {
+          language: 'en',
+          text: 'Introduction'
+        }
+      ]
+    },
+    {
+      id: '003',
+      label: null,
+      type: 'content',
+      content: [
+        {
+          language: 'en',
+          text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
+        }
+      ]
+    },
+    {
+      id: '004',
+      label: 'i.',
+      type: 'footnote',
+      children: [
+        {
+          id: '005',
+          label: null,
+          type: 'content',
+          content: [
+            {
+              language: 'en',
+              text: 'This is a footnote.'
+            },
+            {
+              language: 'de',
+              text: 'Dies ist eine Fussnote.'
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+*/
