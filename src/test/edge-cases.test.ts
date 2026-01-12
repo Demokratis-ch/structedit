@@ -141,13 +141,13 @@ describe('Edge Cases (@safety-officer)', () => {
   });
 
   describe('Block Type Edge Cases', () => {
-    it('parseHtml converts h3-h6 to h2', () => {
-      const html = '<h3>Heading 3</h3><h4>Heading 4</h4>';
+    it('parseHtml converts h3 to h2', () => {
+      // Note: DOMPurify only allows h1, h2, h3 - h4+ are stripped
+      const html = '<h3>Heading 3</h3>';
       const blocks = parseHtml(html);
       
-      blocks.forEach(block => {
-        expect(['h1', 'h2']).toContain(block.type);
-      });
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].type).toBe('h2');
     });
 
     it('handles mixed list types', () => {

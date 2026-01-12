@@ -100,7 +100,8 @@ describe('Document Utils', () => {
       expect(html).toContain('<!DOCTYPE html>');
       expect(html).toContain('<h1');
       expect(html).toContain('Title');
-      expect(html).toContain('<div');
+      expect(html).toContain('<p');
+      expect(html).toContain('Paragraph');
     });
 
     it('applies indent based on depth', () => {

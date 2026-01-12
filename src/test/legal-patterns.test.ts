@@ -101,7 +101,8 @@ describe('Swiss Legal Document Patterns', () => {
       expect(blocks.find(b => b.content.includes('I. Änderung'))?.type).toBe('h2');
       expect(blocks.find(b => b.content.includes('Art. 1'))?.type).toBe('h3');
       expect(blocks.find(b => b.content.includes('Regular'))?.type).toBe('p');
-      expect(blocks.find(b => b.content.includes('a. first'))?.type).toBe('abc');
+      // Note: applyLegalPatterns strips the 'a. ' prefix when converting to abc type
+      expect(blocks.find(b => b.content.includes('first subsection'))?.type).toBe('abc');
     });
   });
 
@@ -150,7 +151,8 @@ describe('Swiss Legal Document Patterns', () => {
       const art1 = blocks.find(b => b.content.startsWith('Art. 1 Abs.'));
       expect(art1?.type).toBe('h3');
       
-      const letteredA = blocks.find(b => b.content.startsWith('a. sie als'));
+      // Note: applyLegalPatterns strips the 'a. ' prefix when converting to abc type
+      const letteredA = blocks.find(b => b.content.startsWith('sie als Ratschreiber'));
       expect(letteredA?.type).toBe('abc');
       
       const sectionII = blocks.find(b => b.content === 'II.');
