@@ -166,6 +166,54 @@ export function buildIndices(root: ContainerDocumentNode): {
 }
 
 /**
+ * Merge adjacent list siblings within a parent container.
+ * Combines consecutive lists into a single list.
+ */
+export function mergeAdjacentLists(
+  root: ContainerDocumentNode,
+  parentPath: NodePath
+): ContainerDocumentNode {
+  const parent = parentPath.length === 0 ? root : getNodeAtPath(root, parentPath);
+  if (!parent || !('children' in parent)) return root;
+
+  const children = parent.children;
+  const merged: DocumentNode[] = [];
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+
+    if (child.type === 'list' && merged.length > 0) {
+      const prev = merged[merged.length - 1];
+      if (prev.type === 'list') {
+        // Merge this list into the previous one
+        const prevList = prev as ContainerDocumentNode;
+        const currList = child as ContainerDocumentNode;
+        merged[merged.length - 1] = {
+          ...prevList,
+          children: [...prevList.children, ...currList.children],
+        };
+        continue;
+      }
+    }
+
+    merged.push(child);
+  }
+
+  // No change needed if same length
+  if (merged.length === children.length) return root;
+
+  // Update the parent with merged children
+  if (parentPath.length === 0) {
+    return { ...root, children: merged };
+  }
+
+  return updateNodeAtPath(root, parentPath, (p) => ({
+    ...p,
+    children: merged,
+  }));
+}
+
+/**
  * Flatten tree to array for rendering, computing connector line metadata.
  */
 export function flattenForRendering(root: ContainerDocumentNode): FlattenedNode[] {

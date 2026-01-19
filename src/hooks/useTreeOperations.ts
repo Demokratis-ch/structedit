@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode, Language } from '../types/document';
 import type { NodePath } from '../types/editor';
-import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath } from '../utils/tree-utils';
+import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, mergeAdjacentLists } from '../utils/tree-utils';
 import { generateId } from '../utils/document-utils';
 
 interface UseTreeOperationsProps {
@@ -361,6 +361,9 @@ export const useTreeOperations = ({
           newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, headingChildren[i]);
         }
       }
+
+      // Merge adjacent lists in the parent
+      newDoc = mergeAdjacentLists(newDoc, parentPath);
 
       commit(newDoc);
       return;

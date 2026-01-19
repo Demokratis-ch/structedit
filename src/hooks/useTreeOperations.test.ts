@@ -1128,5 +1128,181 @@ describe('useTreeOperations', () => {
         expect(mockCommit).not.toHaveBeenCalled();
       });
     });
+
+    describe('adjacent list merging', () => {
+      test('merges with preceding list when converting to list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+              ],
+            },
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Convert me' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have merged into one list
+        expect(newDoc.children.length).toBe(1);
+        expect(newDoc.children[0].type).toBe('list');
+        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        expect(mergedList.children.length).toBe(2);
+        expect(mergedList.children[0].id).toBe('li1');
+        expect(mergedList.children[1].id).toBe('p1');
+      });
+
+      test('merges with following list when converting to list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Convert me' },
+            },
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have merged into one list
+        expect(newDoc.children.length).toBe(1);
+        expect(newDoc.children[0].type).toBe('list');
+        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        expect(mergedList.children.length).toBe(2);
+        expect(mergedList.children[0].id).toBe('p1');
+        expect(mergedList.children[1].id).toBe('li1');
+      });
+
+      test('merges with both surrounding lists when converting to list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+              ],
+            },
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Convert me' },
+            },
+            {
+              id: 'list2',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li2', number: '1.', type: 'list_item', contents: { de: 'Item 2' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have merged all three into one list
+        expect(newDoc.children.length).toBe(1);
+        expect(newDoc.children[0].type).toBe('list');
+        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        expect(mergedList.children.length).toBe(3);
+        expect(mergedList.children[0].id).toBe('li1');
+        expect(mergedList.children[1].id).toBe('p1');
+        expect(mergedList.children[2].id).toBe('li2');
+      });
+
+      test('does not merge lists separated by other nodes', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+              ],
+            },
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Separator' },
+              children: [],
+            },
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Convert me' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have 3 children: list1, heading, and new list
+        expect(newDoc.children.length).toBe(3);
+        expect(newDoc.children[0].type).toBe('list');
+        expect(newDoc.children[1].type).toBe('heading');
+        expect(newDoc.children[2].type).toBe('list');
+      });
+    });
   });
 });

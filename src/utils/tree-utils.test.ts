@@ -7,6 +7,7 @@ import {
   moveNode,
   buildIndices,
   flattenForRendering,
+  mergeAdjacentLists,
 } from './tree-utils';
 import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
 
@@ -389,5 +390,205 @@ describe('flattenForRendering', () => {
     expect(parentById['h2']).toBe('h1');
     expect(parentById['p2']).toBe('h2');
     expect(parentById['h1b']).toBe('root');
+  });
+});
+
+describe('mergeAdjacentLists', () => {
+  test('merges two adjacent lists into one', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+          ],
+        },
+        {
+          id: 'list2',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item2', number: '1.', type: 'list_item', contents: { de: 'Item 2' } },
+          ],
+        },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, []);
+
+    expect(result.children.length).toBe(1);
+    expect(result.children[0].type).toBe('list');
+    const mergedList = result.children[0] as ContainerDocumentNode;
+    expect(mergedList.children.length).toBe(2);
+    expect(mergedList.children[0].id).toBe('item1');
+    expect(mergedList.children[1].id).toBe('item2');
+  });
+
+  test('merges three adjacent lists into one', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item1', number: null, type: 'list_item', contents: { de: 'A' } },
+          ],
+        },
+        {
+          id: 'list2',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item2', number: null, type: 'list_item', contents: { de: 'B' } },
+          ],
+        },
+        {
+          id: 'list3',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item3', number: null, type: 'list_item', contents: { de: 'C' } },
+          ],
+        },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, []);
+
+    expect(result.children.length).toBe(1);
+    const mergedList = result.children[0] as ContainerDocumentNode;
+    expect(mergedList.children.length).toBe(3);
+  });
+
+  test('does not merge non-adjacent lists', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item1', number: null, type: 'list_item', contents: { de: 'A' } },
+          ],
+        },
+        {
+          id: 'content1',
+          number: null,
+          type: 'content',
+          contents: { de: 'Separator' },
+        },
+        {
+          id: 'list2',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item2', number: null, type: 'list_item', contents: { de: 'B' } },
+          ],
+        },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, []);
+
+    expect(result.children.length).toBe(3);
+  });
+
+  test('returns unchanged document when no lists to merge', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        { id: 'p1', number: null, type: 'content', contents: { de: 'A' } },
+        { id: 'p2', number: null, type: 'content', contents: { de: 'B' } },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, []);
+
+    expect(result).toBe(doc); // Same reference - no change needed
+  });
+
+  test('merges lists within nested container', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'heading1',
+          number: '1',
+          type: 'heading',
+          contents: { de: 'Heading' },
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'item1', number: null, type: 'list_item', contents: { de: 'A' } },
+              ],
+            },
+            {
+              id: 'list2',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'item2', number: null, type: 'list_item', contents: { de: 'B' } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, [0]);
+
+    const heading = result.children[0] as HeadingDocumentNode;
+    expect(heading.children.length).toBe(1);
+    const mergedList = heading.children[0] as ContainerDocumentNode;
+    expect(mergedList.children.length).toBe(2);
+  });
+
+  test('preserves first list id when merging', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item1', number: null, type: 'list_item', contents: { de: 'A' } },
+          ],
+        },
+        {
+          id: 'list2',
+          number: null,
+          type: 'list',
+          children: [
+            { id: 'item2', number: null, type: 'list_item', contents: { de: 'B' } },
+          ],
+        },
+      ],
+    };
+
+    const result = mergeAdjacentLists(doc, []);
+
+    expect(result.children[0].id).toBe('list1');
   });
 });
