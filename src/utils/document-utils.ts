@@ -4,6 +4,8 @@ import DOMPurify from 'dompurify';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 
+export const DEFAULT_LANGUAGE: Language = 'de';
+
 export const parseHtml = (html: string): Block[] => {
   // Sanitize before parsing
   const cleanHtml = DOMPurify.sanitize(html, {
@@ -266,16 +268,16 @@ export const downloadFile = (content: string, filename: string, mimeType: string
 };
 
 /**
- * Stub language detection - hardcoded to 'de' for now
+ * Stub language detection - returns DEFAULT_LANGUAGE for now
  */
-export const detectLanguage = (): Language => {
-  return 'de';
+export const detectLanguage = (text?: string): Language => {
+  return DEFAULT_LANGUAGE;
 };
 
 /**
  * Parse HTML to DocumentNode tree structure
  */
-export const parseHtmlToTree = (html: string, language: Language = 'de'): ContainerDocumentNode => {
+export const parseHtmlToTree = (html: string, language: Language = detectLanguage(html)): ContainerDocumentNode => {
   const cleanHtml = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
     ALLOWED_ATTR: ['href', 'target', 'type'],
@@ -396,7 +398,7 @@ export const parseHtmlToTree = (html: string, language: Language = 'de'): Contai
 /**
  * Parse HTML with Swiss legal document pattern detection to DocumentNode tree
  */
-export const parseHtmlLegalToTree = (html: string, language: Language = 'de'): ContainerDocumentNode => {
+export const parseHtmlLegalToTree = (html: string, language: Language = detectLanguage(html)): ContainerDocumentNode => {
   const cleanHtml = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
     ALLOWED_ATTR: ['href', 'target', 'type'],

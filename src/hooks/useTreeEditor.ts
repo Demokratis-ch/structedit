@@ -4,6 +4,7 @@ import type { FlattenedNode, NodePath } from '../types/editor';
 import { useTreeHistory } from './useTreeHistory';
 import { useTreeOperations } from './useTreeOperations';
 import { flattenForRendering } from '../utils/tree-utils';
+import { DEFAULT_LANGUAGE } from '../utils/document-utils';
 
 interface ClickModifiers {
   shiftKey: boolean;
@@ -13,7 +14,7 @@ interface ClickModifiers {
 
 export const useTreeEditor = (
   initialDocument: ContainerDocumentNode,
-  language: Language = 'de'
+  language: Language = DEFAULT_LANGUAGE
 ) => {
   // History management
   const {

@@ -71,6 +71,10 @@ describe('Document Utils', () => {
     it('returns de by default', () => {
       expect(detectLanguage()).toBe('de');
     });
+
+    it('returns de when given text', () => {
+      expect(detectLanguage('some text')).toBe('de');
+    });
   });
 
   describe('parseHtmlToTree', () => {
