@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
@@ -72,6 +72,26 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
   const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(null);
   const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
+
+  // Compute toolbar type for single selected node
+  const selectedNodeType = useMemo(() => {
+    if (selectedIds.size !== 1) return null;
+    const selectedId = Array.from(selectedIds)[0];
+    const flatNode = flattenedNodes.find(fn => fn.node.id === selectedId);
+    if (!flatNode) return null;
+
+    const nodeType = flatNode.node.type;
+    if (nodeType === 'heading') return 'heading';
+    if (nodeType === 'content') return 'p';
+    if (nodeType === 'list_item') {
+      // Check parent list style via the node's number format
+      const num = flatNode.node.number;
+      if (num === null || num === '•') return 'ul';
+      if (/^[a-z]\.?$/i.test(num)) return 'abc';
+      return 'ol';
+    }
+    return null;
+  }, [selectedIds, flattenedNodes]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedNodeId(id);
@@ -362,6 +382,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
           <FloatingToolbar
             selectedCount={selectedIds.size}
             isEditing={!!editingId}
+            selectedNodeType={selectedNodeType}
             onFormat={handleFormat}
             onUpdateType={handleBulkUpdateType}
             onDelete={deleteSelected}

@@ -16,6 +16,7 @@ type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc';
 interface FloatingToolbarProps {
   selectedCount: number;
   isEditing: boolean;
+  selectedNodeType?: ToolbarBlockType | null;
   onFormat: (format: 'bold' | 'italic') => void;
   onUpdateType: (type: ToolbarBlockType) => void;
   onDelete: () => void;
@@ -25,12 +26,20 @@ interface FloatingToolbarProps {
 export function FloatingToolbar({
   selectedCount,
   isEditing,
+  selectedNodeType,
   onFormat,
   onUpdateType,
   onDelete,
   onClearSelection
 }: FloatingToolbarProps) {
   if (selectedCount === 0 && !isEditing) return null;
+
+  const typeButtonClass = (type: ToolbarBlockType) =>
+    `p-2 rounded-lg transition-colors ${
+      selectedNodeType === type
+        ? 'bg-blue-600 text-white'
+        : 'hover:bg-gray-700'
+    }`;
 
   return (
     <div
@@ -52,20 +61,20 @@ export function FloatingToolbar({
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
 
-      <button onClick={() => onUpdateType('heading')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Heading">
+      <button onClick={() => onUpdateType('heading')} className={typeButtonClass('heading')} title="Heading">
         <Heading size={18} />
       </button>
-      <button onClick={() => onUpdateType('p')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Paragraph">
+      <button onClick={() => onUpdateType('p')} className={typeButtonClass('p')} title="Paragraph">
         <Type size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
-      <button onClick={() => onUpdateType('ul')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Bullet List (4)">
+      <button onClick={() => onUpdateType('ul')} className={typeButtonClass('ul')} title="Bullet List (4)">
         <List size={18} />
       </button>
-      <button onClick={() => onUpdateType('ol')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Ordered List (5)">
+      <button onClick={() => onUpdateType('ol')} className={typeButtonClass('ol')} title="Ordered List (5)">
         <ListOrdered size={18} />
       </button>
-      <button onClick={() => onUpdateType('abc')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Alpha List (6)">
+      <button onClick={() => onUpdateType('abc')} className={typeButtonClass('abc')} title="Alpha List (6)">
         <SortAsc size={18} />
       </button>
 
