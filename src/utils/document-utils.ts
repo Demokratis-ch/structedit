@@ -6,8 +6,8 @@ export const generateId = () => Math.random().toString(36).substring(2, 9);
 export const parseHtml = (html: string): Block[] => {
   // Sanitize before parsing
   const cleanHtml = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br', 'a'],
-    ALLOWED_ATTR: ['href', 'target', 'type', 'rowspan', 'colspan'], // explicitly no on* attributes
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'br', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'type'], // explicitly no on* attributes
   });
 
   const parser = new DOMParser();
@@ -80,27 +80,13 @@ export const parseHtml = (html: string): Block[] => {
         }
 
         // Block-level elements that cause a break
-        const isBlock = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'section', 'article', 'blockquote', 'header', 'footer', 'main', 'nav', 'table', 'thead', 'tbody', 'tr', 'td', 'th'].includes(childTag);
+        const isBlock = ['div', 'p', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'br', 'section', 'article', 'header', 'footer', 'main', 'nav'].includes(childTag);
         
         if (isBlock) {
           flush();
           
           if (childTag === 'br') {
              // just flush
-          } else if (childTag === 'table') {
-             const tableEl = child as HTMLElement;
-             const rows = Array.from(tableEl.querySelectorAll('tr'));
-             const tableData = rows.map(tr => 
-               Array.from(tr.querySelectorAll('td, th')).map(td => td.innerHTML.trim())
-             );
-             
-             blocks.push({
-               id: generateId(),
-               content: 'Table', // Placeholder content
-               type: 'table',
-               depth: Math.min(depth, 5),
-               tableData
-             });
           } else if (childTag === 'ul' || childTag === 'ol') {
              // For nested lists, we want to increment depth relative to current walking depth
              // But if it's a top-level list (depth 0), it stays 0 unless inside another li?
@@ -159,26 +145,6 @@ const LEGAL_PATTERNS = {
 };
 
 /**
- * Detects if a table is a "layout table" (single column, multi-row, used for document structure)
- * vs a "data table" (2+ columns, used for actual tabular data)
- */
-const isLayoutTable = (tableData: string[][]): boolean => {
-  if (tableData.length < 2) return false; // Single row is not a layout table
-  return tableData.every(row => row.length === 1);
-};
-
-/**
- * Explodes a layout table into individual blocks by parsing each cell's HTML
- */
-const explodeLayoutTable = (tableData: string[][]): Block[] => {
-  return tableData.flatMap(row => {
-    const cellHtml = row[0];
-    if (!cellHtml || !cellHtml.trim()) return []; // Skip empty cells
-    return parseHtml(cellHtml); // Recursive parse
-  });
-};
-
-/**
  * Detects if content matches Swiss legal heading patterns
  */
 export const detectLegalHeadingType = (content: string): 'h1' | 'h2' | 'h3' | null => {
@@ -210,46 +176,6 @@ export const detectLetteredItem = (content: string): boolean => {
 export const applyLegalPatterns = (blocks: Block[]): Block[] => {
   return blocks.flatMap(block => {
     let content = block.content;
-
-    // 0. Table Explosion (FIRST - before other processing)
-    if (block.type === 'table' && block.tableData) {
-        // Single-column layout table -> Explode and recursively process
-        if (isLayoutTable(block.tableData)) {
-            const explodedBlocks = explodeLayoutTable(block.tableData);
-            // Recursively apply legal patterns to exploded blocks
-            return applyLegalPatterns(explodedBlocks);
-        }
-        
-        // 2-column marker table -> Convert to list
-        if (block.tableData.length === 1) {
-            const row = block.tableData[0];
-            if (row.length === 2) {
-                const marker = row[0].replace(/&nbsp;/g, ' ').trim();
-                const cellContent = row[1];
-                
-                if (/^\d+\.$/.test(marker)) {
-                    return [{
-                        ...block,
-                        type: 'ol' as const,
-                        content: cellContent,
-                        tableData: undefined
-                    }];
-                }
-                
-                if (/^[a-z]\.$/.test(marker)) {
-                    return [{
-                        ...block,
-                        type: 'abc' as const,
-                        content: cellContent,
-                        tableData: undefined
-                    }];
-                }
-            }
-        }
-        
-        // Real data table - keep as is
-        return [block];
-    }
 
     // 1. Superscript Normalization: "<sup>1</sup> Text" -> "1 Text"
     if (content.includes('<sup>')) {
@@ -342,14 +268,7 @@ export const convertToXml = (blocks: Block[]): string => {
 export const convertToHtml = (blocks: Block[]): string => {
     const content = blocks.map(block => {
         const indent = block.depth * 20;
-        
-        if (block.type === 'table' && block.tableData) {
-            const rows = block.tableData.map(row => 
-                `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
-            ).join('');
-            return `<table data-id="${block.id}" style="margin-left: ${indent}px">${rows}</table>`;
-        }
-        
+
         if (block.type === 'abc') {
             return `<ol type="a" data-id="${block.id}" class="block-abc" style="margin-left: ${indent}px"><li>${block.content}</li></ol>`;
         }

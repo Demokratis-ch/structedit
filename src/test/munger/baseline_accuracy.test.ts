@@ -40,10 +40,6 @@ function blocksToMarkdown(blocks: Block[]): string {
     if (b.type === 'h2') prefix = '## ';
     if (b.type === 'h3') prefix = '### ';
     if (b.type === 'ul') prefix = '- ';
-    // Handle Table serialization for text comparison
-    if (b.type === 'table' && b.tableData) {
-        return b.tableData.map(row => row.join(' | ')).join('\n');
-    }
     // Simple text extraction
     return `${prefix}${b.content.replace(/<[^>]+>/g, '')}`;
   }).join('\n');
