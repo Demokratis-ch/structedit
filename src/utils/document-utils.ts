@@ -1,4 +1,5 @@
 import { Block, TreeNode } from '../types';
+import type { Language, ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode } from '../types/document';
 import DOMPurify from 'dompurify';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -262,4 +263,323 @@ export const downloadFile = (content: string, filename: string, mimeType: string
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+/**
+ * Stub language detection - hardcoded to 'de' for now
+ */
+export const detectLanguage = (): Language => {
+  return 'de';
+};
+
+/**
+ * Parse HTML to DocumentNode tree structure
+ */
+export const parseHtmlToTree = (html: string, language: Language = 'de'): ContainerDocumentNode => {
+  const cleanHtml = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'type'],
+  });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(cleanHtml, 'text/html');
+
+  const root: ContainerDocumentNode = {
+    id: generateId(),
+    number: null,
+    type: 'document',
+    children: [],
+  };
+
+  // Stack to track current parent at each heading level
+  // Index 0 = document root, 1 = h1-level, 2 = h2-level, etc.
+  const parentStack: (ContainerDocumentNode | HeadingDocumentNode)[] = [root];
+
+  const getCurrentParent = (): ContainerDocumentNode | HeadingDocumentNode => {
+    return parentStack[parentStack.length - 1];
+  };
+
+  const addChild = (node: DocumentNode) => {
+    getCurrentParent().children.push(node);
+  };
+
+  const getInnerHtml = (node: Node): string => {
+    if (node instanceof HTMLElement) {
+      let content = node.innerHTML.trim();
+      // Strip nested block tags but keep inline formatting
+      content = content.replace(/<\/?(div|p|h[1-6]|ul|ol|li)[^>]*>/gi, '');
+      return content;
+    }
+    return (node.textContent || '').replace(/[\s\n]+/g, ' ').trim();
+  };
+
+  const walkDom = (domNode: Node) => {
+    if (domNode.nodeType === Node.COMMENT_NODE) return;
+    if (domNode.nodeName === 'SCRIPT' || domNode.nodeName === 'STYLE') return;
+
+    const tagName = domNode.nodeName.toLowerCase();
+
+    // Heading elements - these define structure
+    if (/^h[1-6]$/.test(tagName)) {
+      const level = parseInt(tagName[1]); // 1-6
+      const content = getInnerHtml(domNode);
+
+      // Pop stack to appropriate level (heading level becomes index in stack)
+      while (parentStack.length > level) {
+        parentStack.pop();
+      }
+
+      const heading: HeadingDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'heading',
+        contents: { [language]: content },
+        children: [],
+      };
+
+      addChild(heading);
+      parentStack.push(heading);
+      return;
+    }
+
+    // Lists - create list container with list_item children
+    if (tagName === 'ul' || tagName === 'ol') {
+      const list: ContainerDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'list',
+        children: [],
+      };
+
+      addChild(list);
+
+      // Process list items
+      const items = Array.from(domNode.childNodes).filter(
+        n => n.nodeName.toLowerCase() === 'li'
+      );
+
+      items.forEach((li, index) => {
+        const listItem: LeafDocumentNode = {
+          id: generateId(),
+          number: tagName === 'ol' ? `${index + 1}.` : null,
+          type: 'list_item',
+          contents: { [language]: getInnerHtml(li) },
+        };
+        list.children.push(listItem);
+      });
+      return;
+    }
+
+    // Paragraphs and divs - create content nodes
+    if (tagName === 'p' || tagName === 'div') {
+      const content = getInnerHtml(domNode);
+      if (content) {
+        const contentNode: LeafDocumentNode = {
+          id: generateId(),
+          number: null,
+          type: 'content',
+          contents: { [language]: content },
+        };
+        addChild(contentNode);
+      }
+      return;
+    }
+
+    // For other elements, recurse into children
+    Array.from(domNode.childNodes).forEach(walkDom);
+  };
+
+  walkDom(doc.body);
+  return root;
+};
+
+/**
+ * Parse HTML with Swiss legal document pattern detection to DocumentNode tree
+ */
+export const parseHtmlLegalToTree = (html: string, language: Language = 'de'): ContainerDocumentNode => {
+  const cleanHtml = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
+    ALLOWED_ATTR: ['href', 'target', 'type'],
+  });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(cleanHtml, 'text/html');
+
+  const root: ContainerDocumentNode = {
+    id: generateId(),
+    number: null,
+    type: 'document',
+    children: [],
+  };
+
+  // Stack to track current parent - headings create nesting
+  const parentStack: (ContainerDocumentNode | HeadingDocumentNode)[] = [root];
+
+  // Track if we're accumulating lettered items for a list
+  let pendingListItems: { number: string; content: string }[] = [];
+
+  const getCurrentParent = (): ContainerDocumentNode | HeadingDocumentNode => {
+    return parentStack[parentStack.length - 1];
+  };
+
+  const addChild = (node: DocumentNode) => {
+    getCurrentParent().children.push(node);
+  };
+
+  const flushPendingList = () => {
+    if (pendingListItems.length > 0) {
+      const list: ContainerDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'list',
+        children: pendingListItems.map(item => ({
+          id: generateId(),
+          number: item.number,
+          type: 'list_item' as const,
+          contents: { [language]: item.content },
+        })),
+      };
+      addChild(list);
+      pendingListItems = [];
+    }
+  };
+
+  const getInnerHtml = (node: Node): string => {
+    if (node instanceof HTMLElement) {
+      let content = node.innerHTML.trim();
+      content = content.replace(/<\/?(div|p|h[1-6]|ul|ol|li)[^>]*>/gi, '');
+      return content;
+    }
+    return (node.textContent || '').replace(/[\s\n]+/g, ' ').trim();
+  };
+
+  const walkDom = (domNode: Node) => {
+    if (domNode.nodeType === Node.COMMENT_NODE) return;
+    if (domNode.nodeName === 'SCRIPT' || domNode.nodeName === 'STYLE') return;
+
+    const tagName = domNode.nodeName.toLowerCase();
+
+    // Heading elements
+    if (/^h[1-6]$/.test(tagName)) {
+      flushPendingList();
+      const level = parseInt(tagName[1]);
+      const content = getInnerHtml(domNode);
+
+      while (parentStack.length > level) {
+        parentStack.pop();
+      }
+
+      const heading: HeadingDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'heading',
+        contents: { [language]: content },
+        children: [],
+      };
+
+      addChild(heading);
+      parentStack.push(heading);
+      return;
+    }
+
+    // Lists
+    if (tagName === 'ul' || tagName === 'ol') {
+      flushPendingList();
+      const list: ContainerDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'list',
+        children: [],
+      };
+
+      addChild(list);
+
+      const items = Array.from(domNode.childNodes).filter(
+        n => n.nodeName.toLowerCase() === 'li'
+      );
+
+      items.forEach((li, index) => {
+        const listItem: LeafDocumentNode = {
+          id: generateId(),
+          number: tagName === 'ol' ? `${index + 1}.` : null,
+          type: 'list_item',
+          contents: { [language]: getInnerHtml(li) },
+        };
+        list.children.push(listItem);
+      });
+      return;
+    }
+
+    // Paragraphs - check for legal patterns
+    if (tagName === 'p' || tagName === 'div') {
+      const content = getInnerHtml(domNode);
+      if (!content) return;
+
+      const cleanText = content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+      // Check for lettered item (a., b., c.)
+      const letteredMatch = cleanText.match(/^([a-z])\.\s+(.*)$/);
+      if (letteredMatch) {
+        pendingListItems.push({
+          number: `${letteredMatch[1]}.`,
+          content: content.replace(/^[a-z]\.\s+/, ''),
+        });
+        return;
+      }
+
+      // If we have pending items but this isn't a lettered item, flush
+      flushPendingList();
+
+      // Check for roman numeral section (I., II., etc.)
+      if (LEGAL_PATTERNS.romanSection.test(cleanText)) {
+        // Pop to document level for major sections
+        while (parentStack.length > 1) {
+          parentStack.pop();
+        }
+
+        const heading: HeadingDocumentNode = {
+          id: generateId(),
+          number: null,
+          type: 'heading',
+          contents: { [language]: content },
+          children: [],
+        };
+        addChild(heading);
+        parentStack.push(heading);
+        return;
+      }
+
+      // Check for Article pattern (Art. X)
+      if (LEGAL_PATTERNS.article.test(cleanText)) {
+        // Articles nest under the current section
+        const heading: HeadingDocumentNode = {
+          id: generateId(),
+          number: null,
+          type: 'heading',
+          contents: { [language]: content },
+          children: [],
+        };
+        addChild(heading);
+        parentStack.push(heading);
+        return;
+      }
+
+      // Regular content
+      const contentNode: LeafDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'content',
+        contents: { [language]: content },
+      };
+      addChild(contentNode);
+      return;
+    }
+
+    // Recurse into other elements
+    Array.from(domNode.childNodes).forEach(walkDom);
+  };
+
+  walkDom(doc.body);
+  flushPendingList();
+  return root;
 };

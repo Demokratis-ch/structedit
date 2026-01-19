@@ -2,12 +2,12 @@ import React, { useState, useRef } from 'react';
 import { Upload, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { parseHtmlLegal, generateId } from '../utils/document-utils';
-import { Block } from '../types';
+import { parseHtmlLegalToTree, parseHtmlToTree, generateId } from '../utils/document-utils';
+import type { ContainerDocumentNode } from '../types/document';
 import * as mammoth from 'mammoth';
 
 interface DocumentFixerProps {
-  onConvert: (blocks: Block[], url: string | null, html?: string) => void;
+  onConvert: (doc: ContainerDocumentNode, url: string | null, html?: string) => void;
 }
 
 export function DocumentFixer({ onConvert }: DocumentFixerProps) {
@@ -55,11 +55,8 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
         const sourceUrl = URL.createObjectURL(blob);
 
         setText(html);
-        let newBlocks = parseHtmlLegal(html);
-        if (newBlocks.length === 0) {
-          newBlocks = [{ id: generateId(), content: 'No structured content found in DOCX.', type: 'p', depth: 0 }];
-        }
-        onConvert(newBlocks, sourceUrl, html); // Pass HTML for persistence
+        const doc = parseHtmlLegalToTree(html);
+        onConvert(doc, sourceUrl, html); // Pass HTML for persistence
         setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -104,12 +101,8 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
         const htmlContent = result.document.html_content;
         setText(htmlContent);
 
-        let newBlocks = parseHtmlLegal(htmlContent);
-        if (newBlocks.length === 0) {
-          newBlocks = [{ id: generateId(), content: 'No structured content found.', type: 'p', depth: 0 }];
-        }
-
-        onConvert(newBlocks, pdfUrl);
+        const doc = parseHtmlLegalToTree(htmlContent);
+        onConvert(doc, pdfUrl);
       } else {
         throw new Error('Invalid response format');
       }
@@ -123,32 +116,44 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
   };
 
   const handleConvert = () => {
-    let newBlocks: Block[] = [];
     const isHtml = /<(?=.*? .*?\/?>|br|hr|input|!--|!DOCTYPE)[a-z]+.*?>|<([a-z]+).*?<\/\1>/i.test(text);
 
+    let doc: ContainerDocumentNode;
     if (isHtml) {
       try {
-        newBlocks = parseHtmlLegal(text);
+        doc = parseHtmlLegalToTree(text);
       } catch (e) {
         console.error("Failed to parse HTML", e);
+        // Fallback: wrap plain text in simple document
+        doc = createPlainTextDocument(text);
       }
+    } else {
+      doc = createPlainTextDocument(text);
     }
 
-    if (newBlocks.length === 0) {
-      const lines = text.split('\n');
-      newBlocks = lines.map((line) => ({
-        id: generateId(),
-        content: line.trim(),
-        type: 'p' as const,
-        depth: 0,
-      })).filter(b => b.content.length > 0);
-    }
+    onConvert(doc, null);
+  };
 
-    if (newBlocks.length === 0) {
-      newBlocks.push({ id: generateId(), content: '', type: 'p', depth: 0 });
-    }
-
-    onConvert(newBlocks, null);
+  const createPlainTextDocument = (text: string): ContainerDocumentNode => {
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    return {
+      id: generateId(),
+      number: null,
+      type: 'document',
+      children: lines.length > 0
+        ? lines.map(line => ({
+            id: generateId(),
+            number: null,
+            type: 'content' as const,
+            contents: { de: line.trim() },
+          }))
+        : [{
+            id: generateId(),
+            number: null,
+            type: 'content' as const,
+            contents: { de: '' },
+          }],
+    };
   };
 
   return (

@@ -11,13 +11,14 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-import { BlockType } from '../types';
+
+type ToolbarBlockType = 'h1' | 'h2' | 'h3' | 'p' | 'ul' | 'ol' | 'abc';
 
 interface FloatingToolbarProps {
   selectedCount: number;
   isEditing: boolean;
   onFormat: (format: 'bold' | 'italic') => void;
-  onUpdateType: (type: BlockType) => void;
+  onUpdateType: (type: ToolbarBlockType) => void;
   onDelete: () => void;
   onClearSelection: () => void;
 }
