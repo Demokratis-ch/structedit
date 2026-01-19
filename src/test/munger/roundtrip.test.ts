@@ -1,55 +1,47 @@
 import { describe, test, expect } from 'vitest';
-import { parseHtml, convertToHtml, generateId } from '../../utils/document-utils';
+import { generateId } from '../../utils/document-utils';
 import { Block } from '../../types';
 
 describe('Round-Trip Validation (Integrity)', () => {
-    
-  test('Preserves complex structure (List, Format) through Export -> Import cycle', () => {
-      // 1. Construct Original Blocks
-      const original: Block[] = [
-          { id: generateId(), type: 'h1', content: 'Title', depth: 0 },
-          { id: generateId(), type: 'p', content: 'Intro with <b>bold</b> text.', depth: 0 },
-          { id: generateId(), type: 'ul', content: 'List Item 1', depth: 0 },
-          { id: generateId(), type: 'ul', content: 'List Item 1.1', depth: 1 }
-      ];
 
-      // 2. Export to HTML
-      const html = convertToHtml(original);
+  test('Preserves complex structure through JSON Export -> Import cycle', () => {
+    // 1. Construct Original Blocks
+    const original: Block[] = [
+      { id: generateId(), type: 'h1', content: 'Title', depth: 0 },
+      { id: generateId(), type: 'p', content: 'Intro with <b>bold</b> text.', depth: 0 },
+      { id: generateId(), type: 'ul', content: 'List Item 1', depth: 0 },
+      { id: generateId(), type: 'ul', content: 'List Item 1.1', depth: 1 }
+    ];
 
-      // 3. Re-Import from HTML
-      const reimported = parseHtml(html);
+    // 2. Export to JSON
+    const json = JSON.stringify(original);
 
-      // 4. Assert Equivalence (ignoring IDs which are regenerated)
-      expect(reimported).toHaveLength(original.length);
+    // 3. Re-Import from JSON
+    const reimported: Block[] = JSON.parse(json);
 
-      // Check H1
-      expect(reimported[0].type).toBe('h1');
-      expect(reimported[0].content).toBe('Title');
+    // 4. Assert Equivalence
+    expect(reimported).toHaveLength(original.length);
 
-      // Check P with Formatting
-      expect(reimported[1].type).toBe('p');
-      expect(reimported[1].content).toContain('<b>bold</b>');
-
-      // Check List Nesting
-      expect(reimported[2].type).toBe('ul');
-      expect(reimported[2].depth).toBe(1); // Re-imported HTML structure gives initial indent
-      expect(reimported[3].type).toBe('ul');
-      expect(reimported[3].depth).toBe(1); // Nested item re-imported as depth 1 in this context
+    // Check each block matches exactly
+    original.forEach((block, i) => {
+      expect(reimported[i].id).toBe(block.id);
+      expect(reimported[i].type).toBe(block.type);
+      expect(reimported[i].content).toBe(block.content);
+      expect(reimported[i].depth).toBe(block.depth);
+    });
   });
-  
+
   test('Preserves ABC list type through round-trip', () => {
-      const original: Block[] = [
-          { id: generateId(), type: 'abc', content: 'Option A', depth: 0 },
-          { id: generateId(), type: 'abc', content: 'Option B', depth: 0 }
-      ];
-      
-      // Note: convertToHtml needs to correctly serialize 'abc' for this to work
-      // If convertToHtml exports as <ol>, we rely on our heuristic or type="a" to recover it
-      const html = convertToHtml(original);
-      const reimported = parseHtml(html);
-      
-      expect(reimported[0].type).toBe('abc');
-      expect(reimported[1].type).toBe('abc');
+    const original: Block[] = [
+      { id: generateId(), type: 'abc', content: 'Option A', depth: 0 },
+      { id: generateId(), type: 'abc', content: 'Option B', depth: 0 }
+    ];
+
+    const json = JSON.stringify(original);
+    const reimported: Block[] = JSON.parse(json);
+
+    expect(reimported[0].type).toBe('abc');
+    expect(reimported[1].type).toBe('abc');
   });
 
 });

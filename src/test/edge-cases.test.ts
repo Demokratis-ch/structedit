@@ -3,7 +3,7 @@
  * Testing failure modes and boundary conditions
  */
 import { describe, it, expect } from 'vitest';
-import { parseHtml, convertToXml, convertToHtml, generateId } from '../utils/document-utils';
+import { parseHtml, generateId } from '../utils/document-utils';
 import { isValidBlock, sanitizeBlock, Block } from '../types';
 
 describe('Edge Cases (@safety-officer)', () => {
@@ -19,18 +19,6 @@ describe('Edge Cases (@safety-officer)', () => {
 
     it('parseHtml handles empty tags', () => {
       expect(parseHtml('<p></p><div></div>')).toEqual([]);
-    });
-
-    it('convertToXml handles empty array', () => {
-      const xml = convertToXml([]);
-      expect(xml).toContain('<document>');
-      expect(xml).toContain('</document>');
-    });
-
-    it('convertToHtml handles empty array', () => {
-      const html = convertToHtml([]);
-      expect(html).toContain('<!DOCTYPE html>');
-      expect(html).toContain('<body>');
     });
   });
 
@@ -61,18 +49,9 @@ describe('Edge Cases (@safety-officer)', () => {
       const longContent = 'a'.repeat(10000);
       const html = `<p>${longContent}</p>`;
       const blocks = parseHtml(html);
-      
+
       expect(blocks).toHaveLength(1);
       expect(blocks[0].content.length).toBe(10000);
-    });
-
-    it('convertToXml escapes long content correctly', () => {
-      const longContent = '<script>'.repeat(1000);
-      const blocks: Block[] = [{ id: 'x', content: longContent, type: 'p', depth: 0 }];
-      const xml = convertToXml(blocks);
-      
-      expect(xml).not.toContain('<script>');
-      expect(xml).toContain('&lt;script&gt;');
     });
   });
 
@@ -119,22 +98,15 @@ describe('Edge Cases (@safety-officer)', () => {
     it('parseHtml preserves HTML entities', () => {
       const html = '<p>&amp; &lt; &gt; &quot;</p>';
       const blocks = parseHtml(html);
-      
+
       expect(blocks).toHaveLength(1);
       expect(blocks[0].content).toContain('&');
-    });
-
-    it('convertToXml escapes ampersands', () => {
-      const blocks: Block[] = [{ id: 'x', content: 'A & B', type: 'p', depth: 0 }];
-      const xml = convertToXml(blocks);
-      
-      expect(xml).toContain('&amp;');
     });
 
     it('handles unicode content', () => {
       const html = '<p>日本語 🎉 Ñoño</p>';
       const blocks = parseHtml(html);
-      
+
       expect(blocks[0].content).toContain('日本語');
       expect(blocks[0].content).toContain('🎉');
     });

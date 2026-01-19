@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { useEditor } from '../hooks/useEditor';
 import { Block } from '../types';
-import { convertToXml, convertToHtml, downloadFile } from '../utils/document-utils';
+import { downloadFile } from '../utils/document-utils';
 import { Toolbar } from './Toolbar';
 import { FloatingToolbar } from './FloatingToolbar';
 import { SourcePreview } from './SourcePreview';
@@ -12,7 +12,7 @@ interface EditorProps {
   initialBlocks: Block[];
   pdfUrl: string | null;
   onBack: () => void;
-  onDownload?: (format: 'json' | 'xml' | 'html') => void;
+  onDownload?: () => void;
 }
 interface EnrichedBlock extends Block {
   level: number;
@@ -187,9 +187,8 @@ export function Editor({ initialBlocks, pdfUrl, onBack, onDownload }: EditorProp
     }
   };
 
-  const handleDownload = (format: 'xml' | 'html' | 'json') => {
-    const configs = { xml: { c: convertToXml(blocks), m: 'application/xml', e: 'xml' }, html: { c: convertToHtml(blocks), m: 'text/html', e: 'html' }, json: { c: JSON.stringify(blocks, null, 2), m: 'application/json', e: 'json' } };
-    downloadFile(configs[format].c, `document.${configs[format].e}`, configs[format].m);
+  const handleDownload = () => {
+    downloadFile(JSON.stringify(blocks, null, 2), 'document.json', 'application/json');
   };
 
   return (

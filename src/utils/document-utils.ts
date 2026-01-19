@@ -252,43 +252,6 @@ export const parseHtmlLegal = (html: string): Block[] => {
 };
 
 
-export const convertToXml = (blocks: Block[]): string => {
-    const escape = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<document>\n';
-    blocks.forEach(block => {
-        xml += `  <block id="${block.id}" type="${block.type}" depth="${block.depth}">\n`;
-        xml += `    <content>${escape(block.content)}</content>\n`;
-        xml += `  </block>\n`;
-    });
-    xml += '</document>';
-    return xml;
-};
-
-export const convertToHtml = (blocks: Block[]): string => {
-    const content = blocks.map(block => {
-        const indent = block.depth * 20;
-
-        if (block.type === 'abc') {
-            return `<ol type="a" data-id="${block.id}" class="block-abc" style="margin-left: ${indent}px"><li>${block.content}</li></ol>`;
-        }
-
-        const tag = ['h1', 'h2', 'h3', 'p'].includes(block.type) ? block.type : 'div';
-        if (block.type === 'ul') return `<ul data-id="${block.id}" style="margin-left: ${indent}px"><li>${block.content}</li></ul>`;
-        if (block.type === 'ol') return `<ol data-id="${block.id}" style="margin-left: ${indent}px"><li>${block.content}</li></ol>`;
-
-        return `<${tag} data-id="${block.id}" class="block-${block.type}" style="margin-left: ${indent}px">${block.content}</${tag}>`;
-    }).join('\n');
-    
-    return `<!DOCTYPE html>
-<html>
-<head><title>Exported Document</title></head>
-<body>
-${content}
-</body>
-</html>`;
-};
-
 export const downloadFile = (content: string, filename: string, mimeType: string) => {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
