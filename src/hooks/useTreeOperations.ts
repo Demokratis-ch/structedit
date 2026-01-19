@@ -222,6 +222,231 @@ export const useTreeOperations = ({
     commit(newDoc);
   }, [document, nodeIndex, commit]);
 
+  /**
+   * List numbering styles.
+   */
+  type ListStyle = 'unordered' | 'numbered' | 'lettered';
+
+  /**
+   * Get the number string for a list item based on style and index.
+   */
+  const getNumberForStyle = (style: ListStyle, index: number): string | null => {
+    switch (style) {
+      case 'unordered': return null;
+      case 'numbered': return `${index + 1}.`;
+      case 'lettered': return `${String.fromCharCode(97 + index)}.`;
+    }
+  };
+
+  /**
+   * Check if a node has contents (is leaf or heading, not container).
+   */
+  const hasContents = (node: DocumentNode): node is LeafDocumentNode | HeadingDocumentNode => {
+    return 'contents' in node;
+  };
+
+  /**
+   * Change the type of a node.
+   * Handles conversions between heading, content, and list_item.
+   *
+   * @param id - Node ID to convert
+   * @param targetType - 'heading' | 'content' | 'list'
+   * @param listStyle - For lists: 'unordered' | 'numbered' | 'lettered'
+   */
+  const changeNodeType = useCallback((
+    id: string,
+    targetType: 'heading' | 'content' | 'list',
+    listStyle?: ListStyle
+  ) => {
+    const path = nodeIndex.get(id);
+    if (!path || path.length === 0) return; // Can't change root
+
+    const node = getNodeAtPath(document, path);
+    if (!node) return;
+
+    // Get parent info
+    const parentPath = path.slice(0, -1);
+    const nodeIndexInParent = path[path.length - 1];
+    const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
+    if (!parent || !('children' in parent)) return;
+
+    // Handle list_item specially - it requires extraction from list
+    if (node.type === 'list_item') {
+      if (targetType === 'list') {
+        // Just change list style
+        changeListStyle(path, listStyle || 'numbered');
+        return;
+      }
+      // Extract from list and convert
+      extractAndConvertListItem(path, node as LeafDocumentNode, targetType);
+      return;
+    }
+
+    // Can only convert nodes with contents
+    if (!hasContents(node)) return;
+
+    // Handle conversion to heading
+    if (targetType === 'heading') {
+      if (node.type === 'heading') return; // Already a heading
+
+      // content -> heading: add empty children
+      const newNode: HeadingDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'heading',
+        contents: node.contents,
+        children: [],
+      };
+
+      const newDoc = updateNodeAtPath(document, path, () => newNode);
+      commit(newDoc);
+      return;
+    }
+
+    // Handle conversion to content
+    if (targetType === 'content') {
+      if (node.type === 'content') return; // Already content
+
+      // heading -> content: lift children as siblings
+      const headingNode = node as HeadingDocumentNode;
+      const children = headingNode.children;
+
+      // Create content node (without children property)
+      const contentNode: LeafDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'content',
+        contents: node.contents,
+      };
+
+      // Replace heading with content
+      let newDoc = updateNodeAtPath(document, path, () => contentNode);
+
+      // Insert former children after the converted node
+      for (let i = 0; i < children.length; i++) {
+        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, children[i]);
+      }
+
+      commit(newDoc);
+      return;
+    }
+
+    // Handle conversion to list
+    if (targetType === 'list') {
+      const style = listStyle || 'numbered';
+
+      // Create list item from the node
+      const listItem: LeafDocumentNode = {
+        id: node.id,
+        number: getNumberForStyle(style, 0),
+        type: 'list_item',
+        contents: node.contents,
+      };
+
+      // Create list container
+      const list: ContainerDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'list',
+        children: [listItem],
+      };
+
+      // Replace node with list
+      let newDoc = updateNodeAtPath(document, path, () => list);
+
+      // If it was a heading, lift its children after the new list
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, headingChildren[i]);
+        }
+      }
+
+      commit(newDoc);
+      return;
+    }
+  }, [document, nodeIndex, commit]);
+
+  /**
+   * Change the numbering style of a list (affects all items).
+   */
+  const changeListStyle = useCallback((itemPath: NodePath, style: ListStyle) => {
+    const parentPath = itemPath.slice(0, -1);
+    const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
+
+    if (!parent || parent.type !== 'list') return;
+
+    // Update all items' numbers
+    const listNode = parent as ContainerDocumentNode;
+    const newChildren = listNode.children.map((child, i) => ({
+      ...child,
+      number: getNumberForStyle(style, i),
+    }));
+
+    const newDoc = updateNodeAtPath(document, parentPath, () => ({
+      ...parent,
+      children: newChildren,
+    }));
+
+    commit(newDoc);
+  }, [document, commit]);
+
+  /**
+   * Extract a list_item from its list and convert to heading or content.
+   */
+  const extractAndConvertListItem = useCallback((
+    itemPath: NodePath,
+    item: LeafDocumentNode,
+    targetType: 'heading' | 'content'
+  ) => {
+    const listPath = itemPath.slice(0, -1);
+    const itemIndexInList = itemPath[itemPath.length - 1];
+    const list = getNodeAtPath(document, listPath) as ContainerDocumentNode;
+
+    if (!list || list.type !== 'list') return;
+
+    // Create the converted node
+    const convertedNode: DocumentNode = targetType === 'heading'
+      ? {
+          id: item.id,
+          number: null,
+          type: 'heading',
+          contents: item.contents,
+          children: [],
+        } as HeadingDocumentNode
+      : {
+          id: item.id,
+          number: null,
+          type: 'content',
+          contents: item.contents,
+        } as LeafDocumentNode;
+
+    // Get parent of list info
+    const listParentPath = listPath.slice(0, -1);
+    const listIndexInParent = listPath[listPath.length - 1];
+
+    if (list.children.length === 1) {
+      // Only item in list - replace entire list with converted node
+      const newDoc = updateNodeAtPath(document, listPath, () => convertedNode);
+      commit(newDoc);
+    } else {
+      // Multiple items - remove from list, insert converted node
+      // Remove the item from the list
+      let newDoc = removeNodeAtPath(document, itemPath);
+
+      // Determine where to insert the converted node
+      // If it was the first item, insert before the list
+      // Otherwise, insert after the list
+      if (itemIndexInList === 0) {
+        newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent, convertedNode);
+      } else {
+        newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent + 1, convertedNode);
+      }
+
+      commit(newDoc);
+    }
+  }, [document, commit]);
+
   return {
     addNodeAfter,
     removeNode,
@@ -229,5 +454,6 @@ export const useTreeOperations = ({
     updateNodeNumber,
     indentNode,
     outdentNode,
+    changeNodeType,
   };
 };

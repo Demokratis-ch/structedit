@@ -446,4 +446,687 @@ describe('useTreeOperations', () => {
       expect(list1.children.some(c => c.id === 'li2')).toBe(true);
     });
   });
+
+  describe('changeNodeType', () => {
+    describe('content -> heading', () => {
+      test('converts content to heading with empty children', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Some text' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'heading');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as HeadingDocumentNode;
+
+        expect(converted.type).toBe('heading');
+        expect(converted.children).toEqual([]);
+        expect(converted.contents.de).toBe('Some text');
+      });
+
+      test('preserves id, number, and contents', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'Art. 1',
+              type: 'content',
+              contents: { de: 'German text', en: 'English text' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'heading');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as HeadingDocumentNode;
+
+        expect(converted.id).toBe('p1');
+        expect(converted.number).toBe('Art. 1');
+        expect(converted.contents.de).toBe('German text');
+        expect(converted.contents.en).toBe('English text');
+      });
+
+      test('does nothing when already a heading', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: null,
+              type: 'heading',
+              contents: { de: 'Already heading' },
+              children: [],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'heading');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('heading -> content', () => {
+      test('converts heading without children to content', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Heading text' },
+              children: [],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'content');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as LeafDocumentNode;
+
+        expect(converted.type).toBe('content');
+        expect(converted.id).toBe('h1');
+        expect(converted.number).toBe('1');
+        expect(converted.contents.de).toBe('Heading text');
+        expect('children' in converted).toBe(false);
+      });
+
+      test('lifts children as siblings after converted node', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Heading' },
+              children: [
+                {
+                  id: 'p1',
+                  number: null,
+                  type: 'content',
+                  contents: { de: 'Child 1' },
+                },
+                {
+                  id: 'p2',
+                  number: null,
+                  type: 'content',
+                  contents: { de: 'Child 2' },
+                },
+              ],
+            },
+            {
+              id: 'h2',
+              number: '2',
+              type: 'heading',
+              contents: { de: 'Second heading' },
+              children: [],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have 4 children: converted h1, p1, p2, h2
+        expect(newDoc.children.length).toBe(4);
+        expect(newDoc.children[0].id).toBe('h1');
+        expect(newDoc.children[0].type).toBe('content');
+        expect(newDoc.children[1].id).toBe('p1');
+        expect(newDoc.children[2].id).toBe('p2');
+        expect(newDoc.children[3].id).toBe('h2');
+      });
+
+      test('does nothing when already content', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Already content' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'content');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('content -> list', () => {
+      test('wraps content in list with single list_item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Item text' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have a list at root level
+        expect(newDoc.children.length).toBe(1);
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        expect(list.type).toBe('list');
+
+        // List should contain one list_item with same content
+        expect(list.children.length).toBe(1);
+        const item = list.children[0] as LeafDocumentNode;
+        expect(item.type).toBe('list_item');
+        expect(item.id).toBe('p1');
+        expect(item.contents.de).toBe('Item text');
+      });
+
+      test('sets correct number for numbered list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Item' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as LeafDocumentNode;
+        expect(item.number).toBe('1.');
+      });
+
+      test('sets correct number for lettered list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Item' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'lettered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as LeafDocumentNode;
+        expect(item.number).toBe('a.');
+      });
+
+      test('sets null number for unordered list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Item' },
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'list', 'unordered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as LeafDocumentNode;
+        expect(item.number).toBeNull();
+      });
+    });
+
+    describe('heading -> list', () => {
+      test('wraps heading in list, lifts children after list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Heading' },
+              children: [
+                {
+                  id: 'p1',
+                  number: null,
+                  type: 'content',
+                  contents: { de: 'Child content' },
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have 2 children: the new list and the lifted p1
+        expect(newDoc.children.length).toBe(2);
+
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        expect(list.type).toBe('list');
+        expect(list.children.length).toBe(1);
+
+        const item = list.children[0] as LeafDocumentNode;
+        expect(item.id).toBe('h1');
+        expect(item.type).toBe('list_item');
+
+        // Lifted child
+        expect(newDoc.children[1].id).toBe('p1');
+      });
+    });
+
+    describe('list_item -> content', () => {
+      test('replaces entire list when only item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  contents: { de: 'Only item' },
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // List should be replaced with content node
+        expect(newDoc.children.length).toBe(1);
+        const converted = newDoc.children[0] as LeafDocumentNode;
+        expect(converted.type).toBe('content');
+        expect(converted.id).toBe('li1');
+        expect(converted.contents.de).toBe('Only item');
+      });
+
+      test('extracts item and inserts after list when multiple items', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  contents: { de: 'First' },
+                },
+                {
+                  id: 'li2',
+                  number: '2.',
+                  type: 'list_item',
+                  contents: { de: 'Second' },
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li2', 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have list and extracted content
+        expect(newDoc.children.length).toBe(2);
+
+        // List should still exist with one item
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        expect(list.type).toBe('list');
+        expect(list.children.length).toBe(1);
+        expect(list.children[0].id).toBe('li1');
+
+        // Converted item should be after the list
+        const converted = newDoc.children[1] as LeafDocumentNode;
+        expect(converted.type).toBe('content');
+        expect(converted.id).toBe('li2');
+      });
+    });
+
+    describe('list_item -> heading', () => {
+      test('replaces entire list when only item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  contents: { de: 'Only item' },
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'heading');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(1);
+        const converted = newDoc.children[0] as HeadingDocumentNode;
+        expect(converted.type).toBe('heading');
+        expect(converted.id).toBe('li1');
+        expect(converted.children).toEqual([]);
+      });
+
+      test('extracts item and inserts after list when multiple items', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  contents: { de: 'First' },
+                },
+                {
+                  id: 'li2',
+                  number: '2.',
+                  type: 'list_item',
+                  contents: { de: 'Second' },
+                },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'heading');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(2);
+
+        // Converted heading should be first (since li1 was first item)
+        const converted = newDoc.children[0] as HeadingDocumentNode;
+        expect(converted.type).toBe('heading');
+        expect(converted.id).toBe('li1');
+
+        // List with remaining item should follow
+        const list = newDoc.children[1] as ContainerDocumentNode;
+        expect(list.type).toBe('list');
+        expect(list.children.length).toBe(1);
+        expect(list.children[0].id).toBe('li2');
+      });
+    });
+
+    describe('list style change', () => {
+      test('ul -> ol updates all item numbers to 1., 2., 3.', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: null, type: 'list_item', contents: { de: 'A' } },
+                { id: 'li2', number: null, type: 'list_item', contents: { de: 'B' } },
+                { id: 'li3', number: null, type: 'list_item', contents: { de: 'C' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li2', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
+        expect((list.children[0] as LeafDocumentNode).number).toBe('1.');
+        expect((list.children[1] as LeafDocumentNode).number).toBe('2.');
+        expect((list.children[2] as LeafDocumentNode).number).toBe('3.');
+      });
+
+      test('ol -> abc updates all item numbers to a., b., c.', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'A' } },
+                { id: 'li2', number: '2.', type: 'list_item', contents: { de: 'B' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'list', 'lettered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
+        expect((list.children[0] as LeafDocumentNode).number).toBe('a.');
+        expect((list.children[1] as LeafDocumentNode).number).toBe('b.');
+      });
+
+      test('ol -> ul sets all item numbers to null', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'A' } },
+                { id: 'li2', number: '2.', type: 'list_item', contents: { de: 'B' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'list', 'unordered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
+        expect((list.children[0] as LeafDocumentNode).number).toBeNull();
+        expect((list.children[1] as LeafDocumentNode).number).toBeNull();
+      });
+    });
+
+    describe('edge cases', () => {
+      test('cannot convert document root', () => {
+        const { result } = renderTreeOperations();
+
+        act(() => {
+          result.current.changeNodeType('root', 'content');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('cannot convert container nodes (list)', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item' } },
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'content');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
+  });
 });

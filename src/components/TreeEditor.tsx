@@ -54,6 +54,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     addNodeAfter,
     removeNode,
     updateNodeContents,
+    changeNodeType,
     indentSelected,
     outdentSelected,
     deleteSelected,
@@ -229,10 +230,42 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     }
   };
 
-  const handleBulkUpdateType = (type: string) => {
-    // Type changes are more complex with tree structure
-    // For now, this is a no-op since we don't have simple type changes
-    console.log('Type change requested:', type);
+  const handleBulkUpdateType = (toolbarType: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    // Map toolbar type to target type and list style
+    type ListStyle = 'unordered' | 'numbered' | 'lettered';
+    let targetType: 'heading' | 'content' | 'list';
+    let listStyle: ListStyle | undefined;
+
+    switch (toolbarType) {
+      case 'heading':
+        targetType = 'heading';
+        break;
+      case 'p':
+        targetType = 'content';
+        break;
+      case 'ul':
+        targetType = 'list';
+        listStyle = 'unordered';
+        break;
+      case 'ol':
+        targetType = 'list';
+        listStyle = 'numbered';
+        break;
+      case 'abc':
+        targetType = 'list';
+        listStyle = 'lettered';
+        break;
+      default:
+        return;
+    }
+
+    // Apply type change to each selected node
+    ids.forEach(id => {
+      changeNodeType(id, targetType, listStyle);
+    });
   };
 
   const handleDownload = () => {

@@ -2,8 +2,7 @@ import React from 'react';
 import {
   Bold,
   Italic,
-  Heading1,
-  Heading2,
+  Heading,
   Type,
   List,
   ListOrdered,
@@ -12,7 +11,7 @@ import {
   X
 } from 'lucide-react';
 
-type ToolbarBlockType = 'h1' | 'h2' | 'h3' | 'p' | 'ul' | 'ol' | 'abc';
+type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc';
 
 interface FloatingToolbarProps {
   selectedCount: number;
@@ -53,13 +52,10 @@ export function FloatingToolbar({
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
 
-      <button onClick={() => onUpdateType('h1')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Heading 1 (1)">
-        <Heading1 size={18} />
+      <button onClick={() => onUpdateType('heading')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Heading">
+        <Heading size={18} />
       </button>
-      <button onClick={() => onUpdateType('h2')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Heading 2 (2)">
-        <Heading2 size={18} />
-      </button>
-      <button onClick={() => onUpdateType('p')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Paragraph (3)">
+      <button onClick={() => onUpdateType('p')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Paragraph">
         <Type size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
