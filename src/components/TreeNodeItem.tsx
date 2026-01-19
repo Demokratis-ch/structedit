@@ -167,6 +167,18 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
         <div className={`absolute left-0 right-0 h-0.5 bg-blue-600 z-20 shadow-sm ${dropPosition === 'top' ? '-top-[1px]' : '-bottom-[1px]'}`} />
       )}
 
+      {/* Node type indicator - visible on hover or selection */}
+      <span
+        className={`
+          absolute top-1.5 text-xs text-gray-400 select-none z-10
+          transition-opacity duration-150
+          ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}
+        `}
+        style={{ left: `${indentPixels - 90}px`, width: '50px', textAlign: 'right' }}
+      >
+        {node.type}
+      </span>
+
       {/* Drag handle */}
       <div
         className={`absolute top-1.5 flex items-center justify-end pr-1 select-none z-10 ${isSelected || hoveredHandleId === node.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
@@ -194,21 +206,25 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
           </div>
         )}
 
-        <ContentBlock
-          blockRefs={blockRefs}
-          blockId={node.id}
-          html={content}
-          disabled={!isEditing}
-          tagName={getTagName()}
-          onChange={(val) => onUpdateContent(node.id, val)}
-          onKeyDown={(e) => onKeyDown(e, node.id)}
-          onFocus={() => onFocus(node.id)}
-          className={`
-            w-full outline-none break-words relative z-10 min-h-[28px]
-            ${getNodeStyle()}
-            ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}
-          `}
-        />
+        {node.type === 'list' ? (
+          <span className="text-gray-400 select-none">(list)</span>
+        ) : (
+          <ContentBlock
+            blockRefs={blockRefs}
+            blockId={node.id}
+            html={content}
+            disabled={!isEditing}
+            tagName={getTagName()}
+            onChange={(val) => onUpdateContent(node.id, val)}
+            onKeyDown={(e) => onKeyDown(e, node.id)}
+            onFocus={() => onFocus(node.id)}
+            className={`
+              w-full outline-none break-words relative z-10 min-h-[28px]
+              ${getNodeStyle()}
+              ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}
+            `}
+          />
+        )}
       </div>
     </div>
   );
