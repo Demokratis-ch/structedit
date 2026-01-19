@@ -1,5 +1,11 @@
 /**
- * Container nodes have child nodes but no content (text) of their own.
+ * ================================ Document tree types ================================
+ */
+
+export type Language = 'en' | 'de' | 'fr' | 'it' | 'rm';
+
+/**
+ * Container-only nodes have children but no content of their own.
  */
 export type ContainerDocumentNodeType =
   | 'document'  // Tree root
@@ -7,44 +13,46 @@ export type ContainerDocumentNodeType =
   | 'footnote';  // Container for footnote content
 
 export interface ContainerDocumentNode {
-  // Arbitrary but unique identifier for the node.
   id: string;
-  // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
   number: string | null;
   type: ContainerDocumentNodeType;
   children: DocumentNode[];
 }
 
-
 /**
- * Leaf nodes must contain content (text) but cannot have child nodes.
+ * Leaf-only nodes have content but no children.
  */
-
 export type LeafDocumentNodeType =
-  | 'heading'
   | 'content'  // Paragraph or general text content
-  | 'list_item'  // Can be child of ordered_list or unordered_list
+  | 'list_item'
   | 'image';
 
-export interface NodeContentItem {
-  language: 'en' | 'de' | 'fr' | 'it' | 'rm';
-  text: string;
-}
-
 export interface LeafDocumentNode {
-  // Arbitrary but unique identifier for the node.
   id: string;
-  // Label of the node, e.g. '1.2' or '1bis' or 'a)' etc. Usually applies to headings, list items, or footnotes.
   number: string | null;
   type: LeafDocumentNodeType;
-  content: NodeContentItem[];
+  contents: Partial<{[K in Language]: string}>;
 }
 
-export type DocumentNode = ContainerDocumentNode | LeafDocumentNode;
+/**
+ * Heading nodes have both content and children because they define the tree structure.
+ */
+export interface HeadingDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'heading';
+  contents: Partial<{[K in Language]: string}>;
+  children: DocumentNode[];
+}
+
+export type DocumentNode = ContainerDocumentNode | LeafDocumentNode | HeadingDocumentNode;
 
 
-/*
-const exampleDocument: DocumentNode = {
+/**
+ * ================================ Example ================================
+ */
+
+export const exampleDocument: ContainerDocumentNode = {
   id: '001',
   number: null,
   type: 'document',
@@ -53,41 +61,24 @@ const exampleDocument: DocumentNode = {
       id: '002',
       number: '1',
       type: 'heading',
-      content: [
-        {
-          language: 'en',
-          text: 'Introduction'
-        }
-      ]
-    },
-    {
-      id: '003',
-      number: null,
-      type: 'content',
-      content: [
-        {
-          language: 'en',
-          text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-        }
-      ]
-    },
-    {
-      id: '004',
-      number: 'i.',
-      type: 'footnote',
+      contents: {'en': 'Introduction'},
       children: [
         {
-          id: '005',
+          id: '003',
           number: null,
           type: 'content',
-          content: [
+          contents: {'en': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'},
+        },
+        {
+          id: '004',
+          number: 'i.',
+          type: 'footnote',
+          children: [
             {
-              language: 'en',
-              text: 'This is a footnote.'
-            },
-            {
-              language: 'de',
-              text: 'Dies ist eine Fussnote.'
+              id: '005',
+              number: null,
+              type: 'content',
+              contents: {'en': 'This is a footnote.', 'de': 'Dies ist eine Fussnote.'},
             }
           ]
         }
@@ -95,4 +86,72 @@ const exampleDocument: DocumentNode = {
     }
   ]
 };
-*/
+
+
+/**
+ * ================================ Validation ================================
+ */
+
+const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
+const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'footnote'];
+const LEAF_TYPES: LeafDocumentNodeType[] = ['content', 'list_item', 'image'];
+
+type ParentType = ContainerDocumentNodeType | 'heading' | null;
+
+const isValidContents = (contents: unknown): contents is Partial<{[K in Language]: string}> => {
+  if (typeof contents !== 'object' || contents === null) return false;
+  const c = contents as Record<string, unknown>;
+  return Object.keys(c).every(
+    key => VALID_LANGUAGES.includes(key as Language) && typeof c[key] === 'string'
+  );
+};
+
+const isValidNodeInternal = (obj: unknown, parentType: ParentType, seenIds: Set<string>): boolean => {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const node = obj as Record<string, unknown>;
+
+  // Check common fields
+  if (typeof node.id !== 'string') return false;
+  if (node.number !== null && typeof node.number !== 'string') return false;
+  if (typeof node.type !== 'string') return false;
+
+  // Check for duplicate ids
+  if (seenIds.has(node.id)) return false;
+  seenIds.add(node.id);
+
+  const type = node.type;
+
+  // list_item can only be a child of list
+  if (type === 'list_item' && parentType !== 'list') return false;
+
+  // Container nodes
+  if (CONTAINER_TYPES.includes(type as ContainerDocumentNodeType)) {
+    if (!Array.isArray(node.children)) return false;
+    if ('contents' in node) return false;
+    return node.children.every(child => isValidNodeInternal(child, type as ContainerDocumentNodeType, seenIds));
+  }
+
+  // Leaf nodes
+  if (LEAF_TYPES.includes(type as LeafDocumentNodeType)) {
+    if (!isValidContents(node.contents)) return false;
+    if ('children' in node) return false;
+    return true;
+  }
+
+  // Heading nodes
+  if (type === 'heading') {
+    if (!isValidContents(node.contents)) return false;
+    if (!Array.isArray(node.children)) return false;
+    return node.children.every(child => isValidNodeInternal(child, 'heading', seenIds));
+  }
+
+  return false;
+};
+
+export const isValidNode = (obj: unknown): obj is DocumentNode => {
+  return isValidNodeInternal(obj, null, new Set());
+}
+
+export const isValidDocument = (obj: unknown): obj is DocumentNode => {
+  return (obj as any)?.type === 'document' && isValidNodeInternal(obj, null, new Set());
+}
