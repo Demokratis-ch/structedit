@@ -430,6 +430,73 @@ describe('useTreeOperations', () => {
       // li2 should now be in list1, after the nested-list
       expect(list1.children.some(c => c.id === 'li2')).toBe(true);
     });
+
+    test('does nothing when outdenting list_item would place it outside any list', () => {
+      // document -> list -> list_item
+      // Outdenting list_item would make it a child of document, which is invalid
+      const docWithTopLevelList: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              createListItem('li1', '1.', 'Item 1'),
+              createListItem('li2', '2.', 'Item 2'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(docWithTopLevelList);
+
+      act(() => {
+        result.current.outdentNode('li1');
+      });
+
+      // Should NOT have called commit because the operation is invalid
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when outdenting list_item in list under heading would violate rules', () => {
+      // document -> heading -> list -> list_item
+      // Outdenting list_item would make it a child of heading, which is invalid
+      const docWithListUnderHeading: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h1',
+            number: '1',
+            type: 'heading',
+            contents: { de: 'Title' },
+            children: [
+              {
+                id: 'list1',
+                number: null,
+                type: 'list',
+                children: [
+                  createListItem('li1', '1.', 'Item 1'),
+                ],
+              },
+            ],
+          } as HeadingDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(docWithListUnderHeading);
+
+      act(() => {
+        result.current.outdentNode('li1');
+      });
+
+      // Should NOT have called commit because list_item cannot be child of heading
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
   });
 
   describe('indentNode footnote into content', () => {

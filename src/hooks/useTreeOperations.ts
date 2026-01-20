@@ -193,24 +193,31 @@ export const useTreeOperations = ({
     // Parent must be a heading, list, or content to outdent from
     if (parent.type !== 'heading' && parent.type !== 'list' && parent.type !== 'content') return;
 
-    // Special case: if parent is list and node is list_item in a nested list
+    // Special case: if parent is list and node is list_item
     if (parent.type === 'list' && node.type === 'list_item') {
-      // Need to find grandparent list and insert there
+      // Need to find grandparent and check if list_item can be its child
       const grandparentPath = parentPath.slice(0, -1);
-      const parentIndex = parentPath[parentPath.length - 1];
+      const parentIndexInGrandparent = parentPath[parentPath.length - 1];
       const grandparent = grandparentPath.length === 0
         ? document
         : getNodeAtPath(document, grandparentPath);
 
-      if (grandparent && 'children' in grandparent && grandparent.type === 'list') {
-        // Remove from nested list
-        let newDoc = removeNodeAtPath(document, path);
+      if (!grandparent || !('children' in grandparent)) return;
 
-        // Insert into grandparent list after the nested list
-        newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndex + 1, node);
-        commit(newDoc);
+      // Validate that list_item can be a child of grandparent
+      // list_item can only be a child of list
+      if (!canBeChildOf(node.type, grandparent.type as ParentType)) {
+        // Cannot outdent - would create invalid parent-child relationship
         return;
       }
+
+      // Remove from nested list
+      let newDoc = removeNodeAtPath(document, path);
+
+      // Insert into grandparent list after the nested list
+      newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
+      commit(newDoc);
+      return;
     }
 
     // Standard case: move node to be sibling of parent
