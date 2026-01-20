@@ -1,5 +1,5 @@
+import { Download, Eye, X } from 'lucide-react';
 import React from 'react';
-import { Download, X, Eye } from 'lucide-react';
 
 interface SourcePreviewProps {
   url: string; // Generic URL (blob or remote)

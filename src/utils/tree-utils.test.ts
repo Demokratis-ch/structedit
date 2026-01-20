@@ -1,20 +1,20 @@
-import { describe, test, expect } from 'vitest';
-import {
-  getNodeAtPath,
-  updateNodeAtPath,
-  insertNodeAtPath,
-  removeNodeAtPath,
-  moveNode,
-  buildIndices,
-  flattenForRendering,
-  mergeAdjacentLists,
-} from './tree-utils';
+import { describe, expect, test } from 'vitest';
 import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
+import {
+  buildIndices,
+  flattenForRendering,
+  getNodeAtPath,
+  insertNodeAtPath,
+  mergeAdjacentLists,
+  moveNode,
+  removeNodeAtPath,
+  updateNodeAtPath,
+} from './tree-utils';
 
 // Helper to create a list_item with child content node
 const createListItem = (

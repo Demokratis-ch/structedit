@@ -1,4 +1,4 @@
-import type { DocumentNode, ContainerDocumentNode, Language } from './document';
+import type { ContainerDocumentNode, DocumentNode, Language } from './document';
 
 /**
  * Path from root to a node, represented as array of child indices.

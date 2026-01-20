@@ -1,5 +1,5 @@
-import type { DocumentNode, ContainerDocumentNode } from '../types/document';
-import type { NodePath, FlattenedNode } from '../types/editor';
+import type { ContainerDocumentNode, DocumentNode } from '../types/document';
+import type { FlattenedNode, NodePath } from '../types/editor';
 
 /**
  * Get a node at a given path (immutable read).
@@ -123,7 +123,7 @@ export function moveNode(
     fromParentPath.every((v, i) => v === toParentPath[i]);
 
   // Remove first
-  let result = removeNodeAtPath(root, fromPath);
+  const result = removeNodeAtPath(root, fromPath);
 
   // Adjust target index if moving within same parent and source was before target
   let adjustedIndex = toIndex;

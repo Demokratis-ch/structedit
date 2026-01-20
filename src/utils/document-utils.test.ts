@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import {
-  generateId,
-  parseHtmlToTree,
-  parseHtmlLegalToTree,
-  detectLanguage,
-} from './document-utils';
+import { describe, expect, it } from 'vitest';
 import type {
   ContainerDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
+import {
+  detectLanguage,
+  generateId,
+  parseHtmlLegalToTree,
+  parseHtmlToTree,
+} from './document-utils';
 
 describe('Document Utils', () => {
   describe('generateId', () => {

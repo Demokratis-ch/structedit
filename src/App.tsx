@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Header } from './components/Header';
 import { DocumentFixer } from './components/DocumentFixer';
+import { Header } from './components/Header';
 import { TreeEditor } from './components/TreeEditor';
 import type { ContainerDocumentNode } from './types/document';
 

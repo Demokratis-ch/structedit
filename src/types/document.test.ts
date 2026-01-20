@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isValidNode, isValidDocument, exampleDocument, canBeChildOf } from './document';
+import { describe, expect, it } from 'vitest';
+import { canBeChildOf, exampleDocument, isValidDocument, isValidNode } from './document';
 
 describe('Document validation', () => {
   it('validates the example document', () => {

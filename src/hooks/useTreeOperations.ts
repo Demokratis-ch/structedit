@@ -1,24 +1,24 @@
 import { useCallback } from 'react';
 import type {
   ContainerDocumentNode,
-  HeadingDocumentNode,
-  LeafDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  HeadingDocumentNode,
   Language,
+  LeafDocumentNode,
   ParentType,
 } from '../types/document';
 import { canBeChildOf } from '../types/document';
 import type { NodePath } from '../types/editor';
+import { generateId } from '../utils/document-utils';
 import {
   getNodeAtPath,
-  updateNodeAtPath,
   insertNodeAtPath,
-  removeNodeAtPath,
   mergeAdjacentLists,
   moveNode,
+  removeNodeAtPath,
+  updateNodeAtPath,
 } from '../utils/tree-utils';
-import { generateId } from '../utils/document-utils';
 
 export type MoveResult = { success: true } | { success: false; reason: string };
 

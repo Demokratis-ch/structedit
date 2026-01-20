@@ -1,10 +1,10 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import type { FlattenedNode, NodePath } from '../types/editor';
+import { DEFAULT_LANGUAGE } from '../utils/document-utils';
+import { flattenForRendering } from '../utils/tree-utils';
 import { useTreeHistory } from './useTreeHistory';
 import { useTreeOperations } from './useTreeOperations';
-import { flattenForRendering } from '../utils/tree-utils';
-import { DEFAULT_LANGUAGE } from '../utils/document-utils';
 
 interface ClickModifiers {
   shiftKey: boolean;

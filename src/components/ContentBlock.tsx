@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useLayoutEffect } from 'react';
+import type React from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 interface ContentBlockProps {
   html: string;

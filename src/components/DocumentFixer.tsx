@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { Upload, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, Upload } from 'lucide-react';
+import * as mammoth from 'mammoth';
+import type React from 'react';
+import { useRef, useState } from 'react';
+import type { ContainerDocumentNode } from '../types/document';
+import { generateId, parseHtmlLegalToTree, parseHtmlToTree } from '../utils/document-utils';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { parseHtmlLegalToTree, parseHtmlToTree, generateId } from '../utils/document-utils';
-import type { ContainerDocumentNode } from '../types/document';
-import * as mammoth from 'mammoth';
 
 interface DocumentFixerProps {
   onConvert: (doc: ContainerDocumentNode, url: string | null, html?: string) => void;

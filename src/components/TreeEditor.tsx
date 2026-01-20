@@ -1,11 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
+import type React from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { downloadFile } from '../utils/document-utils';
-import { Toolbar } from './Toolbar';
 import { FloatingToolbar } from './FloatingToolbar';
 import { SourcePreview } from './SourcePreview';
+import { Toolbar } from './Toolbar';
 import { TreeNodeItem } from './TreeNodeItem';
 
 interface TreeEditorProps {

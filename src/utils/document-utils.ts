@@ -1,11 +1,11 @@
+import DOMPurify from 'dompurify';
 import type {
-  Language,
   ContainerDocumentNode,
-  HeadingDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  HeadingDocumentNode,
+  Language,
 } from '../types/document';
-import DOMPurify from 'dompurify';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 

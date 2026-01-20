@@ -1,14 +1,14 @@
-import { describe, test, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useTreeOperations } from './useTreeOperations';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import type {
   ContainerDocumentNode,
+  ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
-  ContentDocumentNode,
 } from '../types/document';
 import type { NodePath } from '../types/editor';
-import { getNodeAtPath, buildIndices } from '../utils/tree-utils';
+import { buildIndices, getNodeAtPath } from '../utils/tree-utils';
+import { useTreeOperations } from './useTreeOperations';
 
 // Helper to create a test document
 const createTestDocument = (): ContainerDocumentNode => ({

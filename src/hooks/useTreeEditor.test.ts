@@ -1,11 +1,11 @@
-import { describe, test, expect } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useTreeEditor } from './useTreeEditor';
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, test } from 'vitest';
 import type {
   ContainerDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
+import { useTreeEditor } from './useTreeEditor';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',

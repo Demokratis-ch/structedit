@@ -1,8 +1,9 @@
-import React, { ReactElement } from 'react';
 import { GripVertical } from 'lucide-react';
-import { ContentBlock } from './ContentBlock';
-import type { FlattenedNode } from '../types/editor';
+import type React from 'react';
+import type { ReactElement } from 'react';
 import type { Language } from '../types/document';
+import type { FlattenedNode } from '../types/editor';
+import { ContentBlock } from './ContentBlock';
 
 interface TreeNodeItemProps {
   flatNode: FlattenedNode;
