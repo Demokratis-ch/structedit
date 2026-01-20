@@ -1,4 +1,4 @@
-import type { Language, ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode } from '../types/document';
+import type { Language, ContainerDocumentNode, HeadingDocumentNode, ContentDocumentNode, DocumentNode } from '../types/document';
 import DOMPurify from 'dompurify';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -137,7 +137,8 @@ export const parseHtmlToTree = (html: string, language: Language = detectLanguag
               number: null,
               type: 'content',
               contents: { [language]: getInnerHtml(li) },
-            } as LeafDocumentNode,
+              children: [],
+            } as ContentDocumentNode,
           ],
         };
         list.children.push(listItem);
@@ -149,11 +150,12 @@ export const parseHtmlToTree = (html: string, language: Language = detectLanguag
     if (tagName === 'p' || tagName === 'div') {
       const content = getInnerHtml(domNode);
       if (content) {
-        const contentNode: LeafDocumentNode = {
+        const contentNode: ContentDocumentNode = {
           id: generateId(),
           number: null,
           type: 'content',
           contents: { [language]: content },
+          children: [],
         };
         addChild(contentNode);
       }
@@ -217,6 +219,7 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
               number: null,
               type: 'content' as const,
               contents: { [language]: item.content },
+              children: [],
             },
           ],
         })),
@@ -291,7 +294,8 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
               number: null,
               type: 'content',
               contents: { [language]: getInnerHtml(li) },
-            } as LeafDocumentNode,
+              children: [],
+            } as ContentDocumentNode,
           ],
         };
         list.children.push(listItem);
@@ -354,11 +358,12 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
       }
 
       // Regular content
-      const contentNode: LeafDocumentNode = {
+      const contentNode: ContentDocumentNode = {
         id: generateId(),
         number: null,
         type: 'content',
         contents: { [language]: content },
+        children: [],
       };
       addChild(contentNode);
       return;

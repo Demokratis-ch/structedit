@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTreeOperations } from './useTreeOperations';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, ContentDocumentNode } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { getNodeAtPath, buildIndices } from '../utils/tree-utils';
 
@@ -545,13 +545,13 @@ describe('useTreeOperations', () => {
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const converted = newDoc.children[0] as LeafDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.type).toBe('content');
         expect(converted.id).toBe('h1');
         expect(converted.number).toBe('1');
         expect(converted.contents.de).toBe('Heading text');
-        expect('children' in converted).toBe(false);
+        expect(converted.children).toEqual([]);
       });
 
       test('lifts children as siblings after converted node', () => {

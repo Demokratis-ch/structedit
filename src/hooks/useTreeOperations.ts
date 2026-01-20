@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode, Language, ParentType } from '../types/document';
+import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, ContentDocumentNode, DocumentNode, Language, ParentType } from '../types/document';
 import { canBeChildOf } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, mergeAdjacentLists, moveNode } from '../utils/tree-utils';
@@ -52,7 +52,8 @@ export const useTreeOperations = ({
             number: null,
             type: 'content',
             contents: { [language]: '' },
-          } as LeafDocumentNode,
+            children: [],
+          } as ContentDocumentNode,
         ],
       } as ContainerDocumentNode;
     } else {
@@ -62,7 +63,8 @@ export const useTreeOperations = ({
         number: null,
         type: 'content',
         contents: { [language]: '' },
-      } as LeafDocumentNode;
+        children: [],
+      } as ContentDocumentNode;
     }
 
     const newDoc = insertNodeAtPath(document, parentPath, siblingIndex + 1, newNode);
@@ -249,9 +251,9 @@ export const useTreeOperations = ({
   };
 
   /**
-   * Check if a node has contents (is leaf or heading, not container).
+   * Check if a node has contents (is leaf, heading, or content - not pure container).
    */
-  const hasContents = (node: DocumentNode): node is LeafDocumentNode | HeadingDocumentNode => {
+  const hasContents = (node: DocumentNode): node is LeafDocumentNode | HeadingDocumentNode | ContentDocumentNode => {
     return 'contents' in node;
   };
 
@@ -321,12 +323,13 @@ export const useTreeOperations = ({
       const headingNode = node as HeadingDocumentNode;
       const children = headingNode.children;
 
-      // Create content node (without children property)
-      const contentNode: LeafDocumentNode = {
+      // Create content node (with empty children array)
+      const contentNode: ContentDocumentNode = {
         id: node.id,
         number: node.number,
         type: 'content',
         contents: node.contents,
+        children: [],
       };
 
       // Replace heading with content
@@ -356,7 +359,8 @@ export const useTreeOperations = ({
             number: null,
             type: 'content',
             contents: node.contents,
-          } as LeafDocumentNode,
+            children: [],
+          } as ContentDocumentNode,
         ],
       };
 
@@ -443,7 +447,8 @@ export const useTreeOperations = ({
           number: null,
           type: 'content',
           contents,
-        } as LeafDocumentNode;
+          children: [],
+        } as ContentDocumentNode;
 
     // Get parent of list info
     const listParentPath = listPath.slice(0, -1);

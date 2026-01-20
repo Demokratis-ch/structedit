@@ -146,12 +146,14 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
             number: null,
             type: 'content' as const,
             contents: { de: line.trim() },
+            children: [],
           }))
         : [{
             id: generateId(),
             number: null,
             type: 'content' as const,
             contents: { de: '' },
+            children: [],
           }],
     };
   };

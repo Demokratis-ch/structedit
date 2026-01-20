@@ -23,7 +23,6 @@ export interface ContainerDocumentNode {
  * Leaf-only nodes have content but no children.
  */
 export type LeafDocumentNodeType =
-  | 'content'  // Paragraph or general text content
   | 'image'
   | 'footnote';
 
@@ -45,7 +44,19 @@ export interface HeadingDocumentNode {
   children: DocumentNode[];
 }
 
-export type DocumentNode = ContainerDocumentNode | LeafDocumentNode | HeadingDocumentNode;
+/**
+ * Content nodes have both content and optional footnote children.
+ * Similar to heading, but can only contain footnote nodes as children.
+ */
+export interface ContentDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'content';
+  contents: Partial<{[K in Language]: string}>;
+  children: DocumentNode[];  // Can only contain footnote nodes
+}
+
+export type DocumentNode = ContainerDocumentNode | LeafDocumentNode | HeadingDocumentNode | ContentDocumentNode;
 
 
 /**
@@ -68,12 +79,14 @@ export const exampleDocument: ContainerDocumentNode = {
           number: null,
           type: 'content',
           contents: {'en': 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'},
-        },
-        {
-          id: '004',
-          number: 'i.',
-          type: 'footnote',
-          contents: {'en': 'This is a footnote.', 'de': 'Dies ist eine Fussnote.'},
+          children: [
+            {
+              id: '004',
+              number: 'i.',
+              type: 'footnote',
+              contents: {'en': 'This is a footnote.', 'de': 'Dies ist eine Fussnote.'},
+            }
+          ]
         }
       ]
     }
@@ -87,19 +100,20 @@ export const exampleDocument: ContainerDocumentNode = {
 
 const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
 const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'list_item'];
-const LEAF_TYPES: LeafDocumentNodeType[] = ['content', 'image', 'footnote'];
+const LEAF_TYPES: LeafDocumentNodeType[] = ['image', 'footnote'];
 
 /**
  * Mapping of parent types to their allowed child types.
  */
-const ALLOWED_CHILDREN: Record<ContainerDocumentNodeType | 'heading', DocumentNode['type'][]> = {
+const ALLOWED_CHILDREN: Record<ContainerDocumentNodeType | 'heading' | 'content', DocumentNode['type'][]> = {
   document: ['heading', 'list', 'content', 'footnote', 'image'],
   heading: ['heading', 'list', 'content', 'footnote', 'image'],
   list_item: ['heading', 'list', 'content', 'footnote', 'image'],
   list: ['list_item'],
+  content: ['footnote'],
 };
 
-export type ParentType = ContainerDocumentNodeType | 'heading' | null;
+export type ParentType = ContainerDocumentNodeType | 'heading' | 'content' | null;
 
 /**
  * Check if a node type can be a valid child of a parent type.
@@ -159,6 +173,13 @@ const isValidNodeInternal = (obj: unknown, parentType: ParentType, seenIds: Set<
     if (!isValidContents(node.contents)) return false;
     if (!Array.isArray(node.children)) return false;
     return node.children.every(child => isValidNodeInternal(child, 'heading', seenIds));
+  }
+
+  // Content nodes (hybrid - has contents AND children, but children must be footnotes only)
+  if (type === 'content') {
+    if (!isValidContents(node.contents)) return false;
+    if (!Array.isArray(node.children)) return false;
+    return node.children.every(child => isValidNodeInternal(child, 'content', seenIds));
   }
 
   return false;
