@@ -125,4 +125,24 @@ describe('Document validation', () => {
       contents: { xyz: 'Invalid language' }
     })).toBe(false);
   });
+
+  it('accepts footnote as a leaf node with contents', () => {
+    expect(isValidNode({
+      id: '1',
+      number: 'i.',
+      type: 'footnote',
+      contents: { en: 'This is a footnote.' }
+    })).toBe(true);
+  });
+
+  it('rejects footnote with children (old container structure)', () => {
+    expect(isValidNode({
+      id: '1',
+      number: 'i.',
+      type: 'footnote',
+      children: [
+        { id: '2', number: null, type: 'content', contents: { en: 'Text' } }
+      ]
+    })).toBe(false);
+  });
 });
