@@ -55,6 +55,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     removeNode,
     updateNodeContents,
     changeNodeType,
+    moveNodeById,
     indentSelected,
     outdentSelected,
     deleteSelected,
@@ -113,8 +114,9 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    // TODO: Implement tree-based move operation
-    // For now, just clear the drag state
+    if (draggedNodeId && dropTarget) {
+      moveNodeById(draggedNodeId, dropTarget.id, dropTarget.position);
+    }
     handleDragEnd();
   };
 

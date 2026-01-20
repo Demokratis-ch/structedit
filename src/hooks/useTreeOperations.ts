@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode, Language } from '../types/document';
 import type { NodePath } from '../types/editor';
-import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, mergeAdjacentLists } from '../utils/tree-utils';
+import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, mergeAdjacentLists, moveNode } from '../utils/tree-utils';
 import { generateId } from '../utils/document-utils';
 
 interface UseTreeOperationsProps {
@@ -450,6 +450,37 @@ export const useTreeOperations = ({
     }
   }, [document, commit]);
 
+  /**
+   * Move a node to a new position relative to a target node.
+   * Used for drag & drop operations.
+   *
+   * @param sourceId - ID of the node to move
+   * @param targetId - ID of the node to drop on
+   * @param position - 'top' to insert before target, 'bottom' to insert after target
+   */
+  const moveNodeById = useCallback((
+    sourceId: string,
+    targetId: string,
+    position: 'top' | 'bottom'
+  ) => {
+    if (sourceId === targetId) return;
+
+    const sourcePath = nodeIndex.get(sourceId);
+    const targetPath = nodeIndex.get(targetId);
+
+    if (!sourcePath || !targetPath) return;
+
+    // Calculate where to insert:
+    // - 'top': insert at target's index in target's parent
+    // - 'bottom': insert at target's index + 1 in target's parent
+    const targetParentPath = targetPath.slice(0, -1);
+    const targetIndexInParent = targetPath[targetPath.length - 1];
+    const insertIndex = position === 'top' ? targetIndexInParent : targetIndexInParent + 1;
+
+    const newDoc = moveNode(document, sourcePath, targetParentPath, insertIndex);
+    commit(newDoc);
+  }, [document, nodeIndex, commit]);
+
   return {
     addNodeAfter,
     removeNode,
@@ -458,5 +489,6 @@ export const useTreeOperations = ({
     indentNode,
     outdentNode,
     changeNodeType,
+    moveNodeById,
   };
 };

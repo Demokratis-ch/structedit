@@ -49,6 +49,7 @@ export const useTreeEditor = (
     indentNode,
     outdentNode,
     changeNodeType,
+    moveNodeById,
   } = useTreeOperations({
     document,
     commit,
@@ -277,6 +278,7 @@ export const useTreeEditor = (
     indentNode,
     outdentNode,
     changeNodeType,
+    moveNodeById,
 
     // Bulk operations
     deleteSelected,

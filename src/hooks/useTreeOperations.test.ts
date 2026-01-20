@@ -1305,4 +1305,115 @@ describe('useTreeOperations', () => {
       });
     });
   });
+
+  describe('moveNodeById', () => {
+    test('moves node to before target (position: top)', () => {
+      const { result } = renderTreeOperations();
+
+      // Move h1b to before h1 (drop position: top of h1)
+      act(() => {
+        result.current.moveNodeById('h1b', 'h1', 'top');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // h1b should now be first, h1 second
+      expect(newDoc.children.length).toBe(2);
+      expect(newDoc.children[0].id).toBe('h1b');
+      expect(newDoc.children[1].id).toBe('h1');
+    });
+
+    test('moves node to after target (position: bottom)', () => {
+      const { result } = renderTreeOperations();
+
+      // Move h1b to after p1 (drop position: bottom of p1)
+      // p1 is at [0, 0], h1b is at [1]
+      act(() => {
+        result.current.moveNodeById('h1b', 'p1', 'bottom');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // h1b should now be inside h1, after p1
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children.length).toBe(3); // p1, h1b, h2
+      expect(h1.children[0].id).toBe('p1');
+      expect(h1.children[1].id).toBe('h1b');
+      expect(h1.children[2].id).toBe('h2');
+    });
+
+    test('reorders within same parent', () => {
+      const { result } = renderTreeOperations();
+
+      // Move h2 to before p1 (both are children of h1)
+      // p1 is at [0, 0], h2 is at [0, 1]
+      act(() => {
+        result.current.moveNodeById('h2', 'p1', 'top');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children.length).toBe(2);
+      expect(h1.children[0].id).toBe('h2');
+      expect(h1.children[1].id).toBe('p1');
+    });
+
+    test('moves node to different parent', () => {
+      const { result } = renderTreeOperations();
+
+      // Move p2 (child of h2) to after h1b at root level
+      // p2 is at [0, 1, 0], h1b is at [1]
+      act(() => {
+        result.current.moveNodeById('p2', 'h1b', 'bottom');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // p2 should now be at root level after h1b
+      expect(newDoc.children.length).toBe(3);
+      expect(newDoc.children[0].id).toBe('h1');
+      expect(newDoc.children[1].id).toBe('h1b');
+      expect(newDoc.children[2].id).toBe('p2');
+
+      // h2 should have no children now
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const h2 = h1.children[1] as HeadingDocumentNode;
+      expect(h2.children.length).toBe(0);
+    });
+
+    test('does nothing when source equals target', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodeById('h1', 'h1', 'bottom');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when source not found', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodeById('nonexistent', 'h1', 'bottom');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when target not found', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodeById('h1', 'nonexistent', 'bottom');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
 });
