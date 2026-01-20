@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode, Language } from '../types/document';
+import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, DocumentNode, Language, ParentType } from '../types/document';
+import { canBeChildOf } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, mergeAdjacentLists, moveNode } from '../utils/tree-utils';
 import { generateId } from '../utils/document-utils';
+
+export type MoveResult = { success: true } | { success: false; reason: string };
 
 interface UseTreeOperationsProps {
   document: ContainerDocumentNode;
@@ -472,21 +475,35 @@ export const useTreeOperations = ({
    * Move a node to a new position relative to a target node.
    * Used for drag & drop operations.
    *
+   * Validates the move before committing - returns failure if the move
+   * would violate parent-child rules.
+   *
    * @param sourceId - ID of the node to move
    * @param targetId - ID of the node to drop on
    * @param position - 'top' to insert before target, 'bottom' to insert after target
+   * @returns MoveResult indicating success or failure with reason
    */
   const moveNodeById = useCallback((
     sourceId: string,
     targetId: string,
     position: 'top' | 'bottom'
-  ) => {
-    if (sourceId === targetId) return;
+  ): MoveResult => {
+    if (sourceId === targetId) {
+      return { success: false, reason: 'Cannot move node to itself' };
+    }
 
     const sourcePath = nodeIndex.get(sourceId);
     const targetPath = nodeIndex.get(targetId);
 
-    if (!sourcePath || !targetPath) return;
+    if (!sourcePath || !targetPath) {
+      return { success: false, reason: 'Source or target node not found' };
+    }
+
+    // Get the source node to check its type
+    const sourceNode = getNodeAtPath(document, sourcePath);
+    if (!sourceNode) {
+      return { success: false, reason: 'Source node not found' };
+    }
 
     // Calculate where to insert:
     // - 'top': insert at target's index in target's parent
@@ -495,8 +512,28 @@ export const useTreeOperations = ({
     const targetIndexInParent = targetPath[targetPath.length - 1];
     const insertIndex = position === 'top' ? targetIndexInParent : targetIndexInParent + 1;
 
+    // Determine the new parent
+    const targetParent = targetParentPath.length === 0
+      ? document
+      : getNodeAtPath(document, targetParentPath);
+
+    if (!targetParent || !('children' in targetParent)) {
+      return { success: false, reason: 'Invalid target parent' };
+    }
+
+    // Validate the parent-child relationship
+    const parentType = targetParent.type as ParentType;
+    if (!canBeChildOf(sourceNode.type, parentType)) {
+      return {
+        success: false,
+        reason: `${sourceNode.type} cannot be child of ${parentType}`,
+      };
+    }
+
     const newDoc = moveNode(document, sourcePath, targetParentPath, insertIndex);
     commit(newDoc);
+
+    return { success: true };
   }, [document, nodeIndex, commit]);
 
   return {

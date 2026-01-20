@@ -1381,5 +1381,266 @@ describe('useTreeOperations', () => {
 
       expect(mockCommit).not.toHaveBeenCalled();
     });
+
+    describe('parent-child validation', () => {
+      test('rejects moving content directly into list', () => {
+        const docWithList: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' } } as LeafDocumentNode,
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'Item 1'),
+              ],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(docWithList);
+
+        act(() => {
+          // Try to move p1 to after li1 (which would put it inside list1)
+          const moveResult = result.current.moveNodeById('p1', 'li1', 'bottom');
+          expect(moveResult.success).toBe(false);
+        });
+
+        // Commit should not have been called
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('rejects moving heading directly into list', () => {
+        const docWithList: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Title' },
+              children: [],
+            } as HeadingDocumentNode,
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'Item 1'),
+              ],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(docWithList);
+
+        act(() => {
+          const moveResult = result.current.moveNodeById('h1', 'li1', 'bottom');
+          expect(moveResult.success).toBe(false);
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('rejects moving list_item out of list to document level', () => {
+        const docWithList = createDocumentWithList();
+        const { result } = renderTreeOperations(docWithList);
+
+        act(() => {
+          // Try to move li1 to after h1 (document level - li1 would become child of document)
+          const moveResult = result.current.moveNodeById('li1', 'h1', 'bottom');
+          expect(moveResult.success).toBe(false);
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('rejects moving list_item to heading children', () => {
+        const docWithList = createDocumentWithList();
+        const { result } = renderTreeOperations(docWithList);
+
+        act(() => {
+          // Try to move li1 to before list1 (which would place it as sibling of list1, i.e., child of h1/heading)
+          const moveResult = result.current.moveNodeById('li1', 'list1', 'top');
+          expect(moveResult.success).toBe(false);
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('allows moving list_item within same list', () => {
+        const docWithList = createDocumentWithList();
+        const { result } = renderTreeOperations(docWithList);
+
+        act(() => {
+          // Move li3 to before li1
+          const moveResult = result.current.moveNodeById('li3', 'li1', 'top');
+          expect(moveResult.success).toBe(true);
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const h1 = newDoc.children[0] as HeadingDocumentNode;
+        const list = h1.children[0] as ContainerDocumentNode;
+        expect(list.children[0].id).toBe('li3');
+        expect(list.children[1].id).toBe('li1');
+      });
+
+      test('allows moving list_item to different list', () => {
+        const docWithTwoLists: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item 1')],
+            } as ContainerDocumentNode,
+            {
+              id: 'list2',
+              number: null,
+              type: 'list',
+              children: [createListItem('li2', '1.', 'Item 2')],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(docWithTwoLists);
+
+        act(() => {
+          // Move li1 to after li2 (in list2)
+          const moveResult = result.current.moveNodeById('li1', 'li2', 'bottom');
+          expect(moveResult.success).toBe(true);
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+      });
+
+      test('allows moving content into list_item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' } } as LeafDocumentNode,
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'Item 1'),
+              ],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          // Move p1 to after li1-content (inside li1)
+          const moveResult = result.current.moveNodeById('p1', 'li1-content', 'bottom');
+          expect(moveResult.success).toBe(true);
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+      });
+
+      test('allows moving nested list into list_item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item 1')],
+            } as ContainerDocumentNode,
+            {
+              id: 'list2',
+              number: null,
+              type: 'list',
+              children: [createListItem('li2', '1.', 'Item 2')],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          // Move list2 to after li1-content (making it a nested list inside li1)
+          const moveResult = result.current.moveNodeById('list2', 'li1-content', 'bottom');
+          expect(moveResult.success).toBe(true);
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+      });
+
+      test('rejects moving footnote directly into list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            { id: 'fn1', number: 'i.', type: 'footnote', contents: { de: 'Note' } } as LeafDocumentNode,
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item 1')],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          const moveResult = result.current.moveNodeById('fn1', 'li1', 'bottom');
+          expect(moveResult.success).toBe(false);
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('rejects moving list directly into list (must be in list_item)', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item 1')],
+            } as ContainerDocumentNode,
+            {
+              id: 'list2',
+              number: null,
+              type: 'list',
+              children: [createListItem('li2', '1.', 'Item 2')],
+            } as ContainerDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          // Try to move list2 to after li1 (which would put it directly inside list1)
+          const moveResult = result.current.moveNodeById('list2', 'li1', 'bottom');
+          expect(moveResult.success).toBe(false);
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
   });
 });

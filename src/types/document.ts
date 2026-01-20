@@ -89,7 +89,30 @@ const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
 const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'list_item'];
 const LEAF_TYPES: LeafDocumentNodeType[] = ['content', 'image', 'footnote'];
 
-type ParentType = ContainerDocumentNodeType | 'heading' | null;
+/**
+ * Mapping of parent types to their allowed child types.
+ */
+const ALLOWED_CHILDREN: Record<ContainerDocumentNodeType | 'heading', DocumentNode['type'][]> = {
+  document: ['heading', 'list', 'content', 'footnote', 'image'],
+  heading: ['heading', 'list', 'content', 'footnote', 'image'],
+  list_item: ['heading', 'list', 'content', 'footnote', 'image'],
+  list: ['list_item'],
+};
+
+export type ParentType = ContainerDocumentNodeType | 'heading' | null;
+
+/**
+ * Check if a node type can be a valid child of a parent type.
+ */
+export const canBeChildOf = (
+  childType: DocumentNode['type'],
+  parentType: ParentType
+): boolean => {
+  // Root level (null parent) uses document rules
+  const effectiveParentType = parentType ?? 'document';
+  const allowedChildren = ALLOWED_CHILDREN[effectiveParentType];
+  return allowedChildren?.includes(childType) ?? false;
+};
 
 const isValidContents = (contents: unknown): contents is Partial<{[K in Language]: string}> => {
   if (typeof contents !== 'object' || contents === null) return false;
@@ -112,10 +135,10 @@ const isValidNodeInternal = (obj: unknown, parentType: ParentType, seenIds: Set<
   if (seenIds.has(node.id)) return false;
   seenIds.add(node.id);
 
-  const type = node.type;
+  const type = node.type as DocumentNode['type'];
 
-  // list_item can only be a child of list
-  if (type === 'list_item' && parentType !== 'list') return false;
+  // Check parent-child relationship
+  if (parentType !== null && !canBeChildOf(type, parentType)) return false;
 
   // Container nodes
   if (CONTAINER_TYPES.includes(type as ContainerDocumentNodeType)) {
