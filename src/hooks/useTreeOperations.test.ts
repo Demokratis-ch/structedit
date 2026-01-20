@@ -22,6 +22,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
           number: null,
           type: 'content',
           contents: { de: 'First paragraph' },
+          children: [],
         },
         {
           id: 'h2',
@@ -34,6 +35,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
               number: null,
               type: 'content',
               contents: { de: 'Nested paragraph' },
+              children: [],
             },
           ],
         },
@@ -55,7 +57,7 @@ const createListItem = (id: string, number: string | null, content: string): Con
   number,
   type: 'list_item',
   children: [
-    { id: `${id}-content`, number: null, type: 'content', contents: { de: content } } as LeafDocumentNode,
+    { id: `${id}-content`, number: null, type: 'content', contents: { de: content }, children: [] } as ContentDocumentNode,
   ],
 });
 
@@ -218,6 +220,7 @@ describe('useTreeOperations', () => {
             number: null,
             type: 'content',
             contents: { de: 'German', en: 'English' },
+            children: [],
           },
         ],
       };
@@ -255,6 +258,7 @@ describe('useTreeOperations', () => {
             number: null,
             type: 'content',
             contents: { de: 'Paragraph' },
+            children: [],
           },
         ],
       };
@@ -713,6 +717,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Some text' },
+              children: [],
             },
           ],
         };
@@ -743,6 +748,7 @@ describe('useTreeOperations', () => {
               number: 'Art. 1',
               type: 'content',
               contents: { de: 'German text', en: 'English text' },
+              children: [],
             },
           ],
         };
@@ -839,12 +845,14 @@ describe('useTreeOperations', () => {
                   number: null,
                   type: 'content',
                   contents: { de: 'Child 1' },
+                  children: [],
                 },
                 {
                   id: 'p2',
                   number: null,
                   type: 'content',
                   contents: { de: 'Child 2' },
+                  children: [],
                 },
               ],
             },
@@ -886,6 +894,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Already content' },
+              children: [],
             },
           ],
         };
@@ -912,6 +921,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Item text' },
+              children: [],
             },
           ],
         };
@@ -951,6 +961,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Item' },
+              children: [],
             },
           ],
         };
@@ -978,6 +989,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Item' },
+              children: [],
             },
           ],
         };
@@ -1005,6 +1017,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Item' },
+              children: [],
             },
           ],
         };
@@ -1040,6 +1053,7 @@ describe('useTreeOperations', () => {
                   number: null,
                   type: 'content',
                   contents: { de: 'Child content' },
+                  children: [],
                 },
               ],
             },
@@ -1377,6 +1391,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Convert me' },
+              children: [],
             },
           ],
         };
@@ -1411,6 +1426,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Convert me' },
+              children: [],
             },
             {
               id: 'list1',
@@ -1461,6 +1477,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Convert me' },
+              children: [],
             },
             {
               id: 'list2',
@@ -1519,6 +1536,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'content',
               contents: { de: 'Convert me' },
+              children: [],
             },
           ],
         };
@@ -2007,7 +2025,7 @@ describe('useTreeOperations', () => {
           number: null,
           type: 'document',
           children: [
-            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' } } as LeafDocumentNode,
+            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' }, children: [] } as ContentDocumentNode,
             {
               id: 'list1',
               number: null,
@@ -2147,7 +2165,7 @@ describe('useTreeOperations', () => {
           number: null,
           type: 'document',
           children: [
-            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' } } as LeafDocumentNode,
+            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' }, children: [] } as ContentDocumentNode,
             {
               id: 'list1',
               number: null,

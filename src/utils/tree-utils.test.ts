@@ -9,7 +9,7 @@ import {
   flattenForRendering,
   mergeAdjacentLists,
 } from './tree-utils';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import type { ContainerDocumentNode, ContentDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
 
 // Helper to create a list_item with child content node
 const createListItem = (id: string, number: string | null, content: string): ContainerDocumentNode => ({
@@ -17,7 +17,7 @@ const createListItem = (id: string, number: string | null, content: string): Con
   number,
   type: 'list_item',
   children: [
-    { id: `${id}-content`, number: null, type: 'content', contents: { de: content } } as LeafDocumentNode,
+    { id: `${id}-content`, number: null, type: 'content', contents: { de: content }, children: [] } as ContentDocumentNode,
   ],
 });
 
@@ -38,6 +38,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
           number: null,
           type: 'content',
           contents: { de: 'First paragraph' },
+          children: [],
         },
         {
           id: 'h2',
@@ -50,6 +51,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
               number: null,
               type: 'content',
               contents: { de: 'Nested paragraph' },
+              children: [],
             },
           ],
         },
@@ -149,11 +151,12 @@ describe('updateNodeAtPath', () => {
 });
 
 describe('insertNodeAtPath', () => {
-  const newNode: LeafDocumentNode = {
+  const newNode: ContentDocumentNode = {
     id: 'new',
     number: null,
     type: 'content',
     contents: { de: 'New content' },
+    children: [],
   };
 
   test('adds child at beginning', () => {
@@ -326,6 +329,7 @@ describe('buildIndices', () => {
                       number: null,
                       type: 'content',
                       contents: { de: 'Deep content' },
+                      children: [],
                     },
                   ],
                 },
@@ -523,6 +527,7 @@ describe('mergeAdjacentLists', () => {
           number: null,
           type: 'content',
           contents: { de: 'Separator' },
+          children: [],
         },
         {
           id: 'list2',
@@ -546,8 +551,8 @@ describe('mergeAdjacentLists', () => {
       number: null,
       type: 'document',
       children: [
-        { id: 'p1', number: null, type: 'content', contents: { de: 'A' } },
-        { id: 'p2', number: null, type: 'content', contents: { de: 'B' } },
+        { id: 'p1', number: null, type: 'content', contents: { de: 'A' }, children: [] },
+        { id: 'p2', number: null, type: 'content', contents: { de: 'B' }, children: [] },
       ],
     };
 
@@ -641,7 +646,7 @@ describe('nested lists', () => {
     number: itemNumber,
     type: 'list_item',
     children: [
-      { id: `${itemId}-content`, number: null, type: 'content', contents: { de: itemContent } } as LeafDocumentNode,
+      { id: `${itemId}-content`, number: null, type: 'content', contents: { de: itemContent }, children: [] } as ContentDocumentNode,
       {
         id: nestedListId,
         number: null,

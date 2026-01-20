@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTreeHistory } from './useTreeHistory';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import type { ContainerDocumentNode, ContentDocumentNode, HeadingDocumentNode } from '../types/document';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
@@ -19,6 +19,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
           number: null,
           type: 'content',
           contents: { de: 'First paragraph' },
+          children: [],
         },
       ],
     },
@@ -248,7 +249,8 @@ describe('useTreeHistory', () => {
               number: null,
               type: 'content',
               contents: { de: 'New paragraph' },
-            } as LeafDocumentNode,
+              children: [],
+            } as ContentDocumentNode,
           ],
         },
       ],
