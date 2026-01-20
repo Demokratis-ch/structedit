@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseHtml, generateId, parseHtmlToTree, parseHtmlLegalToTree, detectLanguage } from './document-utils';
-import { Block } from '../types';
+import { generateId, parseHtmlToTree, parseHtmlLegalToTree, detectLanguage } from './document-utils';
 import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
-import { getNodeAtPath } from './tree-utils';
 
 describe('Document Utils', () => {
   describe('generateId', () => {
@@ -14,56 +12,6 @@ describe('Document Utils', () => {
 
     it('generates string IDs', () => {
       expect(typeof generateId()).toBe('string');
-    });
-  });
-
-  describe('parseHtml', () => {
-    it('parses simple paragraphs', () => {
-      const html = '<p>Hello world</p>';
-      const blocks = parseHtml(html);
-      expect(blocks).toHaveLength(1);
-      expect(blocks[0].content).toBe('Hello world');
-      expect(blocks[0].type).toBe('p');
-    });
-
-    it('parses headings', () => {
-      const html = '<h1>Title</h1><h2>Subtitle</h2>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].type).toBe('h1');
-      expect(blocks[1].type).toBe('h2');
-    });
-
-    it('parses unordered lists', () => {
-      const html = '<ul><li>Item 1</li><li>Item 2</li></ul>';
-      const blocks = parseHtml(html);
-      expect(blocks.length).toBeGreaterThanOrEqual(2);
-      expect(blocks[0].type).toBe('ul');
-    });
-
-    it('parses ordered lists', () => {
-      const html = '<ol><li>First</li><li>Second</li></ol>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].type).toBe('ol');
-    });
-
-    it('handles empty HTML', () => {
-      const blocks = parseHtml('');
-      expect(blocks).toHaveLength(0);
-    });
-
-    it('preserves inline formatting', () => {
-      const html = '<p><b>Bold</b> and <i>italic</i></p>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].content).toContain('<b>');
-      expect(blocks[0].content).toContain('<i>');
-    });
-
-    it('enforces depth limit of 5', () => {
-      const html = '<ul><li><ul><li><ul><li><ul><li><ul><li><ul><li>Deep</li></ul></li></ul></li></ul></li></ul></li></ul></li></ul>';
-      const blocks = parseHtml(html);
-      blocks.forEach(block => {
-        expect(block.depth).toBeLessThanOrEqual(5);
-      });
     });
   });
 
@@ -204,6 +152,83 @@ describe('Document Utils', () => {
       expect(h3.type).toBe('heading');
       expect(h3.contents.de).toBe('Subsection');
     });
+
+    // Edge cases ported from edge-cases.test.ts
+    describe('empty document handling', () => {
+      it('handles empty string', () => {
+        const doc = parseHtmlToTree('');
+        expect(doc.type).toBe('document');
+        expect(doc.children).toEqual([]);
+      });
+
+      it('handles whitespace only', () => {
+        const doc = parseHtmlToTree('   \n\t  ');
+        expect(doc.children).toEqual([]);
+      });
+
+      it('handles empty tags', () => {
+        const doc = parseHtmlToTree('<p></p><div></div>');
+        expect(doc.children).toEqual([]);
+      });
+    });
+
+    describe('malformed input handling', () => {
+      it('handles unclosed tags', () => {
+        const doc = parseHtmlToTree('<p>Unclosed paragraph<p>Another');
+        expect(doc.type).toBe('document');
+        // Should not throw
+      });
+
+      it('handles script tags safely', () => {
+        const doc = parseHtmlToTree('<script>alert("xss")</script><p>Safe content</p>');
+        const hasScript = JSON.stringify(doc).includes('alert');
+        expect(hasScript).toBe(false);
+      });
+
+      it('handles style tags safely', () => {
+        const doc = parseHtmlToTree('<style>body { color: red; }</style><p>Content</p>');
+        const hasStyle = JSON.stringify(doc).includes('color: red');
+        expect(hasStyle).toBe(false);
+      });
+    });
+
+    describe('special characters', () => {
+      it('preserves HTML entities', () => {
+        const doc = parseHtmlToTree('<p>&amp; &lt; &gt;</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toContain('&');
+      });
+
+      it('handles unicode content', () => {
+        const doc = parseHtmlToTree('<p>日本語 🎉 Ñoño</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toContain('日本語');
+        expect(content.contents.de).toContain('🎉');
+      });
+    });
+
+    describe('boundary conditions', () => {
+      it('handles very long paragraph content', () => {
+        const longContent = 'a'.repeat(10000);
+        const doc = parseHtmlToTree(`<p>${longContent}</p>`);
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de.length).toBe(10000);
+      });
+
+      it('handles single character content', () => {
+        const doc = parseHtmlToTree('<p>X</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toBe('X');
+      });
+
+      it('generateId produces unique ids across many calls', () => {
+        const ids = new Set();
+        for (let i = 0; i < 1000; i++) {
+          ids.add(generateId());
+        }
+        expect(ids.size).toBe(1000);
+      });
+    });
   });
 
   describe('parseHtmlLegalToTree', () => {
@@ -233,6 +258,118 @@ describe('Document Utils', () => {
       const item1 = list.children[0] as LeafDocumentNode;
       expect(item1.type).toBe('list_item');
       expect(item1.number).toBe('a.');
+    });
+
+    // Additional pattern detection tests (ported from legal-patterns.test.ts)
+    it('detects Art. X Abs. Y pattern as heading', () => {
+      const doc = parseHtmlLegalToTree('<p>Art. 1 Abs. 2 (geändert)</p>');
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.contents.de).toContain('Art. 1 Abs. 2');
+    });
+
+    it('detects § pattern as heading', () => {
+      const doc = parseHtmlLegalToTree('<p>§ 5 Some title</p>');
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+    });
+
+    it('accumulates multiple lettered items into single list', () => {
+      const html = '<p>a. first</p><p>b. second</p><p>c. third</p>';
+      const doc = parseHtmlLegalToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      expect(list.children.length).toBe(3);
+      expect((list.children[0] as LeafDocumentNode).number).toBe('a.');
+      expect((list.children[1] as LeafDocumentNode).number).toBe('b.');
+      expect((list.children[2] as LeafDocumentNode).number).toBe('c.');
+    });
+
+    it('detects multiple roman numeral sections', () => {
+      const html = '<p>I. First Section</p><p>II. Second Section</p><p>III. Third Section</p>';
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toBe(3);
+      expect((doc.children[0] as HeadingDocumentNode).type).toBe('heading');
+      expect((doc.children[1] as HeadingDocumentNode).type).toBe('heading');
+      expect((doc.children[2] as HeadingDocumentNode).type).toBe('heading');
+    });
+
+    it('nests content under Article heading', () => {
+      const html = '<p>Art. 1 Title</p><p>Article content here.</p>';
+      const doc = parseHtmlLegalToTree(html);
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.children.length).toBe(1);
+      expect((heading.children[0] as LeafDocumentNode).type).toBe('content');
+    });
+
+    it('handles mixed legal document structure', () => {
+      const html = `
+        <p>I. First Section</p>
+        <p>Art. 1 First Article</p>
+        <p>Content of first article.</p>
+        <p>a. first item</p>
+        <p>b. second item</p>
+        <p>II. Second Section</p>
+      `;
+      const doc = parseHtmlLegalToTree(html);
+
+      // Section I should be at root
+      const sectionI = doc.children[0] as HeadingDocumentNode;
+      expect(sectionI.type).toBe('heading');
+      expect(sectionI.contents.de).toContain('I.');
+
+      // Section II should also be at root
+      const sectionII = doc.children[1] as HeadingDocumentNode;
+      expect(sectionII.type).toBe('heading');
+      expect(sectionII.contents.de).toContain('II.');
+    });
+  });
+
+  // Real document integration tests (ported from real-conversion.test.ts)
+  describe('Real Document Conversion (Tree)', () => {
+    const readFixture = (filename: string) => {
+      // Using dynamic import for fixtures
+      const fs = require('fs');
+      const path = require('path');
+      return fs.readFileSync(path.join(__dirname, '../test/fixtures', filename), 'utf-8');
+    };
+
+    it('parses PeV document structure', () => {
+      const html = readFixture('pev-real.html');
+      const doc = parseHtmlLegalToTree(html);
+
+      // Verify document has children
+      expect(doc.children.length).toBeGreaterThan(0);
+
+      // Check that some nodes exist (headings from legal patterns)
+      const flattenNodes = (node: ContainerDocumentNode | HeadingDocumentNode): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
+        const result: (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] = [node];
+        for (const child of node.children) {
+          if ('children' in child) {
+            result.push(...flattenNodes(child as ContainerDocumentNode | HeadingDocumentNode));
+          } else {
+            result.push(child);
+          }
+        }
+        return result;
+      };
+
+      const allNodes = flattenNodes(doc);
+      const hasHeadings = allNodes.some(n => n.type === 'heading');
+      expect(hasHeadings).toBe(true);
+    });
+
+    it('parses VIV document structure', () => {
+      const html = readFixture('viv-real.html');
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toEqual(6);
+    });
+
+    it('parses VLG document structure', () => {
+      const html = readFixture('vlg-real.html');
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toEqual(6);
     });
   });
 
