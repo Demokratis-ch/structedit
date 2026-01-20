@@ -432,6 +432,207 @@ describe('useTreeOperations', () => {
     });
   });
 
+  describe('indentNode footnote into content', () => {
+    test('moves footnote under previous sibling content', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'Paragraph' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'fn1',
+            number: 'i.',
+            type: 'footnote',
+            contents: { de: 'Footnote text' },
+          } as LeafDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNode('fn1');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // Footnote should now be child of content
+      expect(newDoc.children.length).toBe(1);
+      const p1 = newDoc.children[0] as ContentDocumentNode;
+      expect(p1.children.length).toBe(1);
+      expect(p1.children[0].id).toBe('fn1');
+    });
+
+    test('does nothing when previous sibling is not content or heading', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'fn1',
+            number: 'i.',
+            type: 'footnote',
+            contents: { de: 'First footnote' },
+          } as LeafDocumentNode,
+          {
+            id: 'fn2',
+            number: 'ii.',
+            type: 'footnote',
+            contents: { de: 'Second footnote' },
+          } as LeafDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNode('fn2');
+      });
+
+      // Should not indent footnote into another footnote
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('moves footnote under previous sibling heading', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h1',
+            number: '1',
+            type: 'heading',
+            contents: { de: 'Heading' },
+            children: [],
+          } as HeadingDocumentNode,
+          {
+            id: 'fn1',
+            number: 'i.',
+            type: 'footnote',
+            contents: { de: 'Footnote text' },
+          } as LeafDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNode('fn1');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // Footnote should now be child of heading
+      expect(newDoc.children.length).toBe(1);
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children.length).toBe(1);
+      expect(h1.children[0].id).toBe('fn1');
+    });
+  });
+
+  describe('outdentNode footnote from content', () => {
+    test('moves footnote to be sibling of parent content', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'Paragraph' },
+            children: [
+              {
+                id: 'fn1',
+                number: 'i.',
+                type: 'footnote',
+                contents: { de: 'Footnote text' },
+              } as LeafDocumentNode,
+            ],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNode('fn1');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // Should have 2 children: p1, fn1
+      expect(newDoc.children.length).toBe(2);
+      expect(newDoc.children[0].id).toBe('p1');
+      expect(newDoc.children[1].id).toBe('fn1');
+
+      // p1 should now have empty children
+      const p1 = newDoc.children[0] as ContentDocumentNode;
+      expect(p1.children.length).toBe(0);
+    });
+
+    test('preserves other footnote siblings when outdenting', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'Paragraph' },
+            children: [
+              {
+                id: 'fn1',
+                number: 'i.',
+                type: 'footnote',
+                contents: { de: 'First footnote' },
+              } as LeafDocumentNode,
+              {
+                id: 'fn2',
+                number: 'ii.',
+                type: 'footnote',
+                contents: { de: 'Second footnote' },
+              } as LeafDocumentNode,
+            ],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNode('fn1');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      // Should have 2 children: p1, fn1
+      expect(newDoc.children.length).toBe(2);
+      expect(newDoc.children[0].id).toBe('p1');
+      expect(newDoc.children[1].id).toBe('fn1');
+
+      // p1 should still have fn2
+      const p1 = newDoc.children[0] as ContentDocumentNode;
+      expect(p1.children.length).toBe(1);
+      expect(p1.children[0].id).toBe('fn2');
+    });
+  });
+
   describe('changeNodeType', () => {
     describe('content -> heading', () => {
       test('converts content to heading with empty children', () => {
@@ -1268,6 +1469,356 @@ describe('useTreeOperations', () => {
         expect(newDoc.children[0].type).toBe('list');
         expect(newDoc.children[1].type).toBe('heading');
         expect(newDoc.children[2].type).toBe('list');
+      });
+    });
+
+    describe('content -> footnote', () => {
+      test('converts content to footnote (leaf node without children)', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Note text' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'footnote');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as LeafDocumentNode;
+
+        expect(converted.type).toBe('footnote');
+        expect(converted.id).toBe('p1');
+        expect(converted.contents.de).toBe('Note text');
+        // Footnote is a leaf node - should not have children property
+        expect('children' in converted).toBe(false);
+      });
+
+      test('preserves id, number, and contents', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'i.',
+              type: 'content',
+              contents: { de: 'German', en: 'English' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'footnote');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as LeafDocumentNode;
+
+        expect(converted.id).toBe('p1');
+        expect(converted.number).toBe('i.');
+        expect(converted.contents.de).toBe('German');
+        expect(converted.contents.en).toBe('English');
+      });
+
+      test('lifts footnote children when converting content with footnotes', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Main text' },
+              children: [
+                {
+                  id: 'fn1',
+                  number: 'i.',
+                  type: 'footnote',
+                  contents: { de: 'First footnote' },
+                } as LeafDocumentNode,
+                {
+                  id: 'fn2',
+                  number: 'ii.',
+                  type: 'footnote',
+                  contents: { de: 'Second footnote' },
+                } as LeafDocumentNode,
+              ],
+            } as ContentDocumentNode,
+            {
+              id: 'p2',
+              number: null,
+              type: 'content',
+              contents: { de: 'Next paragraph' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('p1', 'footnote');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have 4 children: converted p1, fn1, fn2, p2
+        expect(newDoc.children.length).toBe(4);
+        expect(newDoc.children[0].id).toBe('p1');
+        expect(newDoc.children[0].type).toBe('footnote');
+        expect(newDoc.children[1].id).toBe('fn1');
+        expect(newDoc.children[2].id).toBe('fn2');
+        expect(newDoc.children[3].id).toBe('p2');
+      });
+
+      test('does nothing when already footnote', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'fn1',
+              number: 'i.',
+              type: 'footnote',
+              contents: { de: 'Already a footnote' },
+            } as LeafDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('fn1', 'footnote');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('heading -> footnote', () => {
+      test('converts heading to footnote and lifts children', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Heading text' },
+              children: [
+                {
+                  id: 'p1',
+                  number: null,
+                  type: 'content',
+                  contents: { de: 'Child content' },
+                  children: [],
+                } as ContentDocumentNode,
+                {
+                  id: 'p2',
+                  number: null,
+                  type: 'content',
+                  contents: { de: 'Another child' },
+                  children: [],
+                } as ContentDocumentNode,
+              ],
+            } as HeadingDocumentNode,
+            {
+              id: 'h2',
+              number: '2',
+              type: 'heading',
+              contents: { de: 'Next heading' },
+              children: [],
+            } as HeadingDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'footnote');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Should have 4 children: converted h1, p1, p2, h2
+        expect(newDoc.children.length).toBe(4);
+        expect(newDoc.children[0].id).toBe('h1');
+        expect(newDoc.children[0].type).toBe('footnote');
+        expect('children' in newDoc.children[0]).toBe(false);
+        expect(newDoc.children[1].id).toBe('p1');
+        expect(newDoc.children[2].id).toBe('p2');
+        expect(newDoc.children[3].id).toBe('h2');
+      });
+
+      test('converts heading without children to footnote', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'h1',
+              number: '1',
+              type: 'heading',
+              contents: { de: 'Heading text' },
+              children: [],
+            } as HeadingDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('h1', 'footnote');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as LeafDocumentNode;
+
+        expect(converted.type).toBe('footnote');
+        expect(converted.id).toBe('h1');
+        expect(converted.number).toBe('1');
+        expect(converted.contents.de).toBe('Heading text');
+        expect('children' in converted).toBe(false);
+      });
+    });
+
+    describe('footnote -> content', () => {
+      test('converts footnote to content (adds empty children array)', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'fn1',
+              number: 'i.',
+              type: 'footnote',
+              contents: { de: 'Footnote text' },
+            } as LeafDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('fn1', 'content');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.type).toBe('content');
+        expect(converted.id).toBe('fn1');
+        expect(converted.number).toBe('i.');
+        expect(converted.contents.de).toBe('Footnote text');
+        expect(converted.children).toEqual([]);
+      });
+
+      test('preserves multi-language contents', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'fn1',
+              number: null,
+              type: 'footnote',
+              contents: { de: 'German', en: 'English', fr: 'French' },
+            } as LeafDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('fn1', 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.contents.de).toBe('German');
+        expect(converted.contents.en).toBe('English');
+        expect(converted.contents.fr).toBe('French');
+      });
+    });
+
+    describe('footnote conversion edge cases', () => {
+      test('cannot convert list to footnote', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'Item'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'footnote');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+
+      test('cannot convert list_item to footnote', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'Item'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('li1', 'footnote');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
       });
     });
   });

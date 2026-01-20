@@ -7,11 +7,12 @@ import {
   List,
   ListOrdered,
   SortAsc,
+  Asterisk,
   Trash2,
   X
 } from 'lucide-react';
 
-type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc';
+type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc' | 'footnote';
 
 interface FloatingToolbarProps {
   selectedCount: number;
@@ -76,6 +77,10 @@ export function FloatingToolbar({
       </button>
       <button onClick={() => onUpdateType('abc')} className={typeButtonClass('abc')} title="Alpha List (6)">
         <SortAsc size={18} />
+      </button>
+      <div className="w-px h-6 bg-gray-700 mx-1" />
+      <button onClick={() => onUpdateType('footnote')} className={typeButtonClass('footnote')} title="Footnote">
+        <Asterisk size={18} />
       </button>
 
       <div className="w-px h-6 bg-gray-700 mx-1" />

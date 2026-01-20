@@ -102,18 +102,25 @@ export const useTreeOperations = ({
   }, [document, nodeIndex, language, commit]);
 
   /**
-   * Find the previous sibling that can accept children (heading).
+   * Find the previous sibling that can accept the given node as a child.
+   * - For footnotes: heading or content (both can have footnote children)
+   * - For other nodes: heading only
    */
-  const findPreviousSiblingHeading = (
+  const findPreviousSiblingTarget = (
     parent: DocumentNode,
-    childIndex: number
-  ): { node: HeadingDocumentNode; index: number } | null => {
+    childIndex: number,
+    nodeType: DocumentNode['type']
+  ): { node: HeadingDocumentNode | ContentDocumentNode; index: number } | null => {
     if (!('children' in parent)) return null;
 
     for (let i = childIndex - 1; i >= 0; i--) {
       const sibling = parent.children[i];
       if (sibling.type === 'heading') {
         return { node: sibling as HeadingDocumentNode, index: i };
+      }
+      // Footnotes can also be nested under content nodes
+      if (nodeType === 'footnote' && sibling.type === 'content') {
+        return { node: sibling as ContentDocumentNode, index: i };
       }
     }
     return null;
@@ -142,10 +149,10 @@ export const useTreeOperations = ({
       return;
     }
 
-    // Find previous sibling heading
-    const target = findPreviousSiblingHeading(parent, childIndex);
+    // Find previous sibling that can accept this node as child
+    const target = findPreviousSiblingTarget(parent, childIndex, node.type);
     if (!target) {
-      // No previous heading to nest under
+      // No valid target to nest under
       return;
     }
 
@@ -156,12 +163,11 @@ export const useTreeOperations = ({
     // But since we're looking for previous siblings, target.index < childIndex
     // so the path is still valid
     const targetPath = [...parentPath, target.index];
-    const targetNode = getNodeAtPath(newDoc, targetPath) as HeadingDocumentNode;
 
-    // Add node as last child of target heading
-    newDoc = updateNodeAtPath(newDoc, targetPath, (heading) => ({
-      ...heading,
-      children: [...(heading as HeadingDocumentNode).children, node],
+    // Add node as last child of target (heading or content)
+    newDoc = updateNodeAtPath(newDoc, targetPath, (targetNode) => ({
+      ...targetNode,
+      children: [...(targetNode as HeadingDocumentNode | ContentDocumentNode).children, node],
     }));
 
     commit(newDoc);
@@ -184,8 +190,8 @@ export const useTreeOperations = ({
 
     if (!parent || !node) return;
 
-    // Parent must be a heading or list to outdent from
-    if (parent.type !== 'heading' && parent.type !== 'list') return;
+    // Parent must be a heading, list, or content to outdent from
+    if (parent.type !== 'heading' && parent.type !== 'list' && parent.type !== 'content') return;
 
     // Special case: if parent is list and node is list_item in a nested list
     if (parent.type === 'list' && node.type === 'list_item') {
@@ -259,15 +265,15 @@ export const useTreeOperations = ({
 
   /**
    * Change the type of a node.
-   * Handles conversions between heading, content, and list_item.
+   * Handles conversions between heading, content, footnote, and list_item.
    *
    * @param id - Node ID to convert
-   * @param targetType - 'heading' | 'content' | 'list'
+   * @param targetType - 'heading' | 'content' | 'list' | 'footnote'
    * @param listStyle - For lists: 'unordered' | 'numbered' | 'lettered'
    */
   const changeNodeType = useCallback((
     id: string,
-    targetType: 'heading' | 'content' | 'list',
+    targetType: 'heading' | 'content' | 'list' | 'footnote',
     listStyle?: ListStyle
   ) => {
     const path = nodeIndex.get(id);
@@ -289,6 +295,10 @@ export const useTreeOperations = ({
         changeListStyle(path, listStyle || 'numbered');
         return;
       }
+      if (targetType === 'footnote') {
+        // list_item cannot be converted to footnote directly
+        return;
+      }
       // Extract from list and convert
       extractAndConvertListItem(path, node as ContainerDocumentNode, targetType);
       return;
@@ -296,6 +306,38 @@ export const useTreeOperations = ({
 
     // Can only convert nodes with contents
     if (!hasContents(node)) return;
+
+    // Handle conversion to footnote
+    if (targetType === 'footnote') {
+      if (node.type === 'footnote') return; // Already a footnote
+
+      // Create footnote node (leaf - no children)
+      const footnoteNode: LeafDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'footnote',
+        contents: node.contents,
+      };
+
+      // Replace node with footnote
+      let newDoc = updateNodeAtPath(document, path, () => footnoteNode);
+
+      // If converting from heading or content with children, lift children as siblings
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, headingChildren[i]);
+        }
+      } else if (node.type === 'content') {
+        const contentChildren = (node as ContentDocumentNode).children;
+        for (let i = 0; i < contentChildren.length; i++) {
+          newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, contentChildren[i]);
+        }
+      }
+
+      commit(newDoc);
+      return;
+    }
 
     // Handle conversion to heading
     if (targetType === 'heading') {
@@ -319,10 +361,6 @@ export const useTreeOperations = ({
     if (targetType === 'content') {
       if (node.type === 'content') return; // Already content
 
-      // heading -> content: lift children as siblings
-      const headingNode = node as HeadingDocumentNode;
-      const children = headingNode.children;
-
       // Create content node (with empty children array)
       const contentNode: ContentDocumentNode = {
         id: node.id,
@@ -332,13 +370,17 @@ export const useTreeOperations = ({
         children: [],
       };
 
-      // Replace heading with content
+      // Replace node with content
       let newDoc = updateNodeAtPath(document, path, () => contentNode);
 
-      // Insert former children after the converted node
-      for (let i = 0; i < children.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, children[i]);
+      // If converting from heading, lift children as siblings
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(newDoc, parentPath, nodeIndexInParent + 1 + i, headingChildren[i]);
+        }
       }
+      // footnote -> content: no children to lift (footnote is a leaf node)
 
       commit(newDoc);
       return;

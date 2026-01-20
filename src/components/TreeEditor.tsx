@@ -84,6 +84,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     const nodeType = flatNode.node.type;
     if (nodeType === 'heading') return 'heading';
     if (nodeType === 'content') return 'p';
+    if (nodeType === 'footnote') return 'footnote';
     if (nodeType === 'list_item') {
       // Check parent list style via the node's number format
       const num = flatNode.node.number;
@@ -258,7 +259,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
-    let targetType: 'heading' | 'content' | 'list';
+    let targetType: 'heading' | 'content' | 'list' | 'footnote';
     let listStyle: ListStyle | undefined;
 
     switch (toolbarType) {
@@ -279,6 +280,9 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
       case 'abc':
         targetType = 'list';
         listStyle = 'lettered';
+        break;
+      case 'footnote':
+        targetType = 'footnote';
         break;
       default:
         return;
