@@ -94,10 +94,13 @@ describe('Document Utils', () => {
       const list = doc.children[0] as ContainerDocumentNode;
       expect(list.type).toBe('list');
       expect(list.children.length).toBe(2);
-      const item1 = list.children[0] as LeafDocumentNode;
+      const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('list_item');
-      expect(item1.contents.de).toBe('Item 1');
       expect(item1.number).toBeNull(); // ul has no numbering
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
+      expect(item1Content.contents.de).toBe('Item 1');
     });
 
     it('converts ol with numbering in number field', () => {
@@ -105,10 +108,13 @@ describe('Document Utils', () => {
       const doc = parseHtmlToTree(html);
       const list = doc.children[0] as ContainerDocumentNode;
       expect(list.type).toBe('list');
-      const item1 = list.children[0] as LeafDocumentNode;
+      const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('list_item');
       expect(item1.number).toBe('1.');
-      const item2 = list.children[1] as LeafDocumentNode;
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
+      const item2 = list.children[1] as ContainerDocumentNode;
       expect(item2.number).toBe('2.');
     });
 
@@ -255,9 +261,12 @@ describe('Document Utils', () => {
       // Should be converted to a list with lettered items
       const list = doc.children[0] as ContainerDocumentNode;
       expect(list.type).toBe('list');
-      const item1 = list.children[0] as LeafDocumentNode;
+      const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('list_item');
       expect(item1.number).toBe('a.');
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
     });
 
     // Additional pattern detection tests (ported from legal-patterns.test.ts)

@@ -10,6 +10,7 @@ export type Language = 'en' | 'de' | 'fr' | 'it' | 'rm';
 export type ContainerDocumentNodeType =
   | 'document'  // Tree root
   | 'list'
+  | 'list_item'  // List item container; text content goes in child 'content' node
   | 'footnote';  // Container for footnote content
 
 export interface ContainerDocumentNode {
@@ -24,7 +25,6 @@ export interface ContainerDocumentNode {
  */
 export type LeafDocumentNodeType =
   | 'content'  // Paragraph or general text content
-  | 'list_item'
   | 'image';
 
 export interface LeafDocumentNode {
@@ -93,8 +93,8 @@ export const exampleDocument: ContainerDocumentNode = {
  */
 
 const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
-const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'footnote'];
-const LEAF_TYPES: LeafDocumentNodeType[] = ['content', 'list_item', 'image'];
+const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'list_item', 'footnote'];
+const LEAF_TYPES: LeafDocumentNodeType[] = ['content', 'image'];
 
 type ParentType = ContainerDocumentNodeType | 'heading' | null;
 

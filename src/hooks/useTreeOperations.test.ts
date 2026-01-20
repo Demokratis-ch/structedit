@@ -49,6 +49,16 @@ const createTestDocument = (): ContainerDocumentNode => ({
   ],
 });
 
+// Helper to create a list_item with child content node
+const createListItem = (id: string, number: string | null, content: string): ContainerDocumentNode => ({
+  id,
+  number,
+  type: 'list_item',
+  children: [
+    { id: `${id}-content`, number: null, type: 'content', contents: { de: content } } as LeafDocumentNode,
+  ],
+});
+
 const createDocumentWithList = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
@@ -65,24 +75,9 @@ const createDocumentWithList = (): ContainerDocumentNode => ({
           number: null,
           type: 'list',
           children: [
-            {
-              id: 'li1',
-              number: '1.',
-              type: 'list_item',
-              contents: { de: 'First item' },
-            },
-            {
-              id: 'li2',
-              number: '2.',
-              type: 'list_item',
-              contents: { de: 'Second item' },
-            },
-            {
-              id: 'li3',
-              number: '3.',
-              type: 'list_item',
-              contents: { de: 'Third item' },
-            },
+            createListItem('li1', '1.', 'First item'),
+            createListItem('li2', '2.', 'Second item'),
+            createListItem('li3', '3.', 'Third item'),
           ],
         },
       ],
@@ -409,23 +404,13 @@ describe('useTreeOperations', () => {
             number: null,
             type: 'list',
             children: [
-              {
-                id: 'li1',
-                number: '1.',
-                type: 'list_item',
-                contents: { de: 'First' },
-              },
+              createListItem('li1', '1.', 'First'),
               {
                 id: 'nested-list',
                 number: null,
                 type: 'list',
                 children: [
-                  {
-                    id: 'li2',
-                    number: 'a.',
-                    type: 'list_item',
-                    contents: { de: 'Nested item' },
-                  },
+                  createListItem('li2', 'a.', 'Nested item'),
                 ],
               },
             ],
@@ -676,12 +661,15 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
         expect(list.type).toBe('list');
 
-        // List should contain one list_item with same content
+        // List should contain one list_item with child content node
         expect(list.children.length).toBe(1);
-        const item = list.children[0] as LeafDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
         expect(item.type).toBe('list_item');
-        expect(item.id).toBe('p1');
-        expect(item.contents.de).toBe('Item text');
+        // The original content node becomes a child with its id preserved
+        const itemContent = item.children[0] as LeafDocumentNode;
+        expect(itemContent.type).toBe('content');
+        expect(itemContent.id).toBe('p1');
+        expect(itemContent.contents.de).toBe('Item text');
       });
 
       test('sets correct number for numbered list', () => {
@@ -707,7 +695,7 @@ describe('useTreeOperations', () => {
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as LeafDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
         expect(item.number).toBe('1.');
       });
 
@@ -734,7 +722,7 @@ describe('useTreeOperations', () => {
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as LeafDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
         expect(item.number).toBe('a.');
       });
 
@@ -761,7 +749,7 @@ describe('useTreeOperations', () => {
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as LeafDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
         expect(item.number).toBeNull();
       });
     });
@@ -805,9 +793,11 @@ describe('useTreeOperations', () => {
         expect(list.type).toBe('list');
         expect(list.children.length).toBe(1);
 
-        const item = list.children[0] as LeafDocumentNode;
-        expect(item.id).toBe('h1');
+        const item = list.children[0] as ContainerDocumentNode;
         expect(item.type).toBe('list_item');
+        // The original heading content is now in the child content node
+        const itemContent = item.children[0] as LeafDocumentNode;
+        expect(itemContent.id).toBe('h1');
 
         // Lifted child
         expect(newDoc.children[1].id).toBe('p1');
@@ -826,12 +816,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                {
-                  id: 'li1',
-                  number: '1.',
-                  type: 'list_item',
-                  contents: { de: 'Only item' },
-                },
+                createListItem('li1', '1.', 'Only item'),
               ],
             },
           ],
@@ -864,18 +849,8 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                {
-                  id: 'li1',
-                  number: '1.',
-                  type: 'list_item',
-                  contents: { de: 'First' },
-                },
-                {
-                  id: 'li2',
-                  number: '2.',
-                  type: 'list_item',
-                  contents: { de: 'Second' },
-                },
+                createListItem('li1', '1.', 'First'),
+                createListItem('li2', '2.', 'Second'),
               ],
             },
           ],
@@ -917,12 +892,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                {
-                  id: 'li1',
-                  number: '1.',
-                  type: 'list_item',
-                  contents: { de: 'Only item' },
-                },
+                createListItem('li1', '1.', 'Only item'),
               ],
             },
           ],
@@ -954,18 +924,8 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                {
-                  id: 'li1',
-                  number: '1.',
-                  type: 'list_item',
-                  contents: { de: 'First' },
-                },
-                {
-                  id: 'li2',
-                  number: '2.',
-                  type: 'list_item',
-                  contents: { de: 'Second' },
-                },
+                createListItem('li1', '1.', 'First'),
+                createListItem('li2', '2.', 'Second'),
               ],
             },
           ],
@@ -1006,9 +966,9 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: null, type: 'list_item', contents: { de: 'A' } },
-                { id: 'li2', number: null, type: 'list_item', contents: { de: 'B' } },
-                { id: 'li3', number: null, type: 'list_item', contents: { de: 'C' } },
+                createListItem('li1', null, 'A'),
+                createListItem('li2', null, 'B'),
+                createListItem('li3', null, 'C'),
               ],
             },
           ],
@@ -1023,9 +983,9 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as LeafDocumentNode).number).toBe('1.');
-        expect((list.children[1] as LeafDocumentNode).number).toBe('2.');
-        expect((list.children[2] as LeafDocumentNode).number).toBe('3.');
+        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+        expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
       });
 
       test('ol -> abc updates all item numbers to a., b., c.', () => {
@@ -1039,8 +999,8 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'A' } },
-                { id: 'li2', number: '2.', type: 'list_item', contents: { de: 'B' } },
+                createListItem('li1', '1.', 'A'),
+                createListItem('li2', '2.', 'B'),
               ],
             },
           ],
@@ -1055,8 +1015,8 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as LeafDocumentNode).number).toBe('a.');
-        expect((list.children[1] as LeafDocumentNode).number).toBe('b.');
+        expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
       });
 
       test('ol -> ul sets all item numbers to null', () => {
@@ -1070,8 +1030,8 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'A' } },
-                { id: 'li2', number: '2.', type: 'list_item', contents: { de: 'B' } },
+                createListItem('li1', '1.', 'A'),
+                createListItem('li2', '2.', 'B'),
               ],
             },
           ],
@@ -1086,8 +1046,8 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as LeafDocumentNode).number).toBeNull();
-        expect((list.children[1] as LeafDocumentNode).number).toBeNull();
+        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
+        expect((list.children[1] as ContainerDocumentNode).number).toBeNull();
       });
     });
 
@@ -1113,7 +1073,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item' } },
+                createListItem('li1', '1.', 'Item'),
               ],
             },
           ],
@@ -1141,7 +1101,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+                createListItem('li1', '1.', 'Item 1'),
               ],
             },
             {
@@ -1167,7 +1127,9 @@ describe('useTreeOperations', () => {
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(2);
         expect(mergedList.children[0].id).toBe('li1');
-        expect(mergedList.children[1].id).toBe('p1');
+        // The converted content's id is now in the child content node
+        const newItem = mergedList.children[1] as ContainerDocumentNode;
+        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
       });
 
       test('merges with following list when converting to list', () => {
@@ -1187,7 +1149,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+                createListItem('li1', '1.', 'Item 1'),
               ],
             },
           ],
@@ -1206,7 +1168,9 @@ describe('useTreeOperations', () => {
         expect(newDoc.children[0].type).toBe('list');
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(2);
-        expect(mergedList.children[0].id).toBe('p1');
+        // The converted content's id is now in the child content node
+        const newItem = mergedList.children[0] as ContainerDocumentNode;
+        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
         expect(mergedList.children[1].id).toBe('li1');
       });
 
@@ -1221,7 +1185,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+                createListItem('li1', '1.', 'Item 1'),
               ],
             },
             {
@@ -1235,7 +1199,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li2', number: '1.', type: 'list_item', contents: { de: 'Item 2' } },
+                createListItem('li2', '1.', 'Item 2'),
               ],
             },
           ],
@@ -1255,7 +1219,9 @@ describe('useTreeOperations', () => {
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(3);
         expect(mergedList.children[0].id).toBe('li1');
-        expect(mergedList.children[1].id).toBe('p1');
+        // The converted content's id is now in the child content node
+        const newItem = mergedList.children[1] as ContainerDocumentNode;
+        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
         expect(mergedList.children[2].id).toBe('li2');
       });
 
@@ -1270,7 +1236,7 @@ describe('useTreeOperations', () => {
               number: null,
               type: 'list',
               children: [
-                { id: 'li1', number: '1.', type: 'list_item', contents: { de: 'Item 1' } },
+                createListItem('li1', '1.', 'Item 1'),
               ],
             },
             {

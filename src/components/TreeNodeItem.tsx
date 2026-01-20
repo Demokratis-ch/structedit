@@ -50,7 +50,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   const { node, depth, isLastChild, ancestorIsLastChild } = flatNode;
   const indentPixels = depth * 24;
 
-  // Get content for current language
+  // Get content for current language (only for leaf nodes and headings)
   const content = 'contents' in node ? (node.contents[language] || '') : '';
 
   // Determine visual style based on node type and depth
@@ -208,6 +208,8 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
 
         {node.type === 'list' ? (
           <span className="text-gray-400 select-none">(list)</span>
+        ) : node.type === 'list_item' ? (
+          <span className="text-gray-400 select-none">(list_item)</span>
         ) : (
           <ContentBlock
             blockRefs={blockRefs}

@@ -38,13 +38,20 @@ export const useTreeOperations = ({
     let newNode: DocumentNode;
 
     if (parent.type === 'list') {
-      // Inside a list, create a list_item
+      // Inside a list, create a list_item (container with child content node)
       newNode = {
         id: generateId(),
         number: null,
         type: 'list_item',
-        contents: { [language]: '' },
-      } as LeafDocumentNode;
+        children: [
+          {
+            id: generateId(),
+            number: null,
+            type: 'content',
+            contents: { [language]: '' },
+          } as LeafDocumentNode,
+        ],
+      } as ContainerDocumentNode;
     } else {
       // Default to content node
       newNode = {
@@ -278,7 +285,7 @@ export const useTreeOperations = ({
         return;
       }
       // Extract from list and convert
-      extractAndConvertListItem(path, node as LeafDocumentNode, targetType);
+      extractAndConvertListItem(path, node as ContainerDocumentNode, targetType);
       return;
     }
 
@@ -335,12 +342,19 @@ export const useTreeOperations = ({
     if (targetType === 'list') {
       const style = listStyle || 'numbered';
 
-      // Create list item from the node
-      const listItem: LeafDocumentNode = {
-        id: node.id,
+      // Create list item from the node (container with child content node)
+      const listItem: ContainerDocumentNode = {
+        id: generateId(),
         number: getNumberForStyle(style, 0),
         type: 'list_item',
-        contents: node.contents,
+        children: [
+          {
+            id: node.id,
+            number: null,
+            type: 'content',
+            contents: node.contents,
+          } as LeafDocumentNode,
+        ],
       };
 
       // Create list container
@@ -399,7 +413,7 @@ export const useTreeOperations = ({
    */
   const extractAndConvertListItem = useCallback((
     itemPath: NodePath,
-    item: LeafDocumentNode,
+    item: ContainerDocumentNode,
     targetType: 'heading' | 'content'
   ) => {
     const listPath = itemPath.slice(0, -1);
@@ -408,20 +422,24 @@ export const useTreeOperations = ({
 
     if (!list || list.type !== 'list') return;
 
+    // Extract contents from the first child content node
+    const firstChild = item.children[0];
+    const contents = firstChild && 'contents' in firstChild ? firstChild.contents : {};
+
     // Create the converted node
     const convertedNode: DocumentNode = targetType === 'heading'
       ? {
           id: item.id,
           number: null,
           type: 'heading',
-          contents: item.contents,
+          contents,
           children: [],
         } as HeadingDocumentNode
       : {
           id: item.id,
           number: null,
           type: 'content',
-          contents: item.contents,
+          contents,
         } as LeafDocumentNode;
 
     // Get parent of list info

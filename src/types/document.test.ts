@@ -42,7 +42,14 @@ describe('Document validation', () => {
       number: null,
       type: 'document',
       children: [
-        { id: '2', number: null, type: 'list_item', contents: { en: 'Item' } }
+        {
+          id: '2',
+          number: null,
+          type: 'list_item',
+          children: [
+            { id: '3', number: null, type: 'content', contents: { en: 'Item' } }
+          ]
+        }
       ]
     })).toBe(false);
   });
@@ -58,11 +65,36 @@ describe('Document validation', () => {
           number: null,
           type: 'list',
           children: [
-            { id: '3', number: '1.', type: 'list_item', contents: { en: 'Item' } }
+            {
+              id: '3',
+              number: '1.',
+              type: 'list_item',
+              children: [
+                { id: '4', number: null, type: 'content', contents: { en: 'Item' } }
+              ]
+            }
           ]
         }
       ]
     })).toBe(true);
+  });
+
+  it('rejects list_item with contents property (old leaf structure)', () => {
+    expect(isValidDocument({
+      id: '1',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: '2',
+          number: null,
+          type: 'list',
+          children: [
+            { id: '3', number: '1.', type: 'list_item', contents: { en: 'Item' } }
+          ]
+        }
+      ]
+    })).toBe(false);
   });
 
   it('rejects container nodes with contents', () => {

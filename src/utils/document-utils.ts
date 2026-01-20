@@ -127,11 +127,18 @@ export const parseHtmlToTree = (html: string, language: Language = detectLanguag
       );
 
       items.forEach((li, index) => {
-        const listItem: LeafDocumentNode = {
+        const listItem: ContainerDocumentNode = {
           id: generateId(),
           number: tagName === 'ol' ? `${index + 1}.` : null,
           type: 'list_item',
-          contents: { [language]: getInnerHtml(li) },
+          children: [
+            {
+              id: generateId(),
+              number: null,
+              type: 'content',
+              contents: { [language]: getInnerHtml(li) },
+            } as LeafDocumentNode,
+          ],
         };
         list.children.push(listItem);
       });
@@ -204,7 +211,14 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
           id: generateId(),
           number: item.number,
           type: 'list_item' as const,
-          contents: { [language]: item.content },
+          children: [
+            {
+              id: generateId(),
+              number: null,
+              type: 'content' as const,
+              contents: { [language]: item.content },
+            },
+          ],
         })),
       };
       addChild(list);
@@ -267,11 +281,18 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
       );
 
       items.forEach((li, index) => {
-        const listItem: LeafDocumentNode = {
+        const listItem: ContainerDocumentNode = {
           id: generateId(),
           number: tagName === 'ol' ? `${index + 1}.` : null,
           type: 'list_item',
-          contents: { [language]: getInnerHtml(li) },
+          children: [
+            {
+              id: generateId(),
+              number: null,
+              type: 'content',
+              contents: { [language]: getInnerHtml(li) },
+            } as LeafDocumentNode,
+          ],
         };
         list.children.push(listItem);
       });
