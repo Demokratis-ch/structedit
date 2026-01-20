@@ -1,7 +1,12 @@
 import { describe, test, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTreeOperations } from './useTreeOperations';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode, ContentDocumentNode } from '../types/document';
+import type {
+  ContainerDocumentNode,
+  HeadingDocumentNode,
+  LeafDocumentNode,
+  ContentDocumentNode,
+} from '../types/document';
 import type { NodePath } from '../types/editor';
 import { getNodeAtPath, buildIndices } from '../utils/tree-utils';
 
@@ -52,12 +57,22 @@ const createTestDocument = (): ContainerDocumentNode => ({
 });
 
 // Helper to create a list_item with child content node
-const createListItem = (id: string, number: string | null, content: string): ContainerDocumentNode => ({
+const createListItem = (
+  id: string,
+  number: string | null,
+  content: string
+): ContainerDocumentNode => ({
   id,
   number,
   type: 'list_item',
   children: [
-    { id: `${id}-content`, number: null, type: 'content', contents: { de: content }, children: [] } as ContentDocumentNode,
+    {
+      id: `${id}-content`,
+      number: null,
+      type: 'content',
+      contents: { de: content },
+      children: [],
+    } as ContentDocumentNode,
   ],
 });
 
@@ -100,13 +115,15 @@ describe('useTreeOperations', () => {
 
   const renderTreeOperations = (doc: ContainerDocumentNode = document) => {
     const idx = buildIndices(doc);
-    return renderHook(() => useTreeOperations({
-      document: doc,
-      commit: mockCommit,
-      nodeIndex: idx.nodeIndex,
-      parentIndex: idx.parentIndex,
-      language: 'de',
-    }));
+    return renderHook(() =>
+      useTreeOperations({
+        document: doc,
+        commit: mockCommit,
+        nodeIndex: idx.nodeIndex,
+        parentIndex: idx.parentIndex,
+        language: 'de',
+      })
+    );
   };
 
   describe('addNodeAfter', () => {
@@ -413,9 +430,7 @@ describe('useTreeOperations', () => {
                 id: 'nested-list',
                 number: null,
                 type: 'list',
-                children: [
-                  createListItem('li2', 'a.', 'Nested item'),
-                ],
+                children: [createListItem('li2', 'a.', 'Nested item')],
               },
             ],
           },
@@ -432,7 +447,7 @@ describe('useTreeOperations', () => {
       const list1 = newDoc.children[0] as ContainerDocumentNode;
 
       // li2 should now be in list1, after the nested-list
-      expect(list1.children.some(c => c.id === 'li2')).toBe(true);
+      expect(list1.children.some((c) => c.id === 'li2')).toBe(true);
     });
 
     test('does nothing when outdenting list_item would place it outside any list', () => {
@@ -483,9 +498,7 @@ describe('useTreeOperations', () => {
                 id: 'list1',
                 number: null,
                 type: 'list',
-                children: [
-                  createListItem('li1', '1.', 'Item 1'),
-                ],
+                children: [createListItem('li1', '1.', 'Item 1')],
               },
             ],
           } as HeadingDocumentNode,
@@ -1097,9 +1110,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Only item'),
-              ],
+              children: [createListItem('li1', '1.', 'Only item')],
             },
           ],
         };
@@ -1173,9 +1184,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Only item'),
-              ],
+              children: [createListItem('li1', '1.', 'Only item')],
             },
           ],
         };
@@ -1280,10 +1289,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'A'),
-                createListItem('li2', '2.', 'B'),
-              ],
+              children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
             },
           ],
         };
@@ -1311,10 +1317,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'A'),
-                createListItem('li2', '2.', 'B'),
-              ],
+              children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
             },
           ],
         };
@@ -1354,9 +1357,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item'),
-              ],
+              children: [createListItem('li1', '1.', 'Item')],
             },
           ],
         };
@@ -1382,9 +1383,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'p1',
@@ -1432,9 +1431,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             },
           ],
         };
@@ -1468,9 +1465,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'p1',
@@ -1483,9 +1478,7 @@ describe('useTreeOperations', () => {
               id: 'list2',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li2', '1.', 'Item 2'),
-              ],
+              children: [createListItem('li2', '1.', 'Item 2')],
             },
           ],
         };
@@ -1520,9 +1513,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'h1',
@@ -1864,9 +1855,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item'),
-              ],
+              children: [createListItem('li1', '1.', 'Item')],
             },
           ],
         };
@@ -1890,9 +1879,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item'),
-              ],
+              children: [createListItem('li1', '1.', 'Item')],
             },
           ],
         };
@@ -2025,14 +2012,18 @@ describe('useTreeOperations', () => {
           number: null,
           type: 'document',
           children: [
-            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' }, children: [] } as ContentDocumentNode,
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Para' },
+              children: [],
+            } as ContentDocumentNode,
             {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
         };
@@ -2066,9 +2057,7 @@ describe('useTreeOperations', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
         };
@@ -2165,14 +2154,18 @@ describe('useTreeOperations', () => {
           number: null,
           type: 'document',
           children: [
-            { id: 'p1', number: null, type: 'content', contents: { de: 'Para' }, children: [] } as ContentDocumentNode,
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Para' },
+              children: [],
+            } as ContentDocumentNode,
             {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('li1', '1.', 'Item 1'),
-              ],
+              children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
         };
@@ -2226,7 +2219,12 @@ describe('useTreeOperations', () => {
           number: null,
           type: 'document',
           children: [
-            { id: 'fn1', number: 'i.', type: 'footnote', contents: { de: 'Note' } } as LeafDocumentNode,
+            {
+              id: 'fn1',
+              number: 'i.',
+              type: 'footnote',
+              contents: { de: 'Note' },
+            } as LeafDocumentNode,
             {
               id: 'list1',
               number: null,

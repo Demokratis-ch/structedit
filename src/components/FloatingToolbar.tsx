@@ -9,7 +9,7 @@ import {
   SortAsc,
   Asterisk,
   Trash2,
-  X
+  X,
 } from 'lucide-react';
 
 type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc' | 'footnote';
@@ -31,15 +31,13 @@ export function FloatingToolbar({
   onFormat,
   onUpdateType,
   onDelete,
-  onClearSelection
+  onClearSelection,
 }: FloatingToolbarProps) {
   if (selectedCount === 0 && !isEditing) return null;
 
   const typeButtonClass = (type: ToolbarBlockType) =>
     `p-2 rounded-lg transition-colors ${
-      selectedNodeType === type
-        ? 'bg-blue-600 text-white'
-        : 'hover:bg-gray-700'
+      selectedNodeType === type ? 'bg-blue-600 text-white' : 'hover:bg-gray-700'
     }`;
 
   return (
@@ -54,41 +52,76 @@ export function FloatingToolbar({
         </div>
       )}
 
-      <button onClick={() => onFormat('bold')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Bold (Ctrl+B)">
+      <button
+        onClick={() => onFormat('bold')}
+        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+        title="Bold (Ctrl+B)"
+      >
         <Bold size={18} />
       </button>
-      <button onClick={() => onFormat('italic')} className="p-2 hover:bg-gray-700 rounded-lg transition-colors" title="Italic (Ctrl+I)">
+      <button
+        onClick={() => onFormat('italic')}
+        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+        title="Italic (Ctrl+I)"
+      >
         <Italic size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
 
-      <button onClick={() => onUpdateType('heading')} className={typeButtonClass('heading')} title="Heading">
+      <button
+        onClick={() => onUpdateType('heading')}
+        className={typeButtonClass('heading')}
+        title="Heading"
+      >
         <Heading size={18} />
       </button>
       <button onClick={() => onUpdateType('p')} className={typeButtonClass('p')} title="Paragraph">
         <Type size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
-      <button onClick={() => onUpdateType('ul')} className={typeButtonClass('ul')} title="Bullet List (4)">
+      <button
+        onClick={() => onUpdateType('ul')}
+        className={typeButtonClass('ul')}
+        title="Bullet List (4)"
+      >
         <List size={18} />
       </button>
-      <button onClick={() => onUpdateType('ol')} className={typeButtonClass('ol')} title="Ordered List (5)">
+      <button
+        onClick={() => onUpdateType('ol')}
+        className={typeButtonClass('ol')}
+        title="Ordered List (5)"
+      >
         <ListOrdered size={18} />
       </button>
-      <button onClick={() => onUpdateType('abc')} className={typeButtonClass('abc')} title="Alpha List (6)">
+      <button
+        onClick={() => onUpdateType('abc')}
+        className={typeButtonClass('abc')}
+        title="Alpha List (6)"
+      >
         <SortAsc size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
-      <button onClick={() => onUpdateType('footnote')} className={typeButtonClass('footnote')} title="Footnote">
+      <button
+        onClick={() => onUpdateType('footnote')}
+        className={typeButtonClass('footnote')}
+        title="Footnote"
+      >
         <Asterisk size={18} />
       </button>
 
       <div className="w-px h-6 bg-gray-700 mx-1" />
-      <button onClick={onDelete} className="p-2 hover:bg-red-900/50 text-red-400 rounded-lg transition-colors" title="Delete Selected">
+      <button
+        onClick={onDelete}
+        className="p-2 hover:bg-red-900/50 text-red-400 rounded-lg transition-colors"
+        title="Delete Selected"
+      >
         <Trash2 size={18} />
       </button>
 
-      <button onClick={onClearSelection} className="ml-2 p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors">
+      <button
+        onClick={onClearSelection}
+        className="ml-2 p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+      >
         <X size={16} />
       </button>
     </div>

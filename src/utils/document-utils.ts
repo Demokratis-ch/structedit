@@ -1,4 +1,10 @@
-import type { Language, ContainerDocumentNode, HeadingDocumentNode, ContentDocumentNode, DocumentNode } from '../types/document';
+import type {
+  Language,
+  ContainerDocumentNode,
+  HeadingDocumentNode,
+  ContentDocumentNode,
+  DocumentNode,
+} from '../types/document';
 import DOMPurify from 'dompurify';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -43,9 +49,37 @@ export const detectLanguage = (text?: string): Language => {
 /**
  * Parse HTML to DocumentNode tree structure
  */
-export const parseHtmlToTree = (html: string, language: Language = detectLanguage(html)): ContainerDocumentNode => {
+export const parseHtmlToTree = (
+  html: string,
+  language: Language = detectLanguage(html)
+): ContainerDocumentNode => {
   const cleanHtml = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
+    ALLOWED_TAGS: [
+      'b',
+      'i',
+      'em',
+      'strong',
+      'u',
+      's',
+      'strike',
+      'span',
+      'code',
+      'sub',
+      'sup',
+      'p',
+      'div',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'br',
+      'a',
+    ],
     ALLOWED_ATTR: ['href', 'target', 'type'],
   });
 
@@ -122,9 +156,7 @@ export const parseHtmlToTree = (html: string, language: Language = detectLanguag
       addChild(list);
 
       // Process list items
-      const items = Array.from(domNode.childNodes).filter(
-        n => n.nodeName.toLowerCase() === 'li'
-      );
+      const items = Array.from(domNode.childNodes).filter((n) => n.nodeName.toLowerCase() === 'li');
 
       items.forEach((li, index) => {
         const listItem: ContainerDocumentNode = {
@@ -173,9 +205,37 @@ export const parseHtmlToTree = (html: string, language: Language = detectLanguag
 /**
  * Parse HTML with Swiss legal document pattern detection to DocumentNode tree
  */
-export const parseHtmlLegalToTree = (html: string, language: Language = detectLanguage(html)): ContainerDocumentNode => {
+export const parseHtmlLegalToTree = (
+  html: string,
+  language: Language = detectLanguage(html)
+): ContainerDocumentNode => {
   const cleanHtml = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 's', 'strike', 'span', 'code', 'sub', 'sup', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'a'],
+    ALLOWED_TAGS: [
+      'b',
+      'i',
+      'em',
+      'strong',
+      'u',
+      's',
+      'strike',
+      'span',
+      'code',
+      'sub',
+      'sup',
+      'p',
+      'div',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'br',
+      'a',
+    ],
     ALLOWED_ATTR: ['href', 'target', 'type'],
   });
 
@@ -209,7 +269,7 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
         id: generateId(),
         number: null,
         type: 'list',
-        children: pendingListItems.map(item => ({
+        children: pendingListItems.map((item) => ({
           id: generateId(),
           number: item.number,
           type: 'list_item' as const,
@@ -279,9 +339,7 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
 
       addChild(list);
 
-      const items = Array.from(domNode.childNodes).filter(
-        n => n.nodeName.toLowerCase() === 'li'
-      );
+      const items = Array.from(domNode.childNodes).filter((n) => n.nodeName.toLowerCase() === 'li');
 
       items.forEach((li, index) => {
         const listItem: ContainerDocumentNode = {
@@ -308,7 +366,10 @@ export const parseHtmlLegalToTree = (html: string, language: Language = detectLa
       const content = getInnerHtml(domNode);
       if (!content) return;
 
-      const cleanText = content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+      const cleanText = content
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
 
       // Check for lettered item (a., b., c.)
       const letteredMatch = cleanText.match(/^([a-z])\.\s+(.*)$/);

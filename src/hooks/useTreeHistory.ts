@@ -15,32 +15,35 @@ export const useTreeHistory = (initialDocument: ContainerDocumentNode) => {
    * @param newDoc - The new document state
    * @param saveHistory - Whether to save to undo history (default true)
    */
-  const commit = useCallback((newDoc: ContainerDocumentNode, saveHistory = true) => {
-    setDocument(newDoc);
+  const commit = useCallback(
+    (newDoc: ContainerDocumentNode, saveHistory = true) => {
+      setDocument(newDoc);
 
-    if (saveHistory) {
-      setHistory(prev => {
-        // Truncate any redo history (entries after current index)
-        const currentHistory = prev.slice(0, historyIndex + 1);
+      if (saveHistory) {
+        setHistory((prev) => {
+          // Truncate any redo history (entries after current index)
+          const currentHistory = prev.slice(0, historyIndex + 1);
 
-        // Add new entry
-        const newHistory = [...currentHistory, newDoc];
+          // Add new entry
+          const newHistory = [...currentHistory, newDoc];
 
-        // Cap at max length by removing oldest entries
-        if (newHistory.length > MAX_HISTORY_LENGTH) {
-          return newHistory.slice(newHistory.length - MAX_HISTORY_LENGTH);
-        }
+          // Cap at max length by removing oldest entries
+          if (newHistory.length > MAX_HISTORY_LENGTH) {
+            return newHistory.slice(newHistory.length - MAX_HISTORY_LENGTH);
+          }
 
-        return newHistory;
-      });
+          return newHistory;
+        });
 
-      setHistoryIndex(prev => {
-        // New index is at the end, but capped by max history length
-        const newIndex = prev + 1;
-        return Math.min(newIndex, MAX_HISTORY_LENGTH - 1);
-      });
-    }
-  }, [historyIndex]);
+        setHistoryIndex((prev) => {
+          // New index is at the end, but capped by max history length
+          const newIndex = prev + 1;
+          return Math.min(newIndex, MAX_HISTORY_LENGTH - 1);
+        });
+      }
+    },
+    [historyIndex]
+  );
 
   /**
    * Undo to previous state.
@@ -82,10 +85,7 @@ export const useTreeHistory = (initialDocument: ContainerDocumentNode) => {
   }, []);
 
   // Rebuild indices whenever document changes
-  const { nodeIndex, parentIndex } = useMemo(
-    () => buildIndices(document),
-    [document]
-  );
+  const { nodeIndex, parentIndex } = useMemo(() => buildIndices(document), [document]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;

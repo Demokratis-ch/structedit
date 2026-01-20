@@ -12,16 +12,16 @@ interface ContentBlockProps {
   blockRefs: React.MutableRefObject<{ [key: string]: HTMLElement | null }>;
 }
 
-export const ContentBlock = ({ 
-  html, 
-  tagName, 
-  className, 
-  onChange, 
-  onKeyDown, 
-  onFocus, 
+export const ContentBlock = ({
+  html,
+  tagName,
+  className,
+  onChange,
+  onKeyDown,
+  onFocus,
   disabled,
   blockId,
-  blockRefs
+  blockRefs,
 }: ContentBlockProps) => {
   const contentEditableRef = useRef<HTMLElement>(null);
 

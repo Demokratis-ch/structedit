@@ -30,15 +30,11 @@ function App() {
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 bg-white">
           {view === 'upload' ? (
-             <div className="flex-1 overflow-auto p-8">
-                <DocumentFixer onConvert={handleConvert} />
-             </div>
+            <div className="flex-1 overflow-auto p-8">
+              <DocumentFixer onConvert={handleConvert} />
+            </div>
           ) : document ? (
-            <TreeEditor
-              initialDocument={document}
-              pdfUrl={pdfUrl}
-              onBack={handleBack}
-            />
+            <TreeEditor initialDocument={document} pdfUrl={pdfUrl} onBack={handleBack} />
           ) : null}
         </main>
       </div>

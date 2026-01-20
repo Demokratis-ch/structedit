@@ -11,8 +11,8 @@ export type NodePath = number[];
  */
 export interface EditorSelection {
   selectedIds: Set<string>;
-  anchorPath: NodePath | null;  // Starting point for shift-selection
-  focusPath: NodePath | null;   // Current endpoint
+  anchorPath: NodePath | null; // Starting point for shift-selection
+  focusPath: NodePath | null; // Current endpoint
 }
 
 /**
@@ -25,7 +25,7 @@ export interface FlattenedNode {
   depth: number;
   parentId: string | null;
   isLastChild: boolean;
-  ancestorIsLastChild: boolean[];  // For vertical line continuation at each depth
+  ancestorIsLastChild: boolean[]; // For vertical line continuation at each depth
 }
 
 /**

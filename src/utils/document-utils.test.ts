@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generateId, parseHtmlToTree, parseHtmlLegalToTree, detectLanguage } from './document-utils';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import {
+  generateId,
+  parseHtmlToTree,
+  parseHtmlLegalToTree,
+  detectLanguage,
+} from './document-utils';
+import type {
+  ContainerDocumentNode,
+  HeadingDocumentNode,
+  LeafDocumentNode,
+} from '../types/document';
 
 describe('Document Utils', () => {
   describe('generateId', () => {
@@ -352,7 +361,9 @@ describe('Document Utils', () => {
       expect(doc.children.length).toBeGreaterThan(0);
 
       // Check that some nodes exist (headings from legal patterns)
-      const flattenNodes = (node: ContainerDocumentNode | HeadingDocumentNode): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
+      const flattenNodes = (
+        node: ContainerDocumentNode | HeadingDocumentNode
+      ): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
         const result: (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] = [node];
         for (const child of node.children) {
           if ('children' in child) {
@@ -365,7 +376,7 @@ describe('Document Utils', () => {
       };
 
       const allNodes = flattenNodes(doc);
-      const hasHeadings = allNodes.some(n => n.type === 'heading');
+      const hasHeadings = allNodes.some((n) => n.type === 'heading');
       expect(hasHeadings).toBe(true);
     });
 
@@ -381,5 +392,4 @@ describe('Document Utils', () => {
       expect(doc.children.length).toEqual(6);
     });
   });
-
 });

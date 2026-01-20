@@ -9,15 +9,30 @@ import {
   flattenForRendering,
   mergeAdjacentLists,
 } from './tree-utils';
-import type { ContainerDocumentNode, ContentDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import type {
+  ContainerDocumentNode,
+  ContentDocumentNode,
+  HeadingDocumentNode,
+  LeafDocumentNode,
+} from '../types/document';
 
 // Helper to create a list_item with child content node
-const createListItem = (id: string, number: string | null, content: string): ContainerDocumentNode => ({
+const createListItem = (
+  id: string,
+  number: string | null,
+  content: string
+): ContainerDocumentNode => ({
   id,
   number,
   type: 'list_item',
   children: [
-    { id: `${id}-content`, number: null, type: 'content', contents: { de: content }, children: [] } as ContentDocumentNode,
+    {
+      id: `${id}-content`,
+      number: null,
+      type: 'content',
+      contents: { de: content },
+      children: [],
+    } as ContentDocumentNode,
   ],
 });
 
@@ -102,10 +117,15 @@ describe('getNodeAtPath', () => {
 describe('updateNodeAtPath', () => {
   test('modifies node contents immutably', () => {
     const doc = createTestDocument();
-    const newDoc = updateNodeAtPath(doc, [0, 0], (node) => ({
-      ...node,
-      contents: { de: 'Updated paragraph' },
-    } as LeafDocumentNode));
+    const newDoc = updateNodeAtPath(
+      doc,
+      [0, 0],
+      (node) =>
+        ({
+          ...node,
+          contents: { de: 'Updated paragraph' },
+        }) as LeafDocumentNode
+    );
 
     // Original unchanged
     const originalP1 = getNodeAtPath(doc, [0, 0]) as LeafDocumentNode;
@@ -118,10 +138,15 @@ describe('updateNodeAtPath', () => {
 
   test('preserves unmodified siblings', () => {
     const doc = createTestDocument();
-    const newDoc = updateNodeAtPath(doc, [0, 0], (node) => ({
-      ...node,
-      contents: { de: 'Updated' },
-    } as LeafDocumentNode));
+    const newDoc = updateNodeAtPath(
+      doc,
+      [0, 0],
+      (node) =>
+        ({
+          ...node,
+          contents: { de: 'Updated' },
+        }) as LeafDocumentNode
+    );
 
     // Sibling h2 should be preserved
     const h2 = getNodeAtPath(newDoc, [0, 1]) as HeadingDocumentNode;
@@ -131,10 +156,15 @@ describe('updateNodeAtPath', () => {
 
   test('works on deeply nested nodes', () => {
     const doc = createTestDocument();
-    const newDoc = updateNodeAtPath(doc, [0, 1, 0], (node) => ({
-      ...node,
-      contents: { de: 'Deep update' },
-    } as LeafDocumentNode));
+    const newDoc = updateNodeAtPath(
+      doc,
+      [0, 1, 0],
+      (node) =>
+        ({
+          ...node,
+          contents: { de: 'Deep update' },
+        }) as LeafDocumentNode
+    );
 
     const updated = getNodeAtPath(newDoc, [0, 1, 0]) as LeafDocumentNode;
     expect(updated.contents.de).toBe('Deep update');
@@ -355,14 +385,14 @@ describe('flattenForRendering', () => {
 
     // Should have 5 nodes (not counting root): h1, p1, h2, p2, h1b
     expect(flat.length).toBe(5);
-    expect(flat.map(f => f.node.id)).toEqual(['h1', 'p1', 'h2', 'p2', 'h1b']);
+    expect(flat.map((f) => f.node.id)).toEqual(['h1', 'p1', 'h2', 'p2', 'h1b']);
   });
 
   test('computes correct depth', () => {
     const doc = createTestDocument();
     const flat = flattenForRendering(doc);
 
-    const depthById = Object.fromEntries(flat.map(f => [f.node.id, f.depth]));
+    const depthById = Object.fromEntries(flat.map((f) => [f.node.id, f.depth]));
     expect(depthById['h1']).toBe(0);
     expect(depthById['p1']).toBe(1);
     expect(depthById['h2']).toBe(1);
@@ -374,11 +404,11 @@ describe('flattenForRendering', () => {
     const doc = createTestDocument();
     const flat = flattenForRendering(doc);
 
-    const lastChildById = Object.fromEntries(flat.map(f => [f.node.id, f.isLastChild]));
+    const lastChildById = Object.fromEntries(flat.map((f) => [f.node.id, f.isLastChild]));
     expect(lastChildById['h1']).toBe(false); // h1b comes after
     expect(lastChildById['p1']).toBe(false); // h2 comes after
-    expect(lastChildById['h2']).toBe(true);  // last child of h1
-    expect(lastChildById['p2']).toBe(true);  // only child of h2
+    expect(lastChildById['h2']).toBe(true); // last child of h1
+    expect(lastChildById['p2']).toBe(true); // only child of h2
     expect(lastChildById['h1b']).toBe(true); // last child of root
   });
 
@@ -387,7 +417,7 @@ describe('flattenForRendering', () => {
     const flat = flattenForRendering(doc);
 
     // p2 is at depth 2 (under h2 which is under h1)
-    const p2 = flat.find(f => f.node.id === 'p2')!;
+    const p2 = flat.find((f) => f.node.id === 'p2')!;
     // ancestorIsLastChild should tell us about ancestors from depth 0 upward
     // h1 (depth 0) is NOT last child (h1b follows)
     // h2 (depth 1) IS last child of h1
@@ -398,7 +428,7 @@ describe('flattenForRendering', () => {
     const doc = createTestDocument();
     const flat = flattenForRendering(doc);
 
-    const parentById = Object.fromEntries(flat.map(f => [f.node.id, f.parentId]));
+    const parentById = Object.fromEntries(flat.map((f) => [f.node.id, f.parentId]));
     expect(parentById['h1']).toBe('root');
     expect(parentById['p1']).toBe('h1');
     expect(parentById['h2']).toBe('h1');
@@ -425,7 +455,7 @@ describe('flattenForRendering', () => {
     };
 
     const flat = flattenForRendering(doc);
-    const ids = flat.map(f => f.node.id);
+    const ids = flat.map((f) => f.node.id);
 
     // Should include list, list_items, AND their child content nodes
     expect(ids).toEqual(['list1', 'item1', 'item1-content', 'item2', 'item2-content']);
@@ -443,17 +473,13 @@ describe('mergeAdjacentLists', () => {
           id: 'list1',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item1', '1.', 'Item 1'),
-          ],
+          children: [createListItem('item1', '1.', 'Item 1')],
         },
         {
           id: 'list2',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item2', '1.', 'Item 2'),
-          ],
+          children: [createListItem('item2', '1.', 'Item 2')],
         },
       ],
     };
@@ -478,25 +504,19 @@ describe('mergeAdjacentLists', () => {
           id: 'list1',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item1', null, 'A'),
-          ],
+          children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'list2',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item2', null, 'B'),
-          ],
+          children: [createListItem('item2', null, 'B')],
         },
         {
           id: 'list3',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item3', null, 'C'),
-          ],
+          children: [createListItem('item3', null, 'C')],
         },
       ],
     };
@@ -518,9 +538,7 @@ describe('mergeAdjacentLists', () => {
           id: 'list1',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item1', null, 'A'),
-          ],
+          children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'content1',
@@ -533,9 +551,7 @@ describe('mergeAdjacentLists', () => {
           id: 'list2',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item2', null, 'B'),
-          ],
+          children: [createListItem('item2', null, 'B')],
         },
       ],
     };
@@ -577,17 +593,13 @@ describe('mergeAdjacentLists', () => {
               id: 'list1',
               number: null,
               type: 'list',
-              children: [
-                createListItem('item1', null, 'A'),
-              ],
+              children: [createListItem('item1', null, 'A')],
             },
             {
               id: 'list2',
               number: null,
               type: 'list',
-              children: [
-                createListItem('item2', null, 'B'),
-              ],
+              children: [createListItem('item2', null, 'B')],
             },
           ],
         },
@@ -612,17 +624,13 @@ describe('mergeAdjacentLists', () => {
           id: 'list1',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item1', null, 'A'),
-          ],
+          children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'list2',
           number: null,
           type: 'list',
-          children: [
-            createListItem('item2', null, 'B'),
-          ],
+          children: [createListItem('item2', null, 'B')],
         },
       ],
     };
@@ -646,12 +654,18 @@ describe('nested lists', () => {
     number: itemNumber,
     type: 'list_item',
     children: [
-      { id: `${itemId}-content`, number: null, type: 'content', contents: { de: itemContent }, children: [] } as ContentDocumentNode,
+      {
+        id: `${itemId}-content`,
+        number: null,
+        type: 'content',
+        contents: { de: itemContent },
+        children: [],
+      } as ContentDocumentNode,
       {
         id: nestedListId,
         number: null,
         type: 'list',
-        children: nestedItems.map(ni => createListItem(ni.id, ni.number, ni.content)),
+        children: nestedItems.map((ni) => createListItem(ni.id, ni.number, ni.content)),
       } as ContainerDocumentNode,
     ],
   });
@@ -668,10 +682,16 @@ describe('nested lists', () => {
           type: 'list',
           children: [
             createListItem('item1', '1.', 'First item'),
-            createListItemWithNestedList('item2', '2.', 'Second item with nested list', 'nested-list', [
-              { id: 'nested1', number: 'a.', content: 'Nested item A' },
-              { id: 'nested2', number: 'b.', content: 'Nested item B' },
-            ]),
+            createListItemWithNestedList(
+              'item2',
+              '2.',
+              'Second item with nested list',
+              'nested-list',
+              [
+                { id: 'nested1', number: 'a.', content: 'Nested item A' },
+                { id: 'nested2', number: 'b.', content: 'Nested item B' },
+              ]
+            ),
             createListItem('item3', '3.', 'Third item'),
           ],
         } as ContainerDocumentNode,
@@ -718,13 +738,18 @@ describe('nested lists', () => {
     };
 
     const flat = flattenForRendering(doc);
-    const ids = flat.map(f => f.node.id);
+    const ids = flat.map((f) => f.node.id);
 
     // Should include all nodes in depth-first order
     expect(ids).toEqual([
       'list1',
-      'item1', 'item1-content',
-      'item2', 'item2-content', 'nested', 'sub1', 'sub1-content',
+      'item1',
+      'item1-content',
+      'item2',
+      'item2-content',
+      'nested',
+      'sub1',
+      'sub1-content',
     ]);
   });
 
@@ -748,7 +773,7 @@ describe('nested lists', () => {
     };
 
     const flat = flattenForRendering(doc);
-    const depthById = Object.fromEntries(flat.map(f => [f.node.id, f.depth]));
+    const depthById = Object.fromEntries(flat.map((f) => [f.node.id, f.depth]));
 
     expect(depthById['list1']).toBe(0);
     expect(depthById['item1']).toBe(1);
@@ -782,10 +807,15 @@ describe('nested lists', () => {
     expect(nestedContent.contents.de).toBe('Original');
 
     // Update nested content
-    const updated = updateNodeAtPath(doc, [0, 0, 1, 0, 0], node => ({
-      ...node,
-      contents: { de: 'Updated' },
-    } as LeafDocumentNode));
+    const updated = updateNodeAtPath(
+      doc,
+      [0, 0, 1, 0, 0],
+      (node) =>
+        ({
+          ...node,
+          contents: { de: 'Updated' },
+        }) as LeafDocumentNode
+    );
 
     const updatedContent = getNodeAtPath(updated, [0, 0, 1, 0, 0]) as LeafDocumentNode;
     expect(updatedContent.contents.de).toBe('Updated');
