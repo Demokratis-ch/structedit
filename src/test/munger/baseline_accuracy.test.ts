@@ -45,8 +45,8 @@ function blocksToMarkdown(blocks: Block[]): string {
   }).join('\n');
 }
 
-describe('Munger Baseline Accuracy (Tier 2)', () => {
-    throw new Error('TODO: add test samples and enable baseline accuracy tests');
+describe.skip('Munger Baseline Accuracy (Tier 2)', () => {
+    // TODO: add test samples and enable baseline accuracy tests
     const importDir = path.resolve(__dirname, 'TODO/02_import/input texts');
     const expectedDir = path.resolve(__dirname, 'TODO/02_import/output_texts');
 
