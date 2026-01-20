@@ -3,7 +3,7 @@ import * as mammoth from 'mammoth';
 import type React from 'react';
 import { useRef, useState } from 'react';
 import type { ContainerDocumentNode } from '../types/document';
-import { generateId, parseHtmlLegalToTree, parseHtmlToTree } from '../utils/document-utils';
+import { generateId, parseHtmlLegalToTree } from '../utils/document-utils';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 
@@ -100,7 +100,7 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
       }
 
       const result = await response.json();
-      if (result && result.document && result.document.html_content) {
+      if (result?.document?.html_content) {
         const htmlContent = result.document.html_content;
         setText(htmlContent);
 

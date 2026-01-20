@@ -348,8 +348,8 @@ describe('Document Utils', () => {
   describe('Real Document Conversion (Tree)', () => {
     const readFixture = (filename: string) => {
       // Using dynamic import for fixtures
-      const fs = require('fs');
-      const path = require('path');
+      const fs = require('node:fs');
+      const path = require('node:path');
       return fs.readFileSync(path.join(__dirname, '../test/fixtures', filename), 'utf-8');
     };
 

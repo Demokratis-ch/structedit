@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { ContainerDocumentNode } from '../types/document';
-import type { NodePath } from '../types/editor';
 import { buildIndices } from '../utils/tree-utils';
 
 const MAX_HISTORY_LENGTH = 50;

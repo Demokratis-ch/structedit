@@ -10,7 +10,6 @@ import {
   Type,
   X,
 } from 'lucide-react';
-import React from 'react';
 
 type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc' | 'footnote';
 

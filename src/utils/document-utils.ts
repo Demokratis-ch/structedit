@@ -123,7 +123,7 @@ export const parseHtmlToTree = (
 
     // Heading elements - these define structure
     if (/^h[1-6]$/.test(tagName)) {
-      const level = parseInt(tagName[1]); // 1-6
+      const level = parseInt(tagName[1], 10); // 1-6
       const content = getInnerHtml(domNode);
 
       // Pop stack to appropriate level (heading level becomes index in stack)
@@ -307,7 +307,7 @@ export const parseHtmlLegalToTree = (
     // Heading elements
     if (/^h[1-6]$/.test(tagName)) {
       flushPendingList();
-      const level = parseInt(tagName[1]);
+      const level = parseInt(tagName[1], 10);
       const content = getInnerHtml(domNode);
 
       while (parentStack.length > level) {

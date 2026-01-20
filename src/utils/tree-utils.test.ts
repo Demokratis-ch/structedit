@@ -393,11 +393,11 @@ describe('flattenForRendering', () => {
     const flat = flattenForRendering(doc);
 
     const depthById = Object.fromEntries(flat.map((f) => [f.node.id, f.depth]));
-    expect(depthById['h1']).toBe(0);
-    expect(depthById['p1']).toBe(1);
-    expect(depthById['h2']).toBe(1);
-    expect(depthById['p2']).toBe(2);
-    expect(depthById['h1b']).toBe(0);
+    expect(depthById.h1).toBe(0);
+    expect(depthById.p1).toBe(1);
+    expect(depthById.h2).toBe(1);
+    expect(depthById.p2).toBe(2);
+    expect(depthById.h1b).toBe(0);
   });
 
   test('computes isLastChild correctly', () => {
@@ -405,11 +405,11 @@ describe('flattenForRendering', () => {
     const flat = flattenForRendering(doc);
 
     const lastChildById = Object.fromEntries(flat.map((f) => [f.node.id, f.isLastChild]));
-    expect(lastChildById['h1']).toBe(false); // h1b comes after
-    expect(lastChildById['p1']).toBe(false); // h2 comes after
-    expect(lastChildById['h2']).toBe(true); // last child of h1
-    expect(lastChildById['p2']).toBe(true); // only child of h2
-    expect(lastChildById['h1b']).toBe(true); // last child of root
+    expect(lastChildById.h1).toBe(false); // h1b comes after
+    expect(lastChildById.p1).toBe(false); // h2 comes after
+    expect(lastChildById.h2).toBe(true); // last child of h1
+    expect(lastChildById.p2).toBe(true); // only child of h2
+    expect(lastChildById.h1b).toBe(true); // last child of root
   });
 
   test('computes ancestorIsLastChild for connector lines', () => {
@@ -429,11 +429,11 @@ describe('flattenForRendering', () => {
     const flat = flattenForRendering(doc);
 
     const parentById = Object.fromEntries(flat.map((f) => [f.node.id, f.parentId]));
-    expect(parentById['h1']).toBe('root');
-    expect(parentById['p1']).toBe('h1');
-    expect(parentById['h2']).toBe('h1');
-    expect(parentById['p2']).toBe('h2');
-    expect(parentById['h1b']).toBe('root');
+    expect(parentById.h1).toBe('root');
+    expect(parentById.p1).toBe('h1');
+    expect(parentById.h2).toBe('h1');
+    expect(parentById.p2).toBe('h2');
+    expect(parentById.h1b).toBe('root');
   });
 
   test('includes list_item children in flattening', () => {
@@ -775,11 +775,11 @@ describe('nested lists', () => {
     const flat = flattenForRendering(doc);
     const depthById = Object.fromEntries(flat.map((f) => [f.node.id, f.depth]));
 
-    expect(depthById['list1']).toBe(0);
-    expect(depthById['item1']).toBe(1);
+    expect(depthById.list1).toBe(0);
+    expect(depthById.item1).toBe(1);
     expect(depthById['item1-content']).toBe(2);
-    expect(depthById['nested']).toBe(2);
-    expect(depthById['sub1']).toBe(3);
+    expect(depthById.nested).toBe(2);
+    expect(depthById.sub1).toBe(3);
     expect(depthById['sub1-content']).toBe(4);
   });
 

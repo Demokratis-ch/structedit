@@ -105,12 +105,12 @@ const createDocumentWithList = (): ContainerDocumentNode => ({
 describe('useTreeOperations', () => {
   let mockCommit: MockedFunction<(doc: ContainerDocumentNode, saveHistory?: boolean) => void>;
   let document: ContainerDocumentNode;
-  let indices: { nodeIndex: Map<string, NodePath>; parentIndex: Map<string, string> };
+  let _indices: { nodeIndex: Map<string, NodePath>; parentIndex: Map<string, string> };
 
   beforeEach(() => {
     mockCommit = vi.fn();
     document = createTestDocument();
-    indices = buildIndices(document);
+    _indices = buildIndices(document);
   });
 
   const renderTreeOperations = (doc: ContainerDocumentNode = document) => {

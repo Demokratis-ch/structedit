@@ -68,7 +68,6 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
         return 'text-base leading-7 text-gray-600';
       case 'footnote':
         return 'text-base text-sm text-gray-600 border border-dashed border-gray-500 rounded';
-      case 'content':
       default:
         return 'text-base leading-7 text-gray-600';
     }

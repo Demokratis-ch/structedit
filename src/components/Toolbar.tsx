@@ -1,5 +1,4 @@
 import { Download, Redo, Undo, X } from 'lucide-react';
-import React from 'react';
 import { Button } from './ui/button';
 
 interface ToolbarProps {
