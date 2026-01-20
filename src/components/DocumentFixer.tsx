@@ -76,6 +76,7 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
     try {
       throw new Error('TODO: set up backend for PDF conversion');
 
+      // biome-ignore lint/correctness/noUnreachable: placeholder for future PDF conversion implementation
       const apiEndpoint = 'https://example.com/v1/convert/file'; // TODO: read endpoint from config/env
       const formData = new FormData();
       formData.append('files', file);

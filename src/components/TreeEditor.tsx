@@ -337,7 +337,6 @@ export function TreeEditor({
         {pdfUrl && <SourcePreview url={pdfUrl} onClose={onBack} />}
         <div
           className="flex-1 overflow-y-auto bg-white relative outline-none"
-          tabIndex={0}
           ref={containerRef}
           onKeyDown={handleGlobalKeyDown}
           onClick={clearSelection}
