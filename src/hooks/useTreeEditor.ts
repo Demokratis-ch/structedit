@@ -1,10 +1,10 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ContainerDocumentNode, Language } from '../types/document';
-import type { FlattenedNode, NodePath } from '../types/editor';
+import type { FlattenedNode } from '../types/editor';
+import { DEFAULT_LANGUAGE } from '../utils/document-utils';
+import { flattenForRendering } from '../utils/tree-utils';
 import { useTreeHistory } from './useTreeHistory';
 import { useTreeOperations } from './useTreeOperations';
-import { flattenForRendering } from '../utils/tree-utils';
-import { DEFAULT_LANGUAGE } from '../utils/document-utils';
 
 interface ClickModifiers {
   shiftKey: boolean;
@@ -59,10 +59,7 @@ export const useTreeEditor = (
   });
 
   // Flattened nodes for rendering
-  const flattenedNodes = useMemo<FlattenedNode[]>(
-    () => flattenForRendering(document),
-    [document]
-  );
+  const flattenedNodes = useMemo<FlattenedNode[]>(() => flattenForRendering(document), [document]);
 
   // Create a lookup from id to flat index for range selection
   const nodeIdToFlatIndex = useMemo(() => {
@@ -77,51 +74,54 @@ export const useTreeEditor = (
    * Handle single click on a node.
    * Supports shift-click for range selection and ctrl/meta-click for multi-select.
    */
-  const handleNodeClick = useCallback((id: string, modifiers: ClickModifiers) => {
-    const { shiftKey, ctrlKey, metaKey } = modifiers;
+  const handleNodeClick = useCallback(
+    (id: string, modifiers: ClickModifiers) => {
+      const { shiftKey, ctrlKey, metaKey } = modifiers;
 
-    if (shiftKey && anchorId.current) {
-      // Range selection from anchor to clicked node
-      const anchorIndex = nodeIdToFlatIndex.get(anchorId.current);
-      const clickedIndex = nodeIdToFlatIndex.get(id);
+      if (shiftKey && anchorId.current) {
+        // Range selection from anchor to clicked node
+        const anchorIndex = nodeIdToFlatIndex.get(anchorId.current);
+        const clickedIndex = nodeIdToFlatIndex.get(id);
 
-      if (anchorIndex !== undefined && clickedIndex !== undefined) {
-        const start = Math.min(anchorIndex, clickedIndex);
-        const end = Math.max(anchorIndex, clickedIndex);
+        if (anchorIndex !== undefined && clickedIndex !== undefined) {
+          const start = Math.min(anchorIndex, clickedIndex);
+          const end = Math.max(anchorIndex, clickedIndex);
 
-        const rangeIds = new Set<string>();
-        for (let i = start; i <= end; i++) {
-          rangeIds.add(flattenedNodes[i].node.id);
+          const rangeIds = new Set<string>();
+          for (let i = start; i <= end; i++) {
+            rangeIds.add(flattenedNodes[i].node.id);
+          }
+
+          setSelectedIds(rangeIds);
+          lastSelectedId.current = id;
         }
-
-        setSelectedIds(rangeIds);
+      } else if (ctrlKey || metaKey) {
+        // Toggle selection
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) {
+            next.delete(id);
+          } else {
+            next.add(id);
+          }
+          return next;
+        });
         lastSelectedId.current = id;
+        anchorId.current = id;
+      } else {
+        // Single selection
+        setSelectedIds(new Set([id]));
+        lastSelectedId.current = id;
+        anchorId.current = id;
       }
-    } else if (ctrlKey || metaKey) {
-      // Toggle selection
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-        return next;
-      });
-      lastSelectedId.current = id;
-      anchorId.current = id;
-    } else {
-      // Single selection
-      setSelectedIds(new Set([id]));
-      lastSelectedId.current = id;
-      anchorId.current = id;
-    }
 
-    // Clear edit mode on click (unless double-click handles it)
-    if (editingId && editingId !== id) {
-      setEditingId(null);
-    }
-  }, [flattenedNodes, nodeIdToFlatIndex, editingId]);
+      // Clear edit mode on click (unless double-click handles it)
+      if (editingId && editingId !== id) {
+        setEditingId(null);
+      }
+    },
+    [flattenedNodes, nodeIdToFlatIndex, editingId]
+  );
 
   /**
    * Handle double click to enter edit mode.
@@ -146,51 +146,58 @@ export const useTreeEditor = (
   /**
    * Move selection up or down.
    */
-  const moveSelection = useCallback((direction: 'up' | 'down', extendSelection: boolean) => {
-    if (flattenedNodes.length === 0) return;
+  const moveSelection = useCallback(
+    (direction: 'up' | 'down', extendSelection: boolean) => {
+      if (flattenedNodes.length === 0) return;
 
-    const currentId = lastSelectedId.current;
-    if (!currentId) {
-      // Start from first or last node
-      const newId = direction === 'down' ? flattenedNodes[0].node.id : flattenedNodes[flattenedNodes.length - 1].node.id;
-      setSelectedIds(new Set([newId]));
-      lastSelectedId.current = newId;
-      anchorId.current = newId;
-      return;
-    }
-
-    const currentIndex = nodeIdToFlatIndex.get(currentId);
-    if (currentIndex === undefined) return;
-
-    const newIndex = direction === 'down'
-      ? Math.min(currentIndex + 1, flattenedNodes.length - 1)
-      : Math.max(currentIndex - 1, 0);
-
-    if (newIndex === currentIndex) return;
-
-    const newId = flattenedNodes[newIndex].node.id;
-
-    if (extendSelection && anchorId.current) {
-      // Extend range selection
-      const anchorIndex = nodeIdToFlatIndex.get(anchorId.current);
-      if (anchorIndex !== undefined) {
-        const start = Math.min(anchorIndex, newIndex);
-        const end = Math.max(anchorIndex, newIndex);
-
-        const rangeIds = new Set<string>();
-        for (let i = start; i <= end; i++) {
-          rangeIds.add(flattenedNodes[i].node.id);
-        }
-
-        setSelectedIds(rangeIds);
+      const currentId = lastSelectedId.current;
+      if (!currentId) {
+        // Start from first or last node
+        const newId =
+          direction === 'down'
+            ? flattenedNodes[0].node.id
+            : flattenedNodes[flattenedNodes.length - 1].node.id;
+        setSelectedIds(new Set([newId]));
+        lastSelectedId.current = newId;
+        anchorId.current = newId;
+        return;
       }
-    } else {
-      setSelectedIds(new Set([newId]));
-      anchorId.current = newId;
-    }
 
-    lastSelectedId.current = newId;
-  }, [flattenedNodes, nodeIdToFlatIndex]);
+      const currentIndex = nodeIdToFlatIndex.get(currentId);
+      if (currentIndex === undefined) return;
+
+      const newIndex =
+        direction === 'down'
+          ? Math.min(currentIndex + 1, flattenedNodes.length - 1)
+          : Math.max(currentIndex - 1, 0);
+
+      if (newIndex === currentIndex) return;
+
+      const newId = flattenedNodes[newIndex].node.id;
+
+      if (extendSelection && anchorId.current) {
+        // Extend range selection
+        const anchorIndex = nodeIdToFlatIndex.get(anchorId.current);
+        if (anchorIndex !== undefined) {
+          const start = Math.min(anchorIndex, newIndex);
+          const end = Math.max(anchorIndex, newIndex);
+
+          const rangeIds = new Set<string>();
+          for (let i = start; i <= end; i++) {
+            rangeIds.add(flattenedNodes[i].node.id);
+          }
+
+          setSelectedIds(rangeIds);
+        }
+      } else {
+        setSelectedIds(new Set([newId]));
+        anchorId.current = newId;
+      }
+
+      lastSelectedId.current = newId;
+    },
+    [flattenedNodes, nodeIdToFlatIndex]
+  );
 
   /**
    * Delete selected nodes.
@@ -200,13 +207,13 @@ export const useTreeEditor = (
 
     // Remove nodes in reverse flat order to avoid index shifting issues
     const sortedIds = [...selectedIds]
-      .map(id => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
-      .filter(item => item.index >= 0)
+      .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
+      .filter((item) => item.index >= 0)
       .sort((a, b) => b.index - a.index)
-      .map(item => item.id);
+      .map((item) => item.id);
 
     // Remove each node
-    sortedIds.forEach(id => {
+    sortedIds.forEach((id) => {
       removeNode(id);
     });
 
@@ -221,12 +228,12 @@ export const useTreeEditor = (
 
     // Process nodes in flat order
     const sortedIds = [...selectedIds]
-      .map(id => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
-      .filter(item => item.index >= 0)
+      .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
+      .filter((item) => item.index >= 0)
       .sort((a, b) => a.index - b.index)
-      .map(item => item.id);
+      .map((item) => item.id);
 
-    sortedIds.forEach(id => {
+    sortedIds.forEach((id) => {
       indentNode(id);
     });
   }, [selectedIds, nodeIdToFlatIndex, indentNode]);
@@ -239,12 +246,12 @@ export const useTreeEditor = (
 
     // Process nodes in reverse flat order to maintain structure
     const sortedIds = [...selectedIds]
-      .map(id => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
-      .filter(item => item.index >= 0)
+      .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
+      .filter((item) => item.index >= 0)
       .sort((a, b) => b.index - a.index)
-      .map(item => item.id);
+      .map((item) => item.id);
 
-    sortedIds.forEach(id => {
+    sortedIds.forEach((id) => {
       outdentNode(id);
     });
   }, [selectedIds, nodeIdToFlatIndex, outdentNode]);

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Download, X, Eye } from 'lucide-react';
+import { Download, Eye, X } from 'lucide-react';
 
 interface SourcePreviewProps {
   url: string; // Generic URL (blob or remote)
@@ -38,11 +37,7 @@ export function SourcePreview({ url, onClose, type = 'pdf' }: SourcePreviewProps
         </div>
       </div>
       <div className="flex-1 w-full h-full relative bg-gray-200/50">
-        <iframe
-          src={url}
-          className="w-full h-full block bg-white"
-          title="Document Viewer"
-        >
+        <iframe src={url} className="w-full h-full block bg-white" title="Document Viewer">
           <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500">
             <p className="mb-2">Unable to render preview.</p>
             <a href={url} download={filename} className="text-blue-600 underline">

@@ -1,6 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { generateId, parseHtmlToTree, parseHtmlLegalToTree, detectLanguage } from './document-utils';
-import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
+import { describe, expect, it } from 'vitest';
+import type {
+  ContainerDocumentNode,
+  HeadingDocumentNode,
+  LeafDocumentNode,
+} from '../types/document';
+import {
+  detectLanguage,
+  generateId,
+  parseHtmlLegalToTree,
+  parseHtmlToTree,
+} from './document-utils';
 
 describe('Document Utils', () => {
   describe('generateId', () => {
@@ -339,8 +348,8 @@ describe('Document Utils', () => {
   describe('Real Document Conversion (Tree)', () => {
     const readFixture = (filename: string) => {
       // Using dynamic import for fixtures
-      const fs = require('fs');
-      const path = require('path');
+      const fs = require('node:fs');
+      const path = require('node:path');
       return fs.readFileSync(path.join(__dirname, '../test/fixtures', filename), 'utf-8');
     };
 
@@ -352,7 +361,9 @@ describe('Document Utils', () => {
       expect(doc.children.length).toBeGreaterThan(0);
 
       // Check that some nodes exist (headings from legal patterns)
-      const flattenNodes = (node: ContainerDocumentNode | HeadingDocumentNode): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
+      const flattenNodes = (
+        node: ContainerDocumentNode | HeadingDocumentNode
+      ): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
         const result: (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] = [node];
         for (const child of node.children) {
           if ('children' in child) {
@@ -365,7 +376,7 @@ describe('Document Utils', () => {
       };
 
       const allNodes = flattenNodes(doc);
-      const hasHeadings = allNodes.some(n => n.type === 'heading');
+      const hasHeadings = allNodes.some((n) => n.type === 'heading');
       expect(hasHeadings).toBe(true);
     });
 
@@ -381,5 +392,4 @@ describe('Document Utils', () => {
       expect(doc.children.length).toEqual(6);
     });
   });
-
 });

@@ -1,8 +1,9 @@
-import React, { ReactElement } from 'react';
 import { GripVertical } from 'lucide-react';
-import { ContentBlock } from './ContentBlock';
-import type { FlattenedNode } from '../types/editor';
+import type React from 'react';
+import type { ReactElement } from 'react';
 import type { Language } from '../types/document';
+import type { FlattenedNode } from '../types/editor';
+import { ContentBlock } from './ContentBlock';
 
 interface TreeNodeItemProps {
   flatNode: FlattenedNode;
@@ -45,27 +46,28 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   onHoverHandle,
   onUpdateContent,
   onKeyDown,
-  onFocus
+  onFocus,
 }) => {
   const { node, depth, isLastChild, ancestorIsLastChild } = flatNode;
   const indentPixels = depth * 24;
 
   // Get content for current language (only for leaf nodes and headings)
-  const content = 'contents' in node ? (node.contents[language] || '') : '';
+  const content = 'contents' in node ? node.contents[language] || '' : '';
 
   // Determine visual style based on node type and depth
   const getNodeStyle = () => {
     switch (node.type) {
       case 'heading':
         // Heading level based on nesting depth
-        if (depth === 0) return 'text-3xl font-bold mt-2 mb-1 text-gray-900 tracking-tight leading-tight';
-        if (depth === 1) return 'text-xl font-semibold mt-1 mb-1 text-gray-800 tracking-tight leading-tight';
+        if (depth === 0)
+          return 'text-3xl font-bold mt-2 mb-1 text-gray-900 tracking-tight leading-tight';
+        if (depth === 1)
+          return 'text-xl font-semibold mt-1 mb-1 text-gray-800 tracking-tight leading-tight';
         return 'text-lg font-bold mt-1 text-gray-800';
       case 'list_item':
         return 'text-base leading-7 text-gray-600';
       case 'footnote':
         return 'text-base text-sm text-gray-600 border border-dashed border-gray-500 rounded';
-      case 'content':
       default:
         return 'text-base leading-7 text-gray-600';
     }
@@ -102,7 +104,9 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
             {/* Horizontal line to content */}
             <div className="absolute top-[18px] left-1/2 right-0 border-t border-gray-300" />
             {/* Continue vertical if not last child */}
-            {!isLastChild && <div className="absolute top-[18px] bottom-0 left-1/2 border-l border-gray-300" />}
+            {!isLastChild && (
+              <div className="absolute top-[18px] bottom-0 left-1/2 border-l border-gray-300" />
+            )}
           </div>
         );
       } else if (!isAncestorLast) {
@@ -166,7 +170,9 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
 
       {/* Drop indicator */}
       {isDropTarget && dropPosition && (
-        <div className={`absolute left-0 right-0 h-0.5 bg-blue-600 z-20 shadow-sm ${dropPosition === 'top' ? '-top-[1px]' : '-bottom-[1px]'}`} />
+        <div
+          className={`absolute left-0 right-0 h-0.5 bg-blue-600 z-20 shadow-sm ${dropPosition === 'top' ? '-top-[1px]' : '-bottom-[1px]'}`}
+        />
       )}
 
       {/* Node type indicator - visible on hover or selection */}
@@ -184,7 +190,12 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
       {/* Drag handle */}
       <div
         className={`absolute top-1.5 flex items-center justify-end pr-1 select-none z-10 ${isSelected || hoveredHandleId === node.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-        style={{ left: `${indentPixels}px`, width: '30px', transform: 'translateX(-100%)', paddingRight: '8px' }}
+        style={{
+          left: `${indentPixels}px`,
+          width: '30px',
+          transform: 'translateX(-100%)',
+          paddingRight: '8px',
+        }}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
@@ -198,7 +209,10 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex items-baseline flex-1 pr-4 py-1" style={{ paddingLeft: `${indentPixels}px` }}>
+      <div
+        className="flex items-baseline flex-1 pr-4 py-1"
+        style={{ paddingLeft: `${indentPixels}px` }}
+      >
         {renderListMarker()}
 
         {/* Show number label for headings with numbers */}
