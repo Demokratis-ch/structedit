@@ -10,7 +10,7 @@ interface ToolbarProps {
   canRedo: boolean;
   historyIndex: number;
   historyLength: number;
-  onDownload: (format: 'xml' | 'html' | 'json') => void;
+  onDownload: () => void;
 }
 
 export function Toolbar({
@@ -44,20 +44,10 @@ export function Toolbar({
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={() => onDownload('json')}>
-          <Download className="w-4 h-4 mr-2" />
-          JSON
-        </Button>
-        <Button variant="outline" onClick={() => onDownload('xml')}>
-          <Download className="w-4 h-4 mr-2" />
-          XML
-        </Button>
-        <Button variant="outline" onClick={() => onDownload('html')}>
-          <Download className="w-4 h-4 mr-2" />
-          HTML
-        </Button>
-      </div>
+      <Button variant="outline" onClick={onDownload}>
+        <Download className="w-4 h-4 mr-2" />
+        Download JSON
+      </Button>
     </div>
   );
 }

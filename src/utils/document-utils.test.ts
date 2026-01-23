@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseHtml, convertToXml, convertToHtml, generateId } from './document-utils';
-import { Block } from '../types';
+import { generateId, parseHtmlToTree, parseHtmlLegalToTree, detectLanguage } from './document-utils';
+import type { ContainerDocumentNode, HeadingDocumentNode, LeafDocumentNode } from '../types/document';
 
 describe('Document Utils', () => {
   describe('generateId', () => {
@@ -15,115 +15,371 @@ describe('Document Utils', () => {
     });
   });
 
-  describe('parseHtml', () => {
-    it('parses simple paragraphs', () => {
-      const html = '<p>Hello world</p>';
-      const blocks = parseHtml(html);
-      expect(blocks).toHaveLength(1);
-      expect(blocks[0].content).toBe('Hello world');
-      expect(blocks[0].type).toBe('p');
+  describe('detectLanguage', () => {
+    it('returns de by default', () => {
+      expect(detectLanguage()).toBe('de');
     });
 
-    it('parses headings', () => {
-      const html = '<h1>Title</h1><h2>Subtitle</h2>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].type).toBe('h1');
-      expect(blocks[1].type).toBe('h2');
+    it('returns de when given text', () => {
+      expect(detectLanguage('some text')).toBe('de');
+    });
+  });
+
+  describe('parseHtmlToTree', () => {
+    it('creates document root', () => {
+      const html = '<p>Hello</p>';
+      const doc = parseHtmlToTree(html);
+      expect(doc.type).toBe('document');
+      expect(doc.id).toBeDefined();
+      expect(doc.children).toBeDefined();
     });
 
-    it('parses unordered lists', () => {
+    it('converts h1 to heading at depth 0', () => {
+      const html = '<h1>Title</h1>';
+      const doc = parseHtmlToTree(html);
+      expect(doc.children.length).toBe(1);
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.contents.de).toBe('Title');
+    });
+
+    it('converts h2 to heading nested under previous h1', () => {
+      const html = '<h1>Chapter 1</h1><h2>Section 1.1</h2>';
+      const doc = parseHtmlToTree(html);
+      // h1 should be at root level
+      expect(doc.children.length).toBe(1);
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      expect(h1.type).toBe('heading');
+      expect(h1.contents.de).toBe('Chapter 1');
+      // h2 should be nested under h1
+      expect(h1.children.length).toBe(1);
+      const h2 = h1.children[0] as HeadingDocumentNode;
+      expect(h2.type).toBe('heading');
+      expect(h2.contents.de).toBe('Section 1.1');
+    });
+
+    it('converts h3 to heading nested under previous h2', () => {
+      const html = '<h1>Chapter</h1><h2>Section</h2><h3>Subsection</h3>';
+      const doc = parseHtmlToTree(html);
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      const h2 = h1.children[0] as HeadingDocumentNode;
+      const h3 = h2.children[0] as HeadingDocumentNode;
+      expect(h3.type).toBe('heading');
+      expect(h3.contents.de).toBe('Subsection');
+    });
+
+    it('converts p to content node', () => {
+      const html = '<p>Some text</p>';
+      const doc = parseHtmlToTree(html);
+      expect(doc.children.length).toBe(1);
+      const content = doc.children[0] as LeafDocumentNode;
+      expect(content.type).toBe('content');
+      expect(content.contents.de).toBe('Some text');
+    });
+
+    it('nests content under preceding heading', () => {
+      const html = '<h1>Title</h1><p>Paragraph under title</p>';
+      const doc = parseHtmlToTree(html);
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      expect(h1.children.length).toBe(1);
+      const content = h1.children[0] as LeafDocumentNode;
+      expect(content.type).toBe('content');
+      expect(content.contents.de).toBe('Paragraph under title');
+    });
+
+    it('converts ul to list with list_item children', () => {
       const html = '<ul><li>Item 1</li><li>Item 2</li></ul>';
-      const blocks = parseHtml(html);
-      expect(blocks.length).toBeGreaterThanOrEqual(2);
-      expect(blocks[0].type).toBe('ul');
+      const doc = parseHtmlToTree(html);
+      expect(doc.children.length).toBe(1);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      expect(list.children.length).toBe(2);
+      const item1 = list.children[0] as ContainerDocumentNode;
+      expect(item1.type).toBe('list_item');
+      expect(item1.number).toBeNull(); // ul has no numbering
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
+      expect(item1Content.contents.de).toBe('Item 1');
     });
 
-    it('parses ordered lists', () => {
+    it('converts ol with numbering in number field', () => {
       const html = '<ol><li>First</li><li>Second</li></ol>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].type).toBe('ol');
+      const doc = parseHtmlToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      const item1 = list.children[0] as ContainerDocumentNode;
+      expect(item1.type).toBe('list_item');
+      expect(item1.number).toBe('1.');
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
+      const item2 = list.children[1] as ContainerDocumentNode;
+      expect(item2.number).toBe('2.');
     });
 
-    it('handles empty HTML', () => {
-      const blocks = parseHtml('');
-      expect(blocks).toHaveLength(0);
-    });
-
-    it('preserves inline formatting', () => {
+    it('preserves inline formatting in contents', () => {
       const html = '<p><b>Bold</b> and <i>italic</i></p>';
-      const blocks = parseHtml(html);
-      expect(blocks[0].content).toContain('<b>');
-      expect(blocks[0].content).toContain('<i>');
+      const doc = parseHtmlToTree(html);
+      const content = doc.children[0] as LeafDocumentNode;
+      expect(content.contents.de).toContain('<b>');
+      expect(content.contents.de).toContain('<i>');
     });
 
-    it('enforces depth limit of 5', () => {
-      const html = '<ul><li><ul><li><ul><li><ul><li><ul><li><ul><li>Deep</li></ul></li></ul></li></ul></li></ul></li></ul></li></ul>';
-      const blocks = parseHtml(html);
-      blocks.forEach(block => {
-        expect(block.depth).toBeLessThanOrEqual(5);
+    it('uses de language by default', () => {
+      const html = '<p>German text</p>';
+      const doc = parseHtmlToTree(html);
+      const content = doc.children[0] as LeafDocumentNode;
+      expect(content.contents.de).toBe('German text');
+      expect(content.contents.en).toBeUndefined();
+    });
+
+    it('handles multiple h1 headings', () => {
+      const html = '<h1>Chapter 1</h1><p>Content 1</p><h1>Chapter 2</h1><p>Content 2</p>';
+      const doc = parseHtmlToTree(html);
+      // Both h1s should be at root level
+      expect(doc.children.length).toBe(2);
+      const ch1 = doc.children[0] as HeadingDocumentNode;
+      const ch2 = doc.children[1] as HeadingDocumentNode;
+      expect(ch1.contents.de).toBe('Chapter 1');
+      expect(ch2.contents.de).toBe('Chapter 2');
+      // Each should have their content nested
+      expect(ch1.children.length).toBe(1);
+      expect(ch2.children.length).toBe(1);
+    });
+
+    it('handles skipped heading levels (h1 then h3)', () => {
+      const html = '<h1>Chapter</h1><h3>Subsection</h3>';
+      const doc = parseHtmlToTree(html);
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      // h3 should be nested directly under h1 (no phantom h2)
+      expect(h1.children.length).toBe(1);
+      const h3 = h1.children[0] as HeadingDocumentNode;
+      expect(h3.type).toBe('heading');
+      expect(h3.contents.de).toBe('Subsection');
+    });
+
+    // Edge cases ported from edge-cases.test.ts
+    describe('empty document handling', () => {
+      it('handles empty string', () => {
+        const doc = parseHtmlToTree('');
+        expect(doc.type).toBe('document');
+        expect(doc.children).toEqual([]);
+      });
+
+      it('handles whitespace only', () => {
+        const doc = parseHtmlToTree('   \n\t  ');
+        expect(doc.children).toEqual([]);
+      });
+
+      it('handles empty tags', () => {
+        const doc = parseHtmlToTree('<p></p><div></div>');
+        expect(doc.children).toEqual([]);
+      });
+    });
+
+    describe('malformed input handling', () => {
+      it('handles unclosed tags', () => {
+        const doc = parseHtmlToTree('<p>Unclosed paragraph<p>Another');
+        expect(doc.type).toBe('document');
+        // Should not throw
+      });
+
+      it('handles script tags safely', () => {
+        const doc = parseHtmlToTree('<script>alert("xss")</script><p>Safe content</p>');
+        const hasScript = JSON.stringify(doc).includes('alert');
+        expect(hasScript).toBe(false);
+      });
+
+      it('handles style tags safely', () => {
+        const doc = parseHtmlToTree('<style>body { color: red; }</style><p>Content</p>');
+        const hasStyle = JSON.stringify(doc).includes('color: red');
+        expect(hasStyle).toBe(false);
+      });
+    });
+
+    describe('special characters', () => {
+      it('preserves HTML entities', () => {
+        const doc = parseHtmlToTree('<p>&amp; &lt; &gt;</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toContain('&');
+      });
+
+      it('handles unicode content', () => {
+        const doc = parseHtmlToTree('<p>日本語 🎉 Ñoño</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toContain('日本語');
+        expect(content.contents.de).toContain('🎉');
+      });
+    });
+
+    describe('boundary conditions', () => {
+      it('handles very long paragraph content', () => {
+        const longContent = 'a'.repeat(10000);
+        const doc = parseHtmlToTree(`<p>${longContent}</p>`);
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de.length).toBe(10000);
+      });
+
+      it('handles single character content', () => {
+        const doc = parseHtmlToTree('<p>X</p>');
+        const content = doc.children[0] as LeafDocumentNode;
+        expect(content.contents.de).toBe('X');
+      });
+
+      it('generateId produces unique ids across many calls', () => {
+        const ids = new Set();
+        for (let i = 0; i < 1000; i++) {
+          ids.add(generateId());
+        }
+        expect(ids.size).toBe(1000);
       });
     });
   });
 
-  describe('convertToXml', () => {
-    it('converts blocks to valid XML', () => {
-      const blocks: Block[] = [
-        { id: 'a1', content: 'Hello', type: 'p', depth: 0 },
-        { id: 'a2', content: 'World', type: 'h1', depth: 0 }
-      ];
-      const xml = convertToXml(blocks);
-      expect(xml).toContain('<?xml version="1.0"');
-      expect(xml).toContain('<document>');
-      expect(xml).toContain('</document>');
-      expect(xml).toContain('id="a1"');
-      expect(xml).toContain('type="p"');
+  describe('parseHtmlLegalToTree', () => {
+    it('detects Art. pattern as heading', () => {
+      const html = '<p>Art. 1 Some article title</p><p>Article content here.</p>';
+      const doc = parseHtmlLegalToTree(html);
+      // Art. should become a heading
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.contents.de).toContain('Art. 1');
     });
 
-    it('escapes special characters', () => {
-      const blocks: Block[] = [
-        { id: 'x', content: '<script>&"test"</script>', type: 'p', depth: 0 }
-      ];
-      const xml = convertToXml(blocks);
-      expect(xml).toContain('&lt;script&gt;');
-      expect(xml).toContain('&amp;');
-      expect(xml).toContain('&quot;');
+    it('detects roman numeral as heading', () => {
+      const html = '<p>I. First Section</p><p>Content of section</p>';
+      const doc = parseHtmlLegalToTree(html);
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.contents.de).toContain('I.');
+    });
+
+    it('converts lettered items to list_item with number', () => {
+      const html = '<p>a. First item</p><p>b. Second item</p>';
+      const doc = parseHtmlLegalToTree(html);
+      // Should be converted to a list with lettered items
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      const item1 = list.children[0] as ContainerDocumentNode;
+      expect(item1.type).toBe('list_item');
+      expect(item1.number).toBe('a.');
+      // Content is now in a child content node
+      const item1Content = item1.children[0] as LeafDocumentNode;
+      expect(item1Content.type).toBe('content');
+    });
+
+    // Additional pattern detection tests (ported from legal-patterns.test.ts)
+    it('detects Art. X Abs. Y pattern as heading', () => {
+      const doc = parseHtmlLegalToTree('<p>Art. 1 Abs. 2 (geändert)</p>');
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.contents.de).toContain('Art. 1 Abs. 2');
+    });
+
+    it('detects § pattern as heading', () => {
+      const doc = parseHtmlLegalToTree('<p>§ 5 Some title</p>');
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+    });
+
+    it('accumulates multiple lettered items into single list', () => {
+      const html = '<p>a. first</p><p>b. second</p><p>c. third</p>';
+      const doc = parseHtmlLegalToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      expect(list.children.length).toBe(3);
+      expect((list.children[0] as LeafDocumentNode).number).toBe('a.');
+      expect((list.children[1] as LeafDocumentNode).number).toBe('b.');
+      expect((list.children[2] as LeafDocumentNode).number).toBe('c.');
+    });
+
+    it('detects multiple roman numeral sections', () => {
+      const html = '<p>I. First Section</p><p>II. Second Section</p><p>III. Third Section</p>';
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toBe(3);
+      expect((doc.children[0] as HeadingDocumentNode).type).toBe('heading');
+      expect((doc.children[1] as HeadingDocumentNode).type).toBe('heading');
+      expect((doc.children[2] as HeadingDocumentNode).type).toBe('heading');
+    });
+
+    it('nests content under Article heading', () => {
+      const html = '<p>Art. 1 Title</p><p>Article content here.</p>';
+      const doc = parseHtmlLegalToTree(html);
+      const heading = doc.children[0] as HeadingDocumentNode;
+      expect(heading.type).toBe('heading');
+      expect(heading.children.length).toBe(1);
+      expect((heading.children[0] as LeafDocumentNode).type).toBe('content');
+    });
+
+    it('handles mixed legal document structure', () => {
+      const html = `
+        <p>I. First Section</p>
+        <p>Art. 1 First Article</p>
+        <p>Content of first article.</p>
+        <p>a. first item</p>
+        <p>b. second item</p>
+        <p>II. Second Section</p>
+      `;
+      const doc = parseHtmlLegalToTree(html);
+
+      // Section I should be at root
+      const sectionI = doc.children[0] as HeadingDocumentNode;
+      expect(sectionI.type).toBe('heading');
+      expect(sectionI.contents.de).toContain('I.');
+
+      // Section II should also be at root
+      const sectionII = doc.children[1] as HeadingDocumentNode;
+      expect(sectionII.type).toBe('heading');
+      expect(sectionII.contents.de).toContain('II.');
     });
   });
 
-  describe('convertToHtml', () => {
-    it('converts blocks to HTML document', () => {
-      const blocks: Block[] = [
-        { id: 'b1', content: 'Title', type: 'h1', depth: 0 },
-        { id: 'b2', content: 'Paragraph', type: 'p', depth: 0 }
-      ];
-      const html = convertToHtml(blocks);
-      expect(html).toContain('<!DOCTYPE html>');
-      expect(html).toContain('<h1');
-      expect(html).toContain('Title');
-      expect(html).toContain('<div');
+  // Real document integration tests (ported from real-conversion.test.ts)
+  describe('Real Document Conversion (Tree)', () => {
+    const readFixture = (filename: string) => {
+      // Using dynamic import for fixtures
+      const fs = require('fs');
+      const path = require('path');
+      return fs.readFileSync(path.join(__dirname, '../test/fixtures', filename), 'utf-8');
+    };
+
+    it('parses PeV document structure', () => {
+      const html = readFixture('pev-real.html');
+      const doc = parseHtmlLegalToTree(html);
+
+      // Verify document has children
+      expect(doc.children.length).toBeGreaterThan(0);
+
+      // Check that some nodes exist (headings from legal patterns)
+      const flattenNodes = (node: ContainerDocumentNode | HeadingDocumentNode): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
+        const result: (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] = [node];
+        for (const child of node.children) {
+          if ('children' in child) {
+            result.push(...flattenNodes(child as ContainerDocumentNode | HeadingDocumentNode));
+          } else {
+            result.push(child);
+          }
+        }
+        return result;
+      };
+
+      const allNodes = flattenNodes(doc);
+      const hasHeadings = allNodes.some(n => n.type === 'heading');
+      expect(hasHeadings).toBe(true);
     });
 
-    it('applies indent based on depth', () => {
-      const blocks: Block[] = [
-        { id: 'c1', content: 'Nested', type: 'p', depth: 2 }
-      ];
-      const html = convertToHtml(blocks);
-      expect(html).toContain('margin-left: 40px');
+    it('parses VIV document structure', () => {
+      const html = readFixture('viv-real.html');
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toEqual(6);
+    });
+
+    it('parses VLG document structure', () => {
+      const html = readFixture('vlg-real.html');
+      const doc = parseHtmlLegalToTree(html);
+      expect(doc.children.length).toEqual(6);
     });
   });
 
-  describe('Round-trip (@struct-supervisor)', () => {
-    it('parseHtml → convertToHtml → parseHtml produces equivalent structure', () => {
-      const originalHtml = '<h1>Title</h1><p>Paragraph one</p><p>Paragraph two</p>';
-      const blocks1 = parseHtml(originalHtml);
-      const exportedHtml = convertToHtml(blocks1);
-      const blocks2 = parseHtml(exportedHtml);
-
-      expect(blocks2.length).toBe(blocks1.length);
-      blocks1.forEach((block, i) => {
-        expect(blocks2[i].type).toBe(block.type);
-        expect(blocks2[i].content).toContain(block.content.replace(/<[^>]*>/g, '').trim().substring(0, 10));
-      });
-    });
-  });
 });
