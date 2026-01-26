@@ -171,7 +171,9 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
       <div className="flex-grow p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div>
-            <h2 className="font-serif text-3xl mb-2">Fix Broken Documents</h2>
+            <h2 className="font-serif text-3xl mb-2">
+              StructEdit &mdash; Structured Document Editor
+            </h2>
             <p className="text-gray-500 text-lg">
               Paste your unstructured OCR, PDF text, or HTML below.
             </p>
