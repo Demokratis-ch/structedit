@@ -7,19 +7,18 @@ import { generateId, parseHtmlLegalToTree } from '../utils/document-utils';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 
-interface DocumentFixerProps {
+interface LoadDocumentProps {
   onConvert: (doc: ContainerDocumentNode, url: string | null, html?: string) => void;
 }
 
-export function DocumentFixer({ onConvert }: DocumentFixerProps) {
+export function LoadDocument({ onConvert }: LoadDocumentProps) {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     setIsLoading(true);
     let pdfUrl: string | null = null;
 
@@ -118,6 +117,46 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
     }
   };
 
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
   const handleConvert = () => {
     const isHtml = /<(?=.*? .*?\/?>|br|hr|input|!--|!DOCTYPE)[a-z]+.*?>|<([a-z]+).*?<\/\1>/i.test(
       text
@@ -167,17 +206,57 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col relative"
+      data-testid="drop-zone"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/90 border-4 border-dashed border-green-mid rounded-lg">
+          <div className="text-center">
+            <Upload className="w-16 h-16 mx-auto mb-4 text-green-mid" />
+            <p className="text-xl font-medium text-gray-700">Drop your document here</p>
+            <p className="text-gray-500">PDF or DOCX files supported</p>
+          </div>
+        </div>
+      )}
       <div className="flex-grow p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div>
-            <h2 className="font-serif text-3xl mb-2">Fix Broken Documents</h2>
-            <p className="text-gray-500 text-lg">
-              Paste your unstructured OCR, PDF text, or HTML below.
-            </p>
+            <h2 className="font-serif text-3xl mb-2">
+              StructEdit &mdash; Structured Document Editor
+            </h2>
           </div>
 
           <div className="space-y-6">
+            <div className="flex gap-4">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".pdf,.docx,.doc"
+                onChange={handleFileInputChange}
+              />
+              <Button
+                size="2xl"
+                className="py-3 px-8 my-8 text-lg cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin w-5 h-5 mr-2" />
+                ) : (
+                  <Upload className="w-5 h-5 mr-2" />
+                )}
+                Upload File
+              </Button>
+            </div>
+
+            <p>or paste your unstructured OCR, PDF text, or HTML below:</p>
+
             <div className="relative">
               <Textarea
                 placeholder="Paste unstructured text or HTML here..."
@@ -191,28 +270,9 @@ export function DocumentFixer({ onConvert }: DocumentFixerProps) {
             </div>
 
             <div className="flex gap-4">
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".pdf,.docx,.doc"
-                onChange={handleFileUpload}
-              />
               <Button
                 variant="outline"
-                className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg px-6"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="animate-spin w-4 h-4 mr-2" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                Upload File
-              </Button>
-              <Button
-                className="btn btn-primary flex-1 rounded-lg text-white hover:opacity-90"
+                className="btn flex-1 rounded-lg hover:opacity-90"
                 onClick={handleConvert}
                 disabled={!text.trim() || isLoading}
               >

@@ -7,7 +7,7 @@ What this app is about: @README.md
 ## How the App Works
 
 ### Two views
-- `DocumentFixer` - Upload view for PDF/DOCX/HTML files
+- `LoadDocument` - Upload view for PDF/DOCX/HTML files
 - `TreeEditor` - Main editor with tree on the right, original document preview on the left
 
 ### Document processing pipeline
@@ -29,7 +29,7 @@ Paths are index arrays (e.g., `[0, 2, 1]` = root's first child → its third chi
 React 19, TypeScript, Vite, TailwindCSS + DaisyUI, Vitest
 
 ### Source directories (`src/`)
-- `components/` - UI: TreeEditor, TreeNodeItem, DocumentFixer, FloatingToolbar, ui/
+- `components/` - UI: TreeEditor, TreeNodeItem, LoadDocument, FloatingToolbar, ui/
 - `hooks/` - useTreeEditor, useTreeHistory, useTreeOperations (all have tests)
 - `types/` - document.ts (tree types), editor.ts (selection/state)
 - `utils/` - tree-utils.ts (immutable ops), document-utils.ts (parsing)

@@ -5,8 +5,8 @@
 
 /* Democratis Theme */
 [data-theme="light"], :root {
-  --p: 142 35% 46%;        /* Primary: #55915D (Green) */
-  --pf: 142 35% 38%;       /* Primary focus */
+  --p: 119 18% 47%;        /* Primary: #638F62 (Green) */
+  --pf: 119 18% 40%;       /* Primary focus */
   --pc: 0 0% 100%;         /* Primary content */
   --s: 144 14% 37%;        /* Secondary: #506F54 */
   --sf: 144 14% 30%;
@@ -38,8 +38,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
+  --primary: #638F62;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
   --muted: #ececf0;
@@ -71,7 +71,7 @@
   --sidebar-ring: oklch(0.708 0 0);
   --yellow-light: #FFE786;
   --grey-mid: #8b7355;
-  --green-mid: #55915D;
+  --green-mid: #638F62;
   --green-dark: #506F54;
   --green-light: #D4E7C7;
   --green-admin: #D4E7C7;
