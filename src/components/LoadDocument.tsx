@@ -7,11 +7,11 @@ import { generateId, parseHtmlLegalToTree } from '../utils/document-utils';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 
-interface DocumentFixerProps {
+interface LoadDocumentProps {
   onConvert: (doc: ContainerDocumentNode, url: string | null, html?: string) => void;
 }
 
-export function DocumentFixer({ onConvert }: DocumentFixerProps) {
+export function LoadDocument({ onConvert }: LoadDocumentProps) {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
