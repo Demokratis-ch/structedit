@@ -53,7 +53,7 @@ export const REVISION_PERSONALVERORDNUNG_HTML = `
  * Expected block types after legal pattern detection
  */
 export const EXPECTED_BLOCK_TYPES = [
-  { content_starts: 'Arbeitsversion', type: 'h1' },  // Kept as h1 from HTML
+  { content_starts: 'Arbeitsversion', type: 'h1' }, // Kept as h1 from HTML
   { content_starts: 'Kanton', type: 'p' },
   { content_starts: 'Änderung vom', type: 'p' },
   { content_starts: 'Von diesem', type: 'p' },
@@ -63,32 +63,32 @@ export const EXPECTED_BLOCK_TYPES = [
   { content_starts: 'Der Grosse', type: 'p' },
   { content_starts: 'gestützt auf', type: 'p' },
   { content_starts: 'beschliesst', type: 'p' },
-  { content_starts: 'I. Änderung', type: 'h2' },     // Roman numeral section
-  { content_starts: 'Art. 1 Abs.', type: 'h3' },     // Article heading
-  { content_starts: '2 Die Personal', type: 'p' },  // Numbered paragraph
-  { content_starts: 'Art. 2 Abs.', type: 'h3' },     // Article heading
+  { content_starts: 'I. Änderung', type: 'h2' }, // Roman numeral section
+  { content_starts: 'Art. 1 Abs.', type: 'h3' }, // Article heading
+  { content_starts: '2 Die Personal', type: 'p' }, // Numbered paragraph
+  { content_starts: 'Art. 2 Abs.', type: 'h3' }, // Article heading
   { content_starts: 'Ergänzendes', type: 'p' },
   { content_starts: '1 Soweit', type: 'p' },
   { content_starts: '2 Aufgehoben', type: 'p' },
-  { content_starts: 'Art. 3 Abs.', type: 'h3' },     // Article heading
+  { content_starts: 'Art. 3 Abs.', type: 'h3' }, // Article heading
   { content_starts: '1 Soweit das', type: 'p' },
-  { content_starts: 'Art. 7a', type: 'h3' },         // Article heading
+  { content_starts: 'Art. 7a', type: 'h3' }, // Article heading
   { content_starts: 'Aufgehoben.', type: 'p' },
-  { content_starts: 'Art. 23a (neu)', type: 'h3' },  // Article heading with marker
+  { content_starts: 'Art. 23a (neu)', type: 'h3' }, // Article heading with marker
   { content_starts: 'Unvereinbarkeit', type: 'p' },
   { content_starts: '1 Mitarbeitende', type: 'p' },
-  { content_starts: 'a. sie als', type: 'abc' },     // Lettered list item
-  { content_starts: 'b. sie ein', type: 'abc' },     // Lettered list item
+  { content_starts: 'a. sie als', type: 'abc' }, // Lettered list item
+  { content_starts: 'b. sie ein', type: 'abc' }, // Lettered list item
   { content_starts: 'c. ihre Stelle', type: 'abc' }, // Lettered list item
   { content_starts: '2 Für Mitarbeitende', type: 'p' },
-  { content_starts: 'Art. 26 Abs.', type: 'h3' },    // Article heading
+  { content_starts: 'Art. 26 Abs.', type: 'h3' }, // Article heading
   { content_starts: 'Strafrechtliche', type: 'p' },
   { content_starts: '1 Aufgehoben', type: 'p' },
   { content_starts: '2 Aufgehoben', type: 'p' },
-  { content_starts: 'II.', type: 'h2' },             // Roman numeral section
+  { content_starts: 'II.', type: 'h2' }, // Roman numeral section
   { content_starts: 'Keine Fremd', type: 'p' },
-  { content_starts: 'III.', type: 'h2' },            // Roman numeral section
+  { content_starts: 'III.', type: 'h2' }, // Roman numeral section
   { content_starts: 'Keine Fremdauf', type: 'p' },
-  { content_starts: 'IV.', type: 'h2' },             // Roman numeral section
+  { content_starts: 'IV.', type: 'h2' }, // Roman numeral section
   { content_starts: 'Dieser Beschluss', type: 'p' },
 ];

@@ -1,11 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
+import type React from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { downloadFile } from '../utils/document-utils';
-import { Toolbar } from './Toolbar';
 import { FloatingToolbar } from './FloatingToolbar';
 import { SourcePreview } from './SourcePreview';
+import { Toolbar } from './Toolbar';
 import { TreeNodeItem } from './TreeNodeItem';
 
 interface TreeEditorProps {
@@ -38,7 +39,13 @@ const isCursorAtEnd = (el: HTMLElement) => {
   return postRange.toString().trim().length === 0;
 };
 
-export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, onDownload }: TreeEditorProps) {
+export function TreeEditor({
+  initialDocument,
+  pdfUrl,
+  language = 'de',
+  onBack,
+  onDownload,
+}: TreeEditorProps) {
   const {
     document,
     flattenedNodes,
@@ -71,14 +78,16 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
 
   const containerRef = useRef<HTMLDivElement>(null);
   const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
-  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(
+    null
+  );
   const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
 
   // Compute toolbar type for single selected node
   const selectedNodeType = useMemo(() => {
     if (selectedIds.size !== 1) return null;
     const selectedId = Array.from(selectedIds)[0];
-    const flatNode = flattenedNodes.find(fn => fn.node.id === selectedId);
+    const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
     if (!flatNode) return null;
 
     const nodeType = flatNode.node.type;
@@ -136,8 +145,8 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
       e.preventDefault();
       addNodeAfter(id);
     } else if (e.key === 'Backspace') {
-      const node = flattenedNodes.find(fn => fn.node.id === id);
-      const content = node && 'contents' in node.node ? (node.node.contents[language] || '') : '';
+      const node = flattenedNodes.find((fn) => fn.node.id === id);
+      const content = node && 'contents' in node.node ? node.node.contents[language] || '' : '';
       if (!content || content === '<br>' || content.trim() === '') {
         if (flattenedNodes.length > 0) {
           e.preventDefault();
@@ -152,7 +161,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
         indentSelected();
       }
     } else if (e.key === 'ArrowUp' && isCursorAtStart(e.currentTarget as HTMLElement)) {
-      const index = flattenedNodes.findIndex(fn => fn.node.id === id);
+      const index = flattenedNodes.findIndex((fn) => fn.node.id === id);
       if (index > 0) {
         e.preventDefault();
         const prevId = flattenedNodes[index - 1].node.id;
@@ -170,7 +179,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
         }, 0);
       }
     } else if (e.key === 'ArrowDown' && isCursorAtEnd(e.currentTarget as HTMLElement)) {
-      const index = flattenedNodes.findIndex(fn => fn.node.id === id);
+      const index = flattenedNodes.findIndex((fn) => fn.node.id === id);
       if (index < flattenedNodes.length - 1) {
         e.preventDefault();
         const nextId = flattenedNodes[index + 1].node.id;
@@ -239,8 +248,8 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     } else {
       // Format selected nodes - wrap/unwrap content
       const tag = command === 'bold' ? 'b' : 'i';
-      selectedIds.forEach(id => {
-        const node = flattenedNodes.find(fn => fn.node.id === id);
+      selectedIds.forEach((id) => {
+        const node = flattenedNodes.find((fn) => fn.node.id === id);
         if (node && 'contents' in node.node) {
           const content = node.node.contents[language] || '';
           const isWrapped = content.startsWith(`<${tag}>`) && content.endsWith(`</${tag}>`);
@@ -289,7 +298,7 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
     }
 
     // Apply type change to each selected node
-    ids.forEach(id => {
+    ids.forEach((id) => {
       changeNodeType(id, targetType, listStyle);
     });
   };
@@ -328,7 +337,6 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
         {pdfUrl && <SourcePreview url={pdfUrl} onClose={onBack} />}
         <div
           className="flex-1 overflow-y-auto bg-white relative outline-none"
-          tabIndex={0}
           ref={containerRef}
           onKeyDown={handleGlobalKeyDown}
           onClick={clearSelection}
@@ -337,11 +345,23 @@ export function TreeEditor({ initialDocument, pdfUrl, language = 'de', onBack, o
             <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
               <div>
                 <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
-                <p className="text-gray-500">Click to select. Shift+Click range. Double-click to edit.</p>
+                <p className="text-gray-500">
+                  Click to select. Shift+Click range. Double-click to edit.
+                </p>
               </div>
               <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
-                <div><kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">Tab</kbd> indent</div>
-                <div><kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">Shift+Tab</kbd> outdent</div>
+                <div>
+                  <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
+                    Tab
+                  </kbd>{' '}
+                  indent
+                </div>
+                <div>
+                  <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
+                    Shift+Tab
+                  </kbd>{' '}
+                  outdent
+                </div>
               </div>
             </div>
             <div className="space-y-1 min-h-[300px] relative">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Header } from './components/Header';
 import { DocumentFixer } from './components/DocumentFixer';
+import { Header } from './components/Header';
 import { TreeEditor } from './components/TreeEditor';
 import type { ContainerDocumentNode } from './types/document';
 
@@ -30,15 +30,11 @@ function App() {
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 bg-white">
           {view === 'upload' ? (
-             <div className="flex-1 overflow-auto p-8">
-                <DocumentFixer onConvert={handleConvert} />
-             </div>
+            <div className="flex-1 overflow-auto p-8">
+              <DocumentFixer onConvert={handleConvert} />
+            </div>
           ) : document ? (
-            <TreeEditor
-              initialDocument={document}
-              pdfUrl={pdfUrl}
-              onBack={handleBack}
-            />
+            <TreeEditor initialDocument={document} pdfUrl={pdfUrl} onBack={handleBack} />
           ) : null}
         </main>
       </div>

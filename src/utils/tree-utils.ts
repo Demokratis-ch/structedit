@@ -1,5 +1,5 @@
-import type { DocumentNode, ContainerDocumentNode } from '../types/document';
-import type { NodePath, FlattenedNode } from '../types/editor';
+import type { ContainerDocumentNode, DocumentNode } from '../types/document';
+import type { FlattenedNode, NodePath } from '../types/editor';
 
 /**
  * Get a node at a given path (immutable read).
@@ -39,11 +39,7 @@ export function updateNodeAtPath(
   } else {
     const child = newChildren[headIndex];
     if ('children' in child) {
-      newChildren[headIndex] = updateNodeAtPath(
-        child as ContainerDocumentNode,
-        tailPath,
-        updater
-      );
+      newChildren[headIndex] = updateNodeAtPath(child as ContainerDocumentNode, tailPath, updater);
     }
   }
 
@@ -122,11 +118,12 @@ export function moveNode(
   // Check if moving within same parent
   const fromParentPath = fromPath.slice(0, -1);
   const fromIndex = fromPath[fromPath.length - 1];
-  const sameParent = fromParentPath.length === toParentPath.length &&
+  const sameParent =
+    fromParentPath.length === toParentPath.length &&
     fromParentPath.every((v, i) => v === toParentPath[i]);
 
   // Remove first
-  let result = removeNodeAtPath(root, fromPath);
+  const result = removeNodeAtPath(root, fromPath);
 
   // Adjust target index if moving within same parent and source was before target
   let adjustedIndex = toIndex;
@@ -142,8 +139,10 @@ export function moveNode(
 
   // Check if fromParentPath is a prefix of toParentPath
   // If so, we need to check if fromIndex affects the next segment
-  if (fromParentPath.length <= toParentPath.length &&
-      fromParentPath.every((v, i) => v === toParentPath[i])) {
+  if (
+    fromParentPath.length <= toParentPath.length &&
+    fromParentPath.every((v, i) => v === toParentPath[i])
+  ) {
     // The paths share fromParentPath as a common prefix
     // Check if toParentPath continues at the level where fromIndex is
     if (fromParentPath.length < toParentPath.length) {
@@ -271,13 +270,7 @@ export function flattenForRendering(root: ContainerDocumentNode): FlattenedNode[
     if ('children' in node && node.children) {
       const newAncestorFlags = [...ancestorIsLastChild, isLastChild];
       node.children.forEach((child, i) => {
-        walk(
-          child,
-          [...path, i],
-          depth + 1,
-          node.id,
-          newAncestorFlags
-        );
+        walk(child, [...path, i], depth + 1, node.id, newAncestorFlags);
       });
     }
   }

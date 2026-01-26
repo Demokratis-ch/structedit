@@ -1,5 +1,4 @@
-import React from 'react';
-import { X, Undo, Redo, Download } from 'lucide-react';
+import { Download, Redo, Undo, X } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface ToolbarProps {
@@ -21,7 +20,7 @@ export function Toolbar({
   canRedo,
   historyIndex,
   historyLength,
-  onDownload
+  onDownload,
 }: ToolbarProps) {
   return (
     <div className="h-16 border-b border-gray-200 bg-white px-6 flex items-center justify-between shrink-0 z-10">
