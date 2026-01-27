@@ -1,0 +1,88 @@
+import type {
+  ContainerDocumentNode,
+  ContentDocumentNode,
+  DocumentNode,
+  HeadingDocumentNode,
+  Language,
+} from '../../types/document';
+import { generateId } from '../document-utils';
+import { extractCleanText, matchRomanSection } from './patterns';
+import type { TreeTransform } from './types';
+
+/**
+ * Check if a node is a content node with roman numeral section pattern
+ */
+function isRomanSectionContent(node: DocumentNode): boolean {
+  if (node.type !== 'content') return false;
+  const contentNode = node as ContentDocumentNode;
+  const text = extractCleanText(contentNode.contents.de || '');
+  return matchRomanSection(text).matched;
+}
+
+/**
+ * Transforms content nodes matching roman numeral patterns (I., II., III.)
+ * into heading nodes at the root level.
+ *
+ * Only operates on direct children of document roots. Content and other nodes
+ * following a roman section become children of that section until the next
+ * roman section is encountered.
+ *
+ * @example
+ * Input tree:
+ *   document
+ *     content("I. First Section")
+ *     content("Some text")
+ *     content("II. Second Section")
+ *
+ * Output tree:
+ *   document
+ *     heading("I. First Section")
+ *       content("Some text")
+ *     heading("II. Second Section")
+ */
+export const romanSectionTransform: TreeTransform = (
+  root: ContainerDocumentNode,
+  _language: Language
+): ContainerDocumentNode => {
+  // Only process document roots
+  if (root.type !== 'document') {
+    return root;
+  }
+
+  const newChildren: DocumentNode[] = [];
+  let currentSection: HeadingDocumentNode | null = null;
+
+  for (const child of root.children) {
+    if (isRomanSectionContent(child)) {
+      // Flush current section if any
+      if (currentSection) {
+        newChildren.push(currentSection);
+      }
+      // Start new section - convert content to heading
+      const contentNode = child as ContentDocumentNode;
+      currentSection = {
+        id: generateId(),
+        number: null,
+        type: 'heading',
+        contents: { ...contentNode.contents },
+        children: [],
+      };
+    } else if (currentSection) {
+      // Add to current section's children
+      currentSection.children.push(child);
+    } else {
+      // No section yet, keep at root level
+      newChildren.push(child);
+    }
+  }
+
+  // Flush final section
+  if (currentSection) {
+    newChildren.push(currentSection);
+  }
+
+  return {
+    ...root,
+    children: newChildren,
+  };
+};
