@@ -1,15 +1,4 @@
-import {
-  Asterisk,
-  Bold,
-  Heading,
-  Italic,
-  List,
-  ListOrdered,
-  SortAsc,
-  Trash2,
-  Type,
-  X,
-} from 'lucide-react';
+import { Asterisk, Heading, List, ListOrdered, SortAsc, Trash2, Type, X } from 'lucide-react';
 
 type ToolbarBlockType = 'heading' | 'p' | 'ul' | 'ol' | 'abc' | 'footnote';
 
@@ -17,7 +6,6 @@ interface FloatingToolbarProps {
   selectedCount: number;
   isEditing: boolean;
   selectedNodeType?: ToolbarBlockType | null;
-  onFormat: (format: 'bold' | 'italic') => void;
   onUpdateType: (type: ToolbarBlockType) => void;
   onDelete: () => void;
   onClearSelection: () => void;
@@ -27,7 +15,6 @@ export function FloatingToolbar({
   selectedCount,
   isEditing,
   selectedNodeType,
-  onFormat,
   onUpdateType,
   onDelete,
   onClearSelection,
@@ -50,22 +37,6 @@ export function FloatingToolbar({
           {selectedCount} selected
         </div>
       )}
-
-      <button
-        onClick={() => onFormat('bold')}
-        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-        title="Bold (Ctrl+B)"
-      >
-        <Bold size={18} />
-      </button>
-      <button
-        onClick={() => onFormat('italic')}
-        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-        title="Italic (Ctrl+I)"
-      >
-        <Italic size={18} />
-      </button>
-      <div className="w-px h-6 bg-gray-700 mx-1" />
 
       <button
         onClick={() => onUpdateType('heading')}

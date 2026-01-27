@@ -93,8 +93,10 @@ export const parseHtmlToTree = (
   const getInnerHtml = (node: Node): string => {
     if (node instanceof HTMLElement) {
       let content = node.innerHTML.trim();
-      // Strip nested block tags but keep inline formatting
+      // Strip nested block tags
       content = content.replace(/<\/?(div|p|h[1-6]|ul|ol|li)[^>]*>/gi, '');
+      // Strip inline formatting tags (Demokratis platform doesn't support formatting)
+      content = content.replace(/<\/?(b|i|em|strong|u|s|strike|span|code|sub|sup)[^>]*>/gi, '');
       return content;
     }
     return (node.textContent || '').replace(/[\s\n]+/g, ' ').trim();

@@ -127,12 +127,11 @@ describe('Document Utils', () => {
       expect(item2.number).toBe('2.');
     });
 
-    it('preserves inline formatting in contents', () => {
+    it('strips inline formatting from contents', () => {
       const html = '<p><b>Bold</b> and <i>italic</i></p>';
       const doc = parseHtmlToTree(html);
       const content = doc.children[0] as LeafDocumentNode;
-      expect(content.contents.de).toContain('<b>');
-      expect(content.contents.de).toContain('<i>');
+      expect(content.contents.de).toBe('Bold and italic');
     });
 
     it('uses de language by default', () => {
