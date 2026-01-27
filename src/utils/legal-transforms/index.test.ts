@@ -1,0 +1,206 @@
+import { describe, expect, it } from 'vitest';
+import type {
+  ContainerDocumentNode,
+  ContentDocumentNode,
+  HeadingDocumentNode,
+} from '../../types/document';
+import { applySwissLegalTransforms, composeTransforms } from './index';
+import { content, createDoc, heading } from './test-helpers';
+
+describe('composeTransforms', () => {
+  it('applies transforms left to right', () => {
+    const addPrefix = (root: ContainerDocumentNode) => ({
+      ...root,
+      children: root.children.map((c) =>
+        c.type === 'content'
+          ? { ...c, contents: { de: `PREFIX: ${(c as ContentDocumentNode).contents.de}` } }
+          : c
+      ),
+    });
+    const addSuffix = (root: ContainerDocumentNode) => ({
+      ...root,
+      children: root.children.map((c) =>
+        c.type === 'content'
+          ? { ...c, contents: { de: `${(c as ContentDocumentNode).contents.de} :SUFFIX` } }
+          : c
+      ),
+    });
+
+    const composed = composeTransforms(addPrefix, addSuffix);
+    const input = createDoc([content('Hello')]);
+    const result = composed(input, 'de');
+
+    const contentNode = result.children[0] as ContentDocumentNode;
+    expect(contentNode.contents.de).toBe('PREFIX: Hello :SUFFIX');
+  });
+
+  it('returns identity for empty array', () => {
+    const composed = composeTransforms();
+    const input = createDoc([content('Test')]);
+    const result = composed(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect((result.children[0] as ContentDocumentNode).contents.de).toBe('Test');
+  });
+
+  it('works with single transform', () => {
+    const upper = (root: ContainerDocumentNode) => ({
+      ...root,
+      children: root.children.map((c) =>
+        c.type === 'content'
+          ? { ...c, contents: { de: (c as ContentDocumentNode).contents.de?.toUpperCase() } }
+          : c
+      ),
+    });
+
+    const composed = composeTransforms(upper);
+    const input = createDoc([content('hello')]);
+    const result = composed(input, 'de');
+
+    expect((result.children[0] as ContentDocumentNode).contents.de).toBe('HELLO');
+  });
+});
+
+describe('applySwissLegalTransforms', () => {
+  it('applies all transforms in correct order', () => {
+    const input = createDoc([
+      content('I. First Section'),
+      content('Art. 1 Title'),
+      content('a. First item'),
+      content('b. Second item'),
+      content('II. Second Section'),
+    ]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    // Should have 2 top-level headings (I., II.)
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe('heading');
+    expect(result.children[1].type).toBe('heading');
+
+    // I. should contain Art. 1 as nested heading
+    const section1 = result.children[0] as HeadingDocumentNode;
+    expect(section1.contents.de).toBe('I. First Section');
+    expect(section1.children).toHaveLength(1);
+    expect(section1.children[0].type).toBe('heading');
+
+    // Art. 1 should contain a list
+    const article = section1.children[0] as HeadingDocumentNode;
+    expect(article.contents.de).toBe('Art. 1 Title');
+    expect(article.children).toHaveLength(1);
+    expect(article.children[0].type).toBe('list');
+
+    // List should have 2 items
+    const list = article.children[0] as ContainerDocumentNode;
+    expect(list.children).toHaveLength(2);
+    expect(list.children[0].number).toBe('a.');
+    expect(list.children[1].number).toBe('b.');
+  });
+
+  it('respects config to disable romanSections', () => {
+    const input = createDoc([content('I. Section')]);
+
+    const result = applySwissLegalTransforms(input, 'de', { romanSections: false });
+
+    expect(result.children[0].type).toBe('content');
+  });
+
+  it('respects config to disable articles', () => {
+    const input = createDoc([content('Art. 1 Title')]);
+
+    const result = applySwissLegalTransforms(input, 'de', { articles: false });
+
+    expect(result.children[0].type).toBe('content');
+  });
+
+  it('respects config to disable letteredItems', () => {
+    const input = createDoc([content('a. First'), content('b. Second')]);
+
+    const result = applySwissLegalTransforms(input, 'de', { letteredItems: false });
+
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe('content');
+    expect(result.children[1].type).toBe('content');
+  });
+
+  it('handles complex nested structure', () => {
+    const input = createDoc([
+      content('I. First Section'),
+      content('Art. 1 First Article'),
+      content('Some intro text'),
+      content('a. Item A'),
+      content('b. Item B'),
+      content('Art. 2 Second Article'),
+      content('More content'),
+      content('II. Second Section'),
+      content('Art. 3 Third Article'),
+      content('Final content'),
+    ]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    // Two top-level sections
+    expect(result.children).toHaveLength(2);
+
+    // Section I
+    const section1 = result.children[0] as HeadingDocumentNode;
+    expect(section1.contents.de).toContain('I.');
+    expect(section1.children).toHaveLength(2); // Art. 1 and Art. 2
+
+    // Art. 1 under Section I
+    const art1 = section1.children[0] as HeadingDocumentNode;
+    expect(art1.contents.de).toContain('Art. 1');
+    expect(art1.children).toHaveLength(2); // intro text and list
+
+    // Art. 2 under Section I
+    const art2 = section1.children[1] as HeadingDocumentNode;
+    expect(art2.contents.de).toContain('Art. 2');
+    expect(art2.children).toHaveLength(1); // More content
+
+    // Section II
+    const section2 = result.children[1] as HeadingDocumentNode;
+    expect(section2.contents.de).toContain('II.');
+    expect(section2.children).toHaveLength(1); // Art. 3
+
+    // Art. 3 under Section II
+    const art3 = section2.children[0] as HeadingDocumentNode;
+    expect(art3.contents.de).toContain('Art. 3');
+  });
+
+  it('preserves existing headings', () => {
+    const input = createDoc([heading('Existing'), content('I. Roman Section')]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe('heading');
+    expect((result.children[0] as HeadingDocumentNode).contents.de).toBe('Existing');
+  });
+
+  it('handles document with no legal patterns', () => {
+    const input = createDoc([content('Plain text'), content('More text')]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe('content');
+    expect(result.children[1].type).toBe('content');
+  });
+
+  it('handles empty document', () => {
+    const input = createDoc([]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.children).toHaveLength(0);
+  });
+
+  it('preserves document id', () => {
+    const input = createDoc([content('I. Section')]);
+    const originalId = input.id;
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.id).toBe(originalId);
+  });
+});
