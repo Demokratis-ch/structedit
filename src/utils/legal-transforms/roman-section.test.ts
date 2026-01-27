@@ -49,7 +49,8 @@ describe('romanSectionTransform', () => {
   it('does not modify non-document roots', () => {
     const input = heading('Some heading', [content('I. This should not become heading')]);
 
-    const result = romanSectionTransform(input as ContainerDocumentNode, 'de');
+    // HeadingDocumentNode is a valid input but transform should only affect document roots
+    const result = romanSectionTransform(input as unknown as ContainerDocumentNode, 'de');
 
     expect(result.children[0].type).toBe('content');
   });
