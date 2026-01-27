@@ -131,16 +131,6 @@ export function TreeEditor({
   };
 
   const handleBlockKeyDown = (e: React.KeyboardEvent, id: string) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-      e.preventDefault();
-      handleFormat('bold');
-      return;
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-      e.preventDefault();
-      handleFormat('italic');
-      return;
-    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       addNodeAfter(id);
@@ -200,16 +190,6 @@ export function TreeEditor({
       redo();
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
-      e.preventDefault();
-      handleFormat('bold');
-      return;
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-      e.preventDefault();
-      handleFormat('italic');
-      return;
-    }
     if (editingId) return;
 
     if (selectedIds.size === 0) {
@@ -239,26 +219,6 @@ export function TreeEditor({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       clearSelection();
-    }
-  };
-
-  const handleFormat = (command: 'bold' | 'italic') => {
-    if (editingId) {
-      window.document.execCommand(command, false);
-    } else {
-      // Format selected nodes - wrap/unwrap content
-      const tag = command === 'bold' ? 'b' : 'i';
-      selectedIds.forEach((id) => {
-        const node = flattenedNodes.find((fn) => fn.node.id === id);
-        if (node && 'contents' in node.node) {
-          const content = node.node.contents[language] || '';
-          const isWrapped = content.startsWith(`<${tag}>`) && content.endsWith(`</${tag}>`);
-          const newContent = isWrapped
-            ? content.slice(tag.length + 2, -(tag.length + 3))
-            : `<${tag}>${content}</${tag}>`;
-          updateNodeContents(id, newContent);
-        }
-      });
     }
   };
 
@@ -409,7 +369,6 @@ export function TreeEditor({
             selectedCount={selectedIds.size}
             isEditing={!!editingId}
             selectedNodeType={selectedNodeType}
-            onFormat={handleFormat}
             onUpdateType={handleBulkUpdateType}
             onDelete={deleteSelected}
             onClearSelection={clearSelection}

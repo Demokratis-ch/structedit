@@ -192,14 +192,16 @@ describe('letteredItemsTransform', () => {
     expect(l2.children[0].type).toBe('list');
   });
 
-  it('preserves HTML formatting in content', () => {
-    const input = createDoc([content('a. <b>Bold</b> item')]);
+  it('preserves plain text content after stripping letter prefix', () => {
+    // Note: HTML formatting is stripped at parse time in document-utils.ts
+    // so input to this transform is already plain text
+    const input = createDoc([content('a. Bold item')]);
 
     const result = letteredItemsTransform(input, 'de');
 
     const listNode = result.children[0] as ContainerDocumentNode;
     const listItem = listNode.children[0] as ContainerDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
-    expect(contentNode.contents.de).toBe('<b>Bold</b> item');
+    expect(contentNode.contents.de).toBe('Bold item');
   });
 });
