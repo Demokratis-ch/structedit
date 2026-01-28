@@ -1,6 +1,5 @@
 import { GripVertical } from 'lucide-react';
 import type React from 'react';
-import type { ReactElement } from 'react';
 import type { Language } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 import { ContentBlock } from './ContentBlock';
@@ -48,8 +47,21 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   onKeyDown,
   onFocus,
 }) => {
-  const { node, depth, isLastChild, ancestorIsLastChild } = flatNode;
+  const { node, depth } = flatNode;
   const indentPixels = depth * 24;
+
+  // Determine if node is a leaf (no children)
+  const isLeaf = !('children' in node) || node.children.length === 0;
+
+  // Get border style based on depth
+  const getBorderStyle = (): { borderWidth: string } | undefined => {
+    if (depth === 0) return undefined; // No border for root
+    if (isLeaf || depth >= 4) return { borderWidth: '1px' };
+    if (depth === 1) return { borderWidth: '6px' };
+    if (depth === 2) return { borderWidth: '4px' };
+    if (depth === 3) return { borderWidth: '2px' };
+    return { borderWidth: '1px' };
+  };
 
   // Get content for current language (only for leaf nodes and headings)
   const content = 'contents' in node ? node.contents[language] || '' : '';
@@ -81,49 +93,6 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
       return 'h3';
     }
     return 'div';
-  };
-
-  // Render connector lines based on ancestry
-  const renderConnectorLines = () => {
-    const lines: ReactElement[] = [];
-
-    for (let d = 0; d < depth; d++) {
-      const isAncestorLast = d < ancestorIsLastChild.length && ancestorIsLastChild[d];
-      const isImmediateParent = d === depth - 1;
-
-      if (isImmediateParent) {
-        // This level connects to current node
-        lines.push(
-          <div
-            key={d}
-            className="absolute pointer-events-none border-gray-300"
-            style={{ left: `${d * 24}px`, top: 0, bottom: 0, width: '24px' }}
-          >
-            {/* Vertical line from top to middle */}
-            <div className="absolute top-0 h-[18px] left-1/2 border-l border-gray-300" />
-            {/* Horizontal line to content */}
-            <div className="absolute top-[18px] left-1/2 right-0 border-t border-gray-300" />
-            {/* Continue vertical if not last child */}
-            {!isLastChild && (
-              <div className="absolute top-[18px] bottom-0 left-1/2 border-l border-gray-300" />
-            )}
-          </div>
-        );
-      } else if (!isAncestorLast) {
-        // Ancestor level - draw vertical line if ancestor has more siblings
-        lines.push(
-          <div
-            key={d}
-            className="absolute pointer-events-none border-gray-300"
-            style={{ left: `${d * 24}px`, top: 0, bottom: 0, width: '24px' }}
-          >
-            <div className="absolute top-0 bottom-0 left-1/2 border-l border-gray-300" />
-          </div>
-        );
-      }
-    }
-
-    return lines;
   };
 
   // Render list item marker
@@ -162,12 +131,10 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
         ${isSelected && !isEditing ? 'bg-blue-50 ring-1 ring-blue-100' : ''}
         ${!isSelected && !isEditing ? 'hover:bg-gray-50' : ''}
         ${isEditing ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'cursor-default'}
+        ${depth > 0 ? 'border border-gray-300' : ''}
       `}
-      style={{ minHeight: '36px' }}
+      style={{ minHeight: '36px', ...getBorderStyle() }}
     >
-      {/* Connector lines */}
-      {renderConnectorLines()}
-
       {/* Drop indicator */}
       {isDropTarget && dropPosition && (
         <div
