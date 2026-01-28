@@ -5,9 +5,9 @@ import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { downloadFile } from '../utils/document-utils';
 import { FloatingToolbar } from './FloatingToolbar';
+import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { SourcePreview } from './SourcePreview';
 import { Toolbar } from './Toolbar';
-import { TreeNodeItem } from './TreeNodeItem';
 
 interface TreeEditorProps {
   initialDocument: ContainerDocumentNode;
@@ -73,7 +73,7 @@ export function TreeEditor({
     historyIndex,
     historyLength,
     lastSelectedId,
-    anchorId,
+    getReceivingParentId,
   } = useTreeEditor(initialDocument, language);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,6 +82,7 @@ export function TreeEditor({
     null
   );
   const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
+  const [receivingParentId, setReceivingParentId] = useState<string | null>(null);
 
   // Compute toolbar type for single selected node
   const selectedNodeType = useMemo(() => {
@@ -101,6 +102,15 @@ export function TreeEditor({
       if (/^[a-z]\.?$/i.test(num)) return 'abc';
       return 'ol';
     }
+    if (nodeType === 'list') {
+      // For list containers, check first child's number format
+      const listNode = flatNode.node as { children?: { number?: string | null }[] };
+      const firstChild = listNode.children?.[0];
+      const num = firstChild?.number;
+      if (num === null || num === undefined || num === '•') return 'ul';
+      if (/^[a-z]\.?$/i.test(num)) return 'abc';
+      return 'ol';
+    }
     return null;
   }, [selectedIds, flattenedNodes]);
 
@@ -114,12 +124,19 @@ export function TreeEditor({
     if (draggedNodeId === id) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDropTarget({ id, position: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom' });
+
+    // Compute receiving parent for visual feedback
+    if (draggedNodeId) {
+      const parentId = getReceivingParentId(draggedNodeId, id);
+      setReceivingParentId(parentId);
+    }
   };
 
   const handleDragEnd = () => {
     setDraggedNodeId(null);
     setDropTarget(null);
     setHoveredHandleId(null);
+    setReceivingParentId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -269,6 +286,8 @@ export function TreeEditor({
 
   const handleClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    // Focus the container so keyboard events work
+    containerRef.current?.focus();
     handleNodeClick(id, {
       shiftKey: e.shiftKey,
       ctrlKey: e.ctrlKey,
@@ -298,6 +317,7 @@ export function TreeEditor({
         <div
           className="flex-1 overflow-y-auto bg-white relative outline-none"
           ref={containerRef}
+          tabIndex={0}
           onKeyDown={handleGlobalKeyDown}
           onClick={clearSelection}
         >
@@ -324,8 +344,8 @@ export function TreeEditor({
                 </div>
               </div>
             </div>
-            <div className="space-y-1 min-h-[300px] relative">
-              {flattenedNodes.length === 0 ? (
+            <div className="min-h-[300px] relative">
+              {document.children.length === 0 ? (
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
@@ -338,30 +358,33 @@ export function TreeEditor({
                   <p className="text-sm">Click here to start writing</p>
                 </div>
               ) : (
-                flattenedNodes.map((flatNode) => (
-                  <TreeNodeItem
-                    key={flatNode.node.id}
-                    flatNode={flatNode}
-                    isSelected={selectedIds.has(flatNode.node.id)}
-                    isEditing={editingId === flatNode.node.id}
-                    isDragging={draggedNodeId === flatNode.node.id}
-                    isDropTarget={dropTarget?.id === flatNode.node.id}
-                    dropPosition={dropTarget?.id === flatNode.node.id ? dropTarget.position : null}
-                    hoveredHandleId={hoveredHandleId}
-                    language={language}
-                    blockRefs={blockRefs}
-                    onDragStart={handleDragStart}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onDragEnd={handleDragEnd}
-                    onClick={handleClick}
-                    onDoubleClick={handleDoubleClick}
-                    onHoverHandle={setHoveredHandleId}
-                    onUpdateContent={updateNodeContents}
-                    onKeyDown={handleBlockKeyDown}
-                    onFocus={setEditingId}
-                  />
-                ))
+                <RecursiveTreeNode
+                  node={document}
+                  depth={0}
+                  isSelected={false}
+                  isEditing={false}
+                  isDragging={false}
+                  isDropTarget={false}
+                  dropPosition={null}
+                  hoveredHandleId={hoveredHandleId}
+                  language={language}
+                  selectedIds={selectedIds}
+                  editingId={editingId}
+                  draggedNodeId={draggedNodeId}
+                  dropTarget={dropTarget}
+                  receivingParentId={receivingParentId}
+                  blockRefs={blockRefs}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  onClick={handleClick}
+                  onDoubleClick={handleDoubleClick}
+                  onHoverHandle={setHoveredHandleId}
+                  onUpdateContent={updateNodeContents}
+                  onKeyDown={handleBlockKeyDown}
+                  onFocus={setEditingId}
+                />
               )}
             </div>
           </div>

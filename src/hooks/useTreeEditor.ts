@@ -50,6 +50,7 @@ export const useTreeEditor = (
     outdentNode,
     changeNodeType,
     moveNodeById,
+    getReceivingParentId,
   } = useTreeOperations({
     document,
     commit,
@@ -304,6 +305,9 @@ export const useTreeEditor = (
     // Indices
     nodeIndex,
     parentIndex,
+
+    // Drag validation
+    getReceivingParentId,
 
     // Refs for external use
     anchorId,

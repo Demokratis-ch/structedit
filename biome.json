@@ -15,7 +15,8 @@
       "a11y": {
         "useButtonType": "off",
         "noStaticElementInteractions": "off",
-        "useKeyWithClickEvents": "off"
+        "useKeyWithClickEvents": "off",
+        "noNoninteractiveTabindex": "off"
       },
       "suspicious": {
         "noExplicitAny": "off"

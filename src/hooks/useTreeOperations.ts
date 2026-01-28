@@ -47,7 +47,6 @@ export const useTreeOperations = ({
 
       const parentPath = path.slice(0, -1);
       const siblingIndex = path[path.length - 1];
-      const _parentId = parentIndex.get(afterId);
       const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
 
       if (!parent || !('children' in parent)) return;
@@ -653,6 +652,36 @@ export const useTreeOperations = ({
     [document, nodeIndex, commit]
   );
 
+  /**
+   * Get the ID of the node that would become the parent if sourceId were dropped
+   * on targetId. Returns null if the move would be invalid.
+   */
+  const getReceivingParentId = useCallback(
+    (sourceId: string, targetId: string): string | null => {
+      if (sourceId === targetId) return null;
+
+      const sourcePath = nodeIndex.get(sourceId);
+      const targetPath = nodeIndex.get(targetId);
+      if (!sourcePath || !targetPath) return null;
+
+      const sourceNode = getNodeAtPath(document, sourcePath);
+      if (!sourceNode) return null;
+
+      // Get target's parent (the receiving node)
+      const parentPath = targetPath.slice(0, -1);
+      const parentNode = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
+
+      if (!parentNode || !('children' in parentNode)) return null;
+
+      // Validate the parent-child relationship
+      const parentType = parentNode.type as ParentType;
+      if (!canBeChildOf(sourceNode.type, parentType)) return null;
+
+      return parentNode.id;
+    },
+    [document, nodeIndex]
+  );
+
   return {
     addNodeAfter,
     removeNode,
@@ -662,5 +691,8 @@ export const useTreeOperations = ({
     outdentNode,
     changeNodeType,
     moveNodeById,
+    getReceivingParentId,
+    nodeIndex,
+    parentIndex,
   };
 };

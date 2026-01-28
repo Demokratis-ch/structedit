@@ -216,4 +216,36 @@ describe('useTreeEditor', () => {
 
     expect(result.current.flattenedNodes.length).toBe(3);
   });
+
+  test('exposes nodeIndex and parentIndex', () => {
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    expect(result.current.nodeIndex).toBeInstanceOf(Map);
+    expect(result.current.parentIndex).toBeInstanceOf(Map);
+
+    // Verify nodeIndex contains expected paths
+    expect(result.current.nodeIndex.get('h1')).toEqual([0]);
+    expect(result.current.nodeIndex.get('p1')).toEqual([0, 0]);
+    expect(result.current.nodeIndex.get('p2')).toEqual([0, 1]);
+    expect(result.current.nodeIndex.get('h2')).toEqual([1]);
+
+    // Verify parentIndex contains expected parent ids
+    expect(result.current.parentIndex.get('h1')).toBe('root');
+    expect(result.current.parentIndex.get('p1')).toBe('h1');
+    expect(result.current.parentIndex.get('h2')).toBe('root');
+  });
+
+  test('exposes getReceivingParentId', () => {
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    expect(typeof result.current.getReceivingParentId).toBe('function');
+
+    // Test valid move: p2 to p1's position (parent would be h1)
+    expect(result.current.getReceivingParentId('p2', 'p1')).toBe('h1');
+
+    // Test invalid move (same source and target)
+    expect(result.current.getReceivingParentId('h1', 'h1')).toBeNull();
+  });
 });

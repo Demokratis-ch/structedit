@@ -2277,4 +2277,123 @@ describe('useTreeOperations', () => {
       });
     });
   });
+
+  describe('getReceivingParentId', () => {
+    test('returns parent id when move would be valid (content to heading)', () => {
+      // h1 contains p1 and h2. Moving p2 (inside h2) to after p1 would make h1 the parent.
+      const { result } = renderTreeOperations();
+
+      // p2 is at [0, 1, 0], p1 is at [0, 0]
+      // Moving p2 to p1's position means p2 becomes sibling of p1, child of h1
+      const parentId = result.current.getReceivingParentId('p2', 'p1');
+      expect(parentId).toBe('h1');
+    });
+
+    test('returns document id for valid moves to document level', () => {
+      // Moving h2 (nested in h1) to after h1b would make document the parent
+      const { result } = renderTreeOperations();
+
+      // h2 is at [0, 1], h1b is at [1]
+      // Moving h2 next to h1b means parent is document (root)
+      const parentId = result.current.getReceivingParentId('h2', 'h1b');
+      expect(parentId).toBe('root');
+    });
+
+    test('returns null when move would be invalid (list_item to document)', () => {
+      const docWithList = createDocumentWithList();
+      const { result } = renderTreeOperations(docWithList);
+
+      // li1 is in list1, trying to move to document level (next to h1)
+      // list_item cannot be child of document
+      const parentId = result.current.getReceivingParentId('li1', 'h1');
+      expect(parentId).toBeNull();
+    });
+
+    test('returns null when move would be invalid (content to list)', () => {
+      const docWithList: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'Para' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [createListItem('li1', '1.', 'Item 1')],
+          } as ContainerDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(docWithList);
+
+      // content cannot be direct child of list (only list_item can)
+      const parentId = result.current.getReceivingParentId('p1', 'li1');
+      expect(parentId).toBeNull();
+    });
+
+    test('returns null when source equals target', () => {
+      const { result } = renderTreeOperations();
+
+      const parentId = result.current.getReceivingParentId('h1', 'h1');
+      expect(parentId).toBeNull();
+    });
+
+    test('returns null when source not found', () => {
+      const { result } = renderTreeOperations();
+
+      const parentId = result.current.getReceivingParentId('nonexistent', 'h1');
+      expect(parentId).toBeNull();
+    });
+
+    test('returns null when target not found', () => {
+      const { result } = renderTreeOperations();
+
+      const parentId = result.current.getReceivingParentId('h1', 'nonexistent');
+      expect(parentId).toBeNull();
+    });
+
+    test('returns list id for valid list_item moves within list', () => {
+      const docWithList = createDocumentWithList();
+      const { result } = renderTreeOperations(docWithList);
+
+      // Moving li3 to before li1, both in same list
+      const parentId = result.current.getReceivingParentId('li3', 'li1');
+      expect(parentId).toBe('list1');
+    });
+
+    test('returns list id for valid list_item moves between lists', () => {
+      const docWithTwoLists: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [createListItem('li1', '1.', 'Item 1')],
+          } as ContainerDocumentNode,
+          {
+            id: 'list2',
+            number: null,
+            type: 'list',
+            children: [createListItem('li2', '1.', 'Item 2')],
+          } as ContainerDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(docWithTwoLists);
+
+      // Moving li1 to list2 (next to li2)
+      const parentId = result.current.getReceivingParentId('li1', 'li2');
+      expect(parentId).toBe('list2');
+    });
+  });
 });
