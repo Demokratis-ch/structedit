@@ -47,7 +47,6 @@ export const useTreeOperations = ({
 
       const parentPath = path.slice(0, -1);
       const siblingIndex = path[path.length - 1];
-      const _parentId = parentIndex.get(afterId);
       const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
 
       if (!parent || !('children' in parent)) return;
