@@ -73,6 +73,7 @@ export function TreeEditor({
     historyIndex,
     historyLength,
     lastSelectedId,
+    getReceivingParentId,
   } = useTreeEditor(initialDocument, language);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,7 @@ export function TreeEditor({
     null
   );
   const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
+  const [receivingParentId, setReceivingParentId] = useState<string | null>(null);
 
   // Compute toolbar type for single selected node
   const selectedNodeType = useMemo(() => {
@@ -122,12 +124,19 @@ export function TreeEditor({
     if (draggedNodeId === id) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDropTarget({ id, position: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom' });
+
+    // Compute receiving parent for visual feedback
+    if (draggedNodeId) {
+      const parentId = getReceivingParentId(draggedNodeId, id);
+      setReceivingParentId(parentId);
+    }
   };
 
   const handleDragEnd = () => {
     setDraggedNodeId(null);
     setDropTarget(null);
     setHoveredHandleId(null);
+    setReceivingParentId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -363,6 +372,7 @@ export function TreeEditor({
                   editingId={editingId}
                   draggedNodeId={draggedNodeId}
                   dropTarget={dropTarget}
+                  receivingParentId={receivingParentId}
                   blockRefs={blockRefs}
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}

@@ -17,6 +17,7 @@ interface RecursiveTreeNodeProps {
   editingId: string | null;
   draggedNodeId: string | null;
   dropTarget: { id: string; position: 'top' | 'bottom' } | null;
+  receivingParentId: string | null;
   blockRefs: React.MutableRefObject<{ [key: string]: HTMLElement | null }>;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
@@ -44,6 +45,7 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
   editingId,
   draggedNodeId,
   dropTarget,
+  receivingParentId,
   blockRefs,
   onDragStart,
   onDragOver,
@@ -58,6 +60,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
 }) => {
   // Determine if node has children
   const hasChildren = 'children' in node && node.children.length > 0;
+
+  // Determine if this node is the receiving parent for a drag operation
+  const isReceivingParent = receivingParentId === node.id;
 
   // Get border style based on node type and depth
   const getBorderStyle = (): React.CSSProperties => {
@@ -210,6 +215,7 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               editingId={editingId}
               draggedNodeId={draggedNodeId}
               dropTarget={dropTarget}
+              receivingParentId={receivingParentId}
               blockRefs={blockRefs}
               onDragStart={onDragStart}
               onDragOver={onDragOver}
@@ -256,8 +262,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
         ${node.type !== 'heading' ? 'rounded-md' : ''}
         ${isDragging ? 'opacity-30 bg-gray-50' : ''}
         ${isSelected && !isEditing ? 'bg-blue-50 ring-1 ring-blue-100' : ''}
-        ${!isSelected && !isEditing ? 'hover:bg-gray-50/50' : ''}
+        ${!isSelected && !isEditing && !isReceivingParent ? 'hover:bg-gray-50/50' : ''}
         ${isEditing ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'cursor-default'}
+        ${isReceivingParent ? 'ring-2 ring-green-400' : ''}
       `}
       style={getBorderStyle()}
     >
@@ -321,6 +328,7 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               editingId={editingId}
               draggedNodeId={draggedNodeId}
               dropTarget={dropTarget}
+              receivingParentId={receivingParentId}
               blockRefs={blockRefs}
               onDragStart={onDragStart}
               onDragOver={onDragOver}
