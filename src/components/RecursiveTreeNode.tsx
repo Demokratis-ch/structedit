@@ -64,6 +64,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
   // Determine if this node is the receiving parent for a drag operation
   const isReceivingParent = receivingParentId === node.id;
 
+  // Determine if the current drop would be invalid
+  const isInvalidDrop = isDropTarget && draggedNodeId !== null && receivingParentId === null;
+
   // Get border style based on node type and depth
   const getBorderStyle = (): React.CSSProperties => {
     if (depth === 0) return {};
@@ -265,13 +268,14 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
         ${!isSelected && !isEditing && !isReceivingParent ? 'hover:bg-gray-50/50' : ''}
         ${isEditing ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'cursor-default'}
         ${isReceivingParent ? 'ring-2 ring-green-400' : ''}
+        ${isInvalidDrop ? 'cursor-not-allowed' : ''}
       `}
       style={getBorderStyle()}
     >
       {/* Drop indicator */}
       {isDropTarget && dropPosition && (
         <div
-          className={`absolute left-0 right-0 h-1 bg-blue-600 z-20 rounded ${dropPosition === 'top' ? '-top-[3px]' : '-bottom-[3px]'}`}
+          className={`absolute left-0 right-0 h-1 z-20 rounded ${dropPosition === 'top' ? '-top-[3px]' : '-bottom-[3px]'} ${isInvalidDrop ? 'bg-red-500' : 'bg-blue-600'}`}
         />
       )}
 
