@@ -327,7 +327,7 @@ export function TreeEditor({
           onKeyDown={handleGlobalKeyDown}
           onClick={clearSelection}
         >
-          <div className="max-w-3xl mx-auto py-12 pr-8 pl-16 pb-48">
+          <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48">
             <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
               <div>
                 <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
