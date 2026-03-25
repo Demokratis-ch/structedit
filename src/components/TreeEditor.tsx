@@ -319,7 +319,7 @@ export function TreeEditor({
         onDownload={handleDownload}
       />
       <div className="flex-1 flex overflow-hidden">
-        {pdfUrl && <SourcePreview url={pdfUrl} onClose={onBack} />}
+        {pdfUrl && <SourcePreview url={pdfUrl} />}
         <div
           className="flex-1 overflow-y-auto bg-white relative outline-none"
           ref={containerRef}
