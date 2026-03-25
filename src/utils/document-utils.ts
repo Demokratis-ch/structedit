@@ -10,6 +10,11 @@ import { applySwissLegalTransforms } from './legal-transforms';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 
+export const deriveJsonFilename = (filename: string | null | undefined): string => {
+  if (!filename) return 'document.json';
+  return `${filename.replace(/\.[^/.]+$/, '')}.json`;
+};
+
 export const DEFAULT_LANGUAGE: Language = 'de';
 
 export const downloadFile = (content: string, filename: string, mimeType: string) => {

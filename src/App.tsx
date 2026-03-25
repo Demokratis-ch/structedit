@@ -7,11 +7,18 @@ import type { ContainerDocumentNode } from './types/document';
 function App() {
   const [document, setDocument] = useState<ContainerDocumentNode | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [view, setView] = useState<'upload' | 'editor'>('upload');
 
-  const handleConvert = (doc: ContainerDocumentNode, url: string | null) => {
+  const handleConvert = (
+    doc: ContainerDocumentNode,
+    url: string | null,
+    _html?: string,
+    filename?: string | null
+  ) => {
     setDocument(doc);
     setPdfUrl(url);
+    setFileName(filename ?? null);
     setView('editor');
   };
 
@@ -20,12 +27,13 @@ function App() {
       setView('upload');
       setDocument(null);
       setPdfUrl(null);
+      setFileName(null);
     }
   };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 font-sans text-gray-900 overflow-hidden">
-      <Header />
+      <Header documentName={fileName} />
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 bg-white">
@@ -34,7 +42,12 @@ function App() {
               <LoadDocument onConvert={handleConvert} />
             </div>
           ) : document ? (
-            <TreeEditor initialDocument={document} pdfUrl={pdfUrl} onBack={handleBack} />
+            <TreeEditor
+              initialDocument={document}
+              pdfUrl={pdfUrl}
+              documentName={fileName}
+              onBack={handleBack}
+            />
           ) : null}
         </main>
       </div>

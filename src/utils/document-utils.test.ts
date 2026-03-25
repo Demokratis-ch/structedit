@@ -5,11 +5,25 @@ import type {
   LeafDocumentNode,
 } from '../types/document';
 import {
+  deriveJsonFilename,
   detectLanguage,
   generateId,
   parseHtmlLegalToTree,
   parseHtmlToTree,
 } from './document-utils';
+
+describe('deriveJsonFilename', () => {
+  it('replaces the file extension with .json', () => {
+    expect(deriveJsonFilename('entwurf.docx')).toBe('entwurf.json');
+    expect(deriveJsonFilename('my file.pdf')).toBe('my file.json');
+    expect(deriveJsonFilename('archive.tar.gz')).toBe('archive.tar.json');
+  });
+
+  it('returns document.json when filename is null or undefined', () => {
+    expect(deriveJsonFilename(null)).toBe('document.json');
+    expect(deriveJsonFilename(undefined)).toBe('document.json');
+  });
+});
 
 describe('Document Utils', () => {
   describe('generateId', () => {

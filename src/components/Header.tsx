@@ -1,4 +1,8 @@
-export function Header() {
+interface HeaderProps {
+  documentName?: string | null;
+}
+
+export function Header({ documentName }: HeaderProps = {}) {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="px-6 py-4">
@@ -11,6 +15,11 @@ export function Header() {
             <div className="text-grey-mid text-3xl font-light">
               &nbsp;&rsaquo;&nbsp;&nbsp;StructEdit
             </div>
+            {documentName && (
+              <div className="text-grey-mid text-3xl font-light">
+                &nbsp;&rsaquo;&nbsp;&nbsp;<span>{documentName}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

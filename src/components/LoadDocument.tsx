@@ -8,7 +8,12 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 
 interface LoadDocumentProps {
-  onConvert: (doc: ContainerDocumentNode, url: string | null, html?: string) => void;
+  onConvert: (
+    doc: ContainerDocumentNode,
+    url: string | null,
+    html?: string,
+    filename?: string | null
+  ) => void;
 }
 
 export function LoadDocument({ onConvert }: LoadDocumentProps) {
@@ -58,7 +63,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
 
         setText(html);
         const doc = parseHtmlLegalToTree(html);
-        onConvert(doc, sourceUrl, html); // Pass HTML for persistence
+        onConvert(doc, sourceUrl, html, file.name); // Pass HTML for persistence
         setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
@@ -104,7 +109,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
         setText(htmlContent);
 
         const doc = parseHtmlLegalToTree(htmlContent);
-        onConvert(doc, pdfUrl);
+        onConvert(doc, pdfUrl, undefined, file.name);
       } else {
         throw new Error('Invalid response format');
       }
@@ -175,7 +180,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
       doc = createPlainTextDocument(text);
     }
 
-    onConvert(doc, null);
+    onConvert(doc, null, undefined, null);
   };
 
   const createPlainTextDocument = (text: string): ContainerDocumentNode => {
