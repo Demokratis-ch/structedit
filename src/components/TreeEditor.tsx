@@ -3,7 +3,7 @@ import type React from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
-import { downloadFile } from '../utils/document-utils';
+import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
 import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { SourcePreview } from './SourcePreview';
@@ -12,6 +12,7 @@ import { Toolbar } from './Toolbar';
 interface TreeEditorProps {
   initialDocument: ContainerDocumentNode;
   pdfUrl: string | null;
+  documentName?: string | null;
   language?: Language;
   onBack: () => void;
   onDownload?: () => void;
@@ -42,6 +43,7 @@ const isCursorAtEnd = (el: HTMLElement) => {
 export function TreeEditor({
   initialDocument,
   pdfUrl,
+  documentName,
   language = 'de',
   onBack,
   onDownload,
@@ -281,7 +283,11 @@ export function TreeEditor({
   };
 
   const handleDownload = () => {
-    downloadFile(JSON.stringify(document, null, 2), 'document.json', 'application/json');
+    downloadFile(
+      JSON.stringify(document, null, 2),
+      deriveJsonFilename(documentName),
+      'application/json'
+    );
   };
 
   const handleClick = (e: React.MouseEvent, id: string) => {

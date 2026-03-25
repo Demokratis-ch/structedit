@@ -104,4 +104,19 @@ describe('LoadDocument', () => {
       expect(preventDefaultSpy).toHaveBeenCalled();
     });
   });
+
+  describe('text convert', () => {
+    it('calls onConvert with null filename when converting pasted text', () => {
+      render(<LoadDocument onConvert={mockOnConvert} />);
+      const textarea = screen.getByPlaceholderText(/paste unstructured text/i);
+      fireEvent.change(textarea, { target: { value: 'Hello world' } });
+      fireEvent.click(screen.getByRole('button', { name: /convert text/i }));
+      expect(mockOnConvert).toHaveBeenCalledWith(
+        expect.anything(), // doc
+        null, // url
+        undefined, // html
+        null // filename
+      );
+    });
+  });
 });
