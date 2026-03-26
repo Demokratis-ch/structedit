@@ -246,6 +246,7 @@ export function TreeEditor({
       const shortcutMap: Record<string, string> = {
         h: 'heading',
         t: 'p',
+        c: 'p',
         u: 'ul',
         o: 'ol',
         a: 'abc',

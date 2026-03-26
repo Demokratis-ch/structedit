@@ -52,7 +52,8 @@ describe('TreeEditor keyboard shortcuts', () => {
   describe('type change shortcuts with a node selected', () => {
     const shortcutTests = [
       { key: 'h', expectedTitle: 'Heading (H)', description: 'H changes node to heading' },
-      { key: 't', expectedTitle: 'Text (T)', description: 'T changes node to text/paragraph' },
+      { key: 't', expectedTitle: 'Content (C)', description: 'T changes node to content' },
+      { key: 'c', expectedTitle: 'Content (C)', description: 'C changes node to content' },
       { key: 'u', expectedTitle: 'Bullet List (U)', description: 'U changes node to bullet list' },
       { key: 'o', expectedTitle: 'Ordered List (O)', description: 'O changes node to ordered list' },
       { key: 'a', expectedTitle: 'Alpha List (A)', description: 'A changes node to alpha list' },
@@ -136,7 +137,7 @@ describe('FloatingToolbar tooltips', () => {
     selectFirstNode();
 
     expect(screen.getByTitle('Heading (H)')).toBeInTheDocument();
-    expect(screen.getByTitle('Text (T)')).toBeInTheDocument();
+    expect(screen.getByTitle('Content (C)')).toBeInTheDocument();
     expect(screen.getByTitle('Bullet List (U)')).toBeInTheDocument();
     expect(screen.getByTitle('Ordered List (O)')).toBeInTheDocument();
     expect(screen.getByTitle('Alpha List (A)')).toBeInTheDocument();
