@@ -242,6 +242,20 @@ export function TreeEditor({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       clearSelection();
+    } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const shortcutMap: Record<string, string> = {
+        h: 'heading',
+        t: 'p',
+        u: 'ul',
+        o: 'ol',
+        a: 'abc',
+        f: 'footnote',
+      };
+      const toolbarType = shortcutMap[e.key.toLowerCase()];
+      if (toolbarType) {
+        e.preventDefault();
+        handleBulkUpdateType(toolbarType);
+      }
     }
   };
 

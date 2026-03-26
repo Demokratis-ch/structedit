@@ -41,32 +41,32 @@ export function FloatingToolbar({
       <button
         onClick={() => onUpdateType('heading')}
         className={typeButtonClass('heading')}
-        title="Heading"
+        title="Heading (H)"
       >
         <Heading size={18} />
       </button>
-      <button onClick={() => onUpdateType('p')} className={typeButtonClass('p')} title="Paragraph">
+      <button onClick={() => onUpdateType('p')} className={typeButtonClass('p')} title="Text (T)">
         <Type size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
       <button
         onClick={() => onUpdateType('ul')}
         className={typeButtonClass('ul')}
-        title="Bullet List (4)"
+        title="Bullet List (U)"
       >
         <List size={18} />
       </button>
       <button
         onClick={() => onUpdateType('ol')}
         className={typeButtonClass('ol')}
-        title="Ordered List (5)"
+        title="Ordered List (O)"
       >
         <ListOrdered size={18} />
       </button>
       <button
         onClick={() => onUpdateType('abc')}
         className={typeButtonClass('abc')}
-        title="Alpha List (6)"
+        title="Alpha List (A)"
       >
         <SortAsc size={18} />
       </button>
@@ -74,7 +74,7 @@ export function FloatingToolbar({
       <button
         onClick={() => onUpdateType('footnote')}
         className={typeButtonClass('footnote')}
-        title="Footnote"
+        title="Footnote (F)"
       >
         <Asterisk size={18} />
       </button>
