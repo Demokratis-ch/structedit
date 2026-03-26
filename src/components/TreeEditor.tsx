@@ -323,6 +323,14 @@ export function TreeEditor({
   const handleDoubleClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     handleNodeDoubleClick(id);
+    // Focus the contentEditable element after React re-renders with editingId set,
+    // otherwise the container keeps focus (stolen by handleClick's containerRef.focus())
+    setTimeout(() => {
+      const el = blockRefs.current[id];
+      if (el) {
+        el.focus();
+      }
+    }, 0);
   };
 
   const handleNumberDblClick = (e: React.MouseEvent, id: string) => {

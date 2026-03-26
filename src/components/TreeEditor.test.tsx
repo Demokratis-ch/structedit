@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
 import { TreeEditor } from './TreeEditor';
 
@@ -132,6 +132,28 @@ describe('TreeEditor keyboard shortcuts', () => {
 
       expect(screen.getByText('First Heading')).toBeInTheDocument();
     });
+  });
+});
+
+describe('double-click inline editing', () => {
+  test('double-clicking a node focuses its contentEditable element', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = screen.getByText('First Heading');
+
+    // Double-click and flush timers in a single act boundary
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    const activeEl = document.activeElement as HTMLElement;
+    expect(activeEl).not.toBeNull();
+    expect(activeEl.getAttribute('contenteditable')).toBe('true');
+    expect(activeEl.textContent).toBe('First Heading');
+
+    vi.useRealTimers();
   });
 });
 
