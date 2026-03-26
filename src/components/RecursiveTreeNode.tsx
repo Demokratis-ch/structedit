@@ -230,9 +230,11 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     // Nodes with content
     return (
       <div className="flex items-baseline flex-1">
-        {/* Show number label for headings (dashed placeholder when no number) */}
+        {/* Show number badge for headings and footnotes (dashed placeholder when no number) */}
         {node.type === 'heading' &&
           renderNumberBadge(node.number, 'font-semibold text-blue-600 border-blue-200 bg-blue-50')}
+        {node.type === 'footnote' &&
+          renderNumberBadge(node.number, 'font-medium text-amber-600 border-amber-200 bg-amber-50')}
 
         {'contents' in node && (
           <ContentBlock

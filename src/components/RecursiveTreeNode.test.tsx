@@ -1,6 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import type { ContainerDocumentNode, HeadingDocumentNode } from '../types/document';
+import type {
+  ContainerDocumentNode,
+  HeadingDocumentNode,
+  LeafDocumentNode,
+} from '../types/document';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 
 const createTestNode = (): HeadingDocumentNode => ({
@@ -201,6 +205,42 @@ describe('RecursiveTreeNode', () => {
       expect(bullet).not.toBeNull();
       fireEvent.doubleClick(bullet!);
       expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'li-no-num');
+    });
+
+    test('footnote with null number renders a dashed placeholder badge', () => {
+      const node: LeafDocumentNode = {
+        id: 'fn-no-num',
+        number: null,
+        type: 'footnote',
+        contents: { de: 'A footnote' },
+      };
+      const { container } = render(<RecursiveTreeNode {...defaultProps} node={node} />);
+
+      const placeholder = container.querySelector('.border-dashed');
+      expect(placeholder).not.toBeNull();
+    });
+
+    test('footnote with a number renders a solid badge that is double-clickable', () => {
+      const onNumberDoubleClick = vi.fn();
+      const node: LeafDocumentNode = {
+        id: 'fn-with-num',
+        number: 'i.',
+        type: 'footnote',
+        contents: { de: 'A footnote' },
+      };
+      const { container } = render(
+        <RecursiveTreeNode
+          {...defaultProps}
+          node={node}
+          onNumberDoubleClick={onNumberDoubleClick}
+        />
+      );
+
+      const badge = container.querySelector('.border-amber-200');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('i.');
+      fireEvent.doubleClick(badge!);
+      expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'fn-with-num');
     });
   });
 
