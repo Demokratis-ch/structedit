@@ -178,6 +178,11 @@ export function TreeEditor({
       } else {
         indentSelected();
       }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      // Exit edit mode but keep the node selected
+      setEditingId(null);
+      containerRef.current?.focus();
     } else if (e.key === 'ArrowUp' && isCursorAtStart(e.currentTarget as HTMLElement)) {
       const index = flattenedNodes.findIndex((fn) => fn.node.id === id);
       if (index > 0) {
