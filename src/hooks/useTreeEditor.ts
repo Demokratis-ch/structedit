@@ -44,11 +44,11 @@ export const useTreeEditor = (
   // Tree operations
   const {
     addNodeAfter,
-    removeNode,
+    removeNodes,
     updateNodeContents,
     updateNodeNumber,
-    indentNode,
-    outdentNode,
+    indentNodes,
+    outdentNodes,
     changeNodeType,
     moveNodeById,
     getReceivingParentId,
@@ -220,20 +220,10 @@ export const useTreeEditor = (
   const deleteSelected = useCallback(() => {
     if (selectedIds.size === 0) return;
 
-    // Remove nodes in reverse flat order to avoid index shifting issues
-    const sortedIds = [...selectedIds]
-      .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
-      .filter((item) => item.index >= 0)
-      .sort((a, b) => b.index - a.index)
-      .map((item) => item.id);
-
-    // Remove each node
-    sortedIds.forEach((id) => {
-      removeNode(id);
-    });
-
+    const ids = [...selectedIds].filter((id) => nodeIdToFlatIndex.has(id));
+    removeNodes(ids);
     clearSelection();
-  }, [selectedIds, nodeIdToFlatIndex, removeNode, clearSelection]);
+  }, [selectedIds, nodeIdToFlatIndex, removeNodes, clearSelection]);
 
   /**
    * Indent selected nodes (Tab).
@@ -248,10 +238,8 @@ export const useTreeEditor = (
       .sort((a, b) => a.index - b.index)
       .map((item) => item.id);
 
-    sortedIds.forEach((id) => {
-      indentNode(id);
-    });
-  }, [selectedIds, nodeIdToFlatIndex, indentNode]);
+    indentNodes(sortedIds);
+  }, [selectedIds, nodeIdToFlatIndex, indentNodes]);
 
   /**
    * Outdent selected nodes (Shift+Tab).
@@ -259,17 +247,15 @@ export const useTreeEditor = (
   const outdentSelected = useCallback(() => {
     if (selectedIds.size === 0) return;
 
-    // Process nodes in reverse flat order to maintain structure
+    // Sort in flat order; outdentNodes handles reverse processing internally
     const sortedIds = [...selectedIds]
       .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
       .filter((item) => item.index >= 0)
-      .sort((a, b) => b.index - a.index)
+      .sort((a, b) => a.index - b.index)
       .map((item) => item.id);
 
-    sortedIds.forEach((id) => {
-      outdentNode(id);
-    });
-  }, [selectedIds, nodeIdToFlatIndex, outdentNode]);
+    outdentNodes(sortedIds);
+  }, [selectedIds, nodeIdToFlatIndex, outdentNodes]);
 
   return {
     // Document state
@@ -297,11 +283,11 @@ export const useTreeEditor = (
 
     // Tree operations
     addNodeAfter,
-    removeNode,
+    removeNodes,
     updateNodeContents,
     updateNodeNumber,
-    indentNode,
-    outdentNode,
+    indentNodes,
+    outdentNodes,
     changeNodeType,
     moveNodeById,
 

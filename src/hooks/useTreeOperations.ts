@@ -12,6 +12,7 @@ import { canBeChildOf } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { generateId } from '../utils/document-utils';
 import {
+  buildIndices,
   getNodeAtPath,
   insertNodeAtPath,
   mergeAdjacentLists,
@@ -90,15 +91,29 @@ export const useTreeOperations = ({
   );
 
   /**
-   * Remove a node and its subtree.
+   * Remove nodes and their subtrees.
+   * Rebuilds indices between iterations so processing order doesn't matter.
    */
-  const removeNode = useCallback(
-    (id: string) => {
-      const path = nodeIndex.get(id);
-      if (!path || path.length === 0) return; // Can't remove root
+  const removeNodes = useCallback(
+    (ids: string[]) => {
+      let doc = document;
+      let changed = false;
 
-      const newDoc = removeNodeAtPath(document, path);
-      commit(newDoc);
+      // Process in reverse order to avoid index shifting issues
+      const reversed = [...ids].reverse();
+
+      for (const id of reversed) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const path = idx.get(id);
+        if (!path || path.length === 0) continue;
+
+        doc = removeNodeAtPath(doc, path);
+        changed = true;
+      }
+
+      if (changed) {
+        commit(doc);
+      }
     },
     [document, nodeIndex, commit]
   );
@@ -152,113 +167,151 @@ export const useTreeOperations = ({
   };
 
   /**
-   * Tab: Nest node deeper into the tree.
-   * For content/heading: move to become last child of previous sibling heading.
-   * For list_item: more complex handling (create nested list).
+   * Indent a single node in a document (pure function, no commit).
+   * Returns the new document, or null if the operation can't be performed.
    */
-  const indentNode = useCallback(
-    (id: string) => {
-      const path = nodeIndex.get(id);
-      if (!path || path.length === 0) return;
+  const indentNodeInDoc = (
+    doc: ContainerDocumentNode,
+    idx: Map<string, NodePath>,
+    id: string
+  ): ContainerDocumentNode | null => {
+    const path = idx.get(id);
+    if (!path || path.length === 0) return null;
 
-      const parentPath = path.slice(0, -1);
-      const childIndex = path[path.length - 1];
-      const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
-      const node = getNodeAtPath(document, path);
+    const parentPath = path.slice(0, -1);
+    const childIndex = path[path.length - 1];
+    const parent = parentPath.length === 0 ? doc : getNodeAtPath(doc, parentPath);
+    const node = getNodeAtPath(doc, path);
 
-      if (!parent || !node || !('children' in parent)) return;
+    if (!parent || !node || !('children' in parent)) return null;
 
-      // Special case: list items - for now, skip this complex case
-      if (node.type === 'list_item') {
-        // TODO: Implement nested list handling
-        // This would require converting a list_item to have a nested list
-        return;
+    // Special case: list items - for now, skip this complex case
+    if (node.type === 'list_item') {
+      return null;
+    }
+
+    // Find previous sibling that can accept this node as child
+    const target = findPreviousSiblingTarget(parent, childIndex, node.type);
+    if (!target) {
+      return null;
+    }
+
+    // Remove node from current location
+    let newDoc = removeNodeAtPath(doc, path);
+
+    // The target path might have shifted if target was after the removed node
+    // But since we're looking for previous siblings, target.index < childIndex
+    // so the path is still valid
+    const targetPath = [...parentPath, target.index];
+
+    // Add node as last child of target (heading or content)
+    newDoc = updateNodeAtPath(newDoc, targetPath, (targetNode) => ({
+      ...targetNode,
+      children: [...(targetNode as HeadingDocumentNode | ContentDocumentNode).children, node],
+    }));
+
+    return newDoc;
+  };
+
+  /**
+   * Tab: Nest nodes deeper into the tree.
+   * Processes multiple nodes, rebuilding indices between each operation.
+   */
+  const indentNodes = useCallback(
+    (ids: string[]) => {
+      let doc = document;
+      let changed = false;
+
+      for (const id of ids) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const result = indentNodeInDoc(doc, idx, id);
+        if (result) {
+          doc = result;
+          changed = true;
+        }
       }
 
-      // Find previous sibling that can accept this node as child
-      const target = findPreviousSiblingTarget(parent, childIndex, node.type);
-      if (!target) {
-        // No valid target to nest under
-        return;
+      if (changed) {
+        commit(doc);
       }
-
-      // Remove node from current location
-      let newDoc = removeNodeAtPath(document, path);
-
-      // The target path might have shifted if target was after the removed node
-      // But since we're looking for previous siblings, target.index < childIndex
-      // so the path is still valid
-      const targetPath = [...parentPath, target.index];
-
-      // Add node as last child of target (heading or content)
-      newDoc = updateNodeAtPath(newDoc, targetPath, (targetNode) => ({
-        ...targetNode,
-        children: [...(targetNode as HeadingDocumentNode | ContentDocumentNode).children, node],
-      }));
-
-      commit(newDoc);
     },
     [document, nodeIndex, commit]
   );
 
   /**
-   * Shift-Tab: Unnest node to be a sibling of parent.
+   * Outdent a single node in a document (pure function, no commit).
+   * Returns the new document, or null if the operation can't be performed.
    */
-  const outdentNode = useCallback(
-    (id: string) => {
-      const path = nodeIndex.get(id);
-      if (!path || path.length <= 1) {
-        // Can't outdent if at document level (path length 1 means direct child of root)
-        return;
-      }
+  const outdentNodeInDoc = (
+    doc: ContainerDocumentNode,
+    idx: Map<string, NodePath>,
+    id: string
+  ): ContainerDocumentNode | null => {
+    const path = idx.get(id);
+    if (!path || path.length <= 1) {
+      return null;
+    }
 
-      const parentPath = path.slice(0, -1);
-      const _childIndex = path[path.length - 1];
-      const parent = getNodeAtPath(document, parentPath);
-      const node = getNodeAtPath(document, path);
+    const parentPath = path.slice(0, -1);
+    const parent = getNodeAtPath(doc, parentPath);
+    const node = getNodeAtPath(doc, path);
 
-      if (!parent || !node) return;
+    if (!parent || !node) return null;
 
-      // Parent must be a heading, list, or content to outdent from
-      if (parent.type !== 'heading' && parent.type !== 'list' && parent.type !== 'content') return;
+    if (parent.type !== 'heading' && parent.type !== 'list' && parent.type !== 'content')
+      return null;
 
-      // Special case: if parent is list and node is list_item
-      if (parent.type === 'list' && node.type === 'list_item') {
-        // Need to find grandparent and check if list_item can be its child
-        const grandparentPath = parentPath.slice(0, -1);
-        const parentIndexInGrandparent = parentPath[parentPath.length - 1];
-        const grandparent =
-          grandparentPath.length === 0 ? document : getNodeAtPath(document, grandparentPath);
-
-        if (!grandparent || !('children' in grandparent)) return;
-
-        // Validate that list_item can be a child of grandparent
-        // list_item can only be a child of list
-        if (!canBeChildOf(node.type, grandparent.type as ParentType)) {
-          // Cannot outdent - would create invalid parent-child relationship
-          return;
-        }
-
-        // Remove from nested list
-        let newDoc = removeNodeAtPath(document, path);
-
-        // Insert into grandparent list after the nested list
-        newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
-        commit(newDoc);
-        return;
-      }
-
-      // Standard case: move node to be sibling of parent
+    // Special case: if parent is list and node is list_item
+    if (parent.type === 'list' && node.type === 'list_item') {
       const grandparentPath = parentPath.slice(0, -1);
       const parentIndexInGrandparent = parentPath[parentPath.length - 1];
+      const grandparent = grandparentPath.length === 0 ? doc : getNodeAtPath(doc, grandparentPath);
 
-      // Remove node from parent
-      let newDoc = removeNodeAtPath(document, path);
+      if (!grandparent || !('children' in grandparent)) return null;
 
-      // Insert as sibling after parent in grandparent
+      if (!canBeChildOf(node.type, grandparent.type as ParentType)) {
+        return null;
+      }
+
+      let newDoc = removeNodeAtPath(doc, path);
       newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
+      return newDoc;
+    }
 
-      commit(newDoc);
+    // Standard case: move node to be sibling of parent
+    const grandparentPath = parentPath.slice(0, -1);
+    const parentIndexInGrandparent = parentPath[parentPath.length - 1];
+
+    let newDoc = removeNodeAtPath(doc, path);
+    newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
+    return newDoc;
+  };
+
+  /**
+   * Shift-Tab: Unnest nodes to be siblings of their parents.
+   * Processes multiple nodes, rebuilding indices between each operation.
+   * Processes in reverse flat order to maintain correct indices.
+   */
+  const outdentNodes = useCallback(
+    (ids: string[]) => {
+      let doc = document;
+      let changed = false;
+
+      // Process in reverse order to avoid index shifting issues
+      const reversed = [...ids].reverse();
+
+      for (const id of reversed) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const result = outdentNodeInDoc(doc, idx, id);
+        if (result) {
+          doc = result;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        commit(doc);
+      }
     },
     [document, nodeIndex, commit]
   );
@@ -681,11 +734,11 @@ export const useTreeOperations = ({
 
   return {
     addNodeAfter,
-    removeNode,
+    removeNodes,
     updateNodeContents,
     updateNodeNumber,
-    indentNode,
-    outdentNode,
+    indentNodes,
+    outdentNodes,
     changeNodeType,
     moveNodeById,
     getReceivingParentId,
