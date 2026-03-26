@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
 import { TreeEditor } from './TreeEditor';
 
@@ -132,6 +132,91 @@ describe('TreeEditor keyboard shortcuts', () => {
 
       expect(screen.getByText('First Heading')).toBeInTheDocument();
     });
+  });
+});
+
+describe('double-click inline editing', () => {
+  test('double-clicking a node focuses its contentEditable element', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = screen.getByText('First Heading');
+
+    // Double-click and flush timers in a single act boundary
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    const activeEl = document.activeElement as HTMLElement;
+    expect(activeEl).not.toBeNull();
+    expect(activeEl.getAttribute('contenteditable')).toBe('true');
+    expect(activeEl.textContent).toBe('First Heading');
+
+    vi.useRealTimers();
+  });
+
+  test('pressing Enter while editing creates a new node and focuses it', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = screen.getByText('First Heading');
+
+    // Enter edit mode via double-click
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    // Press Enter to create a new sibling node
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter' });
+    });
+    // Flush timers after React has re-rendered with the new node
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    // The new empty node should now have editing focus
+    const newActiveEl = document.activeElement as HTMLElement;
+    expect(newActiveEl).not.toBeNull();
+    expect(newActiveEl.getAttribute('contenteditable')).toBe('true');
+    expect(newActiveEl.textContent).toBe('');
+    expect(newActiveEl).not.toBe(editingEl);
+
+    vi.useRealTimers();
+  });
+
+  test('pressing Escape while editing exits edit mode but keeps node selected', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = screen.getByText('First Heading');
+
+    // Enter edit mode via double-click
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    // Verify we're in edit mode
+    const editingEl = document.activeElement as HTMLElement;
+    expect(editingEl.getAttribute('contenteditable')).toBe('true');
+
+    // Press Escape to exit edit mode
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Escape' });
+      vi.runAllTimers();
+    });
+
+    // The node should no longer be editable
+    expect(firstHeading.getAttribute('contenteditable')).toBe('false');
+    // The node should still be selected (has selected styling)
+    const nodeWrapper = firstHeading.closest('[draggable]') as HTMLElement;
+    expect(nodeWrapper.className).toContain('bg-blue');
+
+    vi.useRealTimers();
   });
 });
 
