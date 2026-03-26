@@ -45,7 +45,11 @@ export function FloatingToolbar({
       >
         <Heading size={18} />
       </button>
-      <button onClick={() => onUpdateType('content')} className={typeButtonClass('content')} title="Content (C)">
+      <button
+        onClick={() => onUpdateType('content')}
+        className={typeButtonClass('content')}
+        title="Content (C)"
+      >
         <Type size={18} />
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />

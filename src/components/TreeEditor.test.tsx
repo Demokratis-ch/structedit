@@ -55,7 +55,11 @@ describe('TreeEditor keyboard shortcuts', () => {
       { key: 't', expectedTitle: 'Content (C)', description: 'T changes node to content' },
       { key: 'c', expectedTitle: 'Content (C)', description: 'C changes node to content' },
       { key: 'u', expectedTitle: 'Bullet List (U)', description: 'U changes node to bullet list' },
-      { key: 'o', expectedTitle: 'Ordered List (O)', description: 'O changes node to ordered list' },
+      {
+        key: 'o',
+        expectedTitle: 'Ordered List (O)',
+        description: 'O changes node to ordered list',
+      },
       { key: 'a', expectedTitle: 'Alpha List (A)', description: 'A changes node to alpha list' },
       { key: 'f', expectedTitle: 'Footnote (F)', description: 'F changes node to footnote' },
     ];
