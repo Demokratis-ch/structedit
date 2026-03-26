@@ -132,8 +132,13 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     return 'div';
   };
 
-  // Render an editable number badge (shared by list items and headings)
-  const renderNumberBadge = (currentNumber: string | null, baseClassName: string) => {
+  // Render an editable number badge (shared by list items and headings).
+  // When currentNumber is null and not editing, renders a placeholder (dashed box or bullet).
+  const renderNumberBadge = (
+    currentNumber: string | null,
+    baseClassName: string,
+    placeholder: 'dashed' | 'bullet' = 'dashed'
+  ) => {
     if (editingNumberId === node.id) {
       return (
         <input
@@ -162,27 +167,37 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
       );
     }
 
-    return (
-      <div
-        className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border rounded px-1 cursor-pointer ${baseClassName}`}
-        onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
-      >
-        {currentNumber}
-      </div>
-    );
-  };
+    if (currentNumber) {
+      return (
+        <div
+          className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border rounded px-1 cursor-pointer ${baseClassName}`}
+          onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
+          title="Double-click to edit number"
+        >
+          {currentNumber}
+        </div>
+      );
+    }
 
-  // Render list item marker
-  const renderListMarker = () => {
-    if (node.type !== 'list_item') return null;
-
-    if (node.number || editingNumberId === node.id) {
-      return renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50');
+    if (placeholder === 'bullet') {
+      return (
+        <div
+          className="w-6 h-6 flex items-center justify-center flex-shrink-0 mr-1 select-none mt-0.5 z-10 relative cursor-pointer"
+          onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
+          title="Double-click to add number"
+        >
+          <span className="w-1.5 h-1.5 bg-gray-800 rounded-full" />
+        </div>
+      );
     }
 
     return (
-      <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mr-1 select-none mt-0.5 z-10 relative">
-        <span className="w-1.5 h-1.5 bg-gray-800 rounded-full" />
+      <div
+        className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border border-dashed rounded px-1 cursor-pointer ${baseClassName}`}
+        onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
+        title="Double-click to add number"
+      >
+        {'\u200B'}
       </div>
     );
   };
@@ -202,7 +217,11 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     if (node.type === 'list_item') {
       return (
         <div className="flex items-baseline flex-1">
-          {renderListMarker()}{' '}
+          {renderNumberBadge(
+            node.number,
+            'font-medium text-gray-500 border-gray-300 bg-gray-50',
+            'bullet'
+          )}{' '}
           <span className="text-gray-400 select-none text-sm">(list_item)</span>
         </div>
       );
@@ -211,9 +230,8 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     // Nodes with content
     return (
       <div className="flex items-baseline flex-1">
-        {/* Show number label for headings with numbers */}
+        {/* Show number label for headings (dashed placeholder when no number) */}
         {node.type === 'heading' &&
-          (node.number || editingNumberId === node.id) &&
           renderNumberBadge(node.number, 'font-semibold text-blue-600 border-blue-200 bg-blue-50')}
 
         {'contents' in node && (
