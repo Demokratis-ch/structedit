@@ -155,6 +155,38 @@ describe('double-click inline editing', () => {
 
     vi.useRealTimers();
   });
+
+  test('pressing Enter while editing creates a new node and focuses it', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = screen.getByText('First Heading');
+
+    // Enter edit mode via double-click
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    // Press Enter to create a new sibling node
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter' });
+    });
+    // Flush timers after React has re-rendered with the new node
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    // The new empty node should now have editing focus
+    const newActiveEl = document.activeElement as HTMLElement;
+    expect(newActiveEl).not.toBeNull();
+    expect(newActiveEl.getAttribute('contenteditable')).toBe('true');
+    expect(newActiveEl.textContent).toBe('');
+    expect(newActiveEl).not.toBe(editingEl);
+
+    vi.useRealTimers();
+  });
 });
 
 describe('FloatingToolbar tooltips', () => {

@@ -156,7 +156,12 @@ export function TreeEditor({
   const handleBlockKeyDown = (e: React.KeyboardEvent, id: string) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      addNodeAfter(id);
+      const newId = addNodeAfter(id);
+      // Focus the newly created node so the user can type in it immediately
+      if (newId) {
+        setEditingId(newId);
+        setTimeout(() => blockRefs.current[newId]?.focus(), 0);
+      }
     } else if (e.key === 'Backspace') {
       const node = flattenedNodes.find((fn) => fn.node.id === id);
       const content = node && 'contents' in node.node ? node.node.contents[language] || '' : '';
@@ -369,7 +374,8 @@ export function TreeEditor({
               <div>
                 <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
                 <p className="text-gray-500">
-                  Click to select. Shift+Click range. Double-click to edit.
+                  Click to select. Shift+Click to select range. Double-click to edit. Enter to
+                  create a new node.
                 </p>
               </div>
               <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
