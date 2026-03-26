@@ -211,7 +211,7 @@ describe('useTreeEditor', () => {
 
     // Remove a node
     act(() => {
-      result.current.removeNode('p2');
+      result.current.removeNodes(['p2']);
     });
 
     expect(result.current.flattenedNodes.length).toBe(3);
@@ -302,5 +302,89 @@ describe('useTreeEditor', () => {
 
     // Test invalid move (same source and target)
     expect(result.current.getReceivingParentId('h1', 'h1')).toBeNull();
+  });
+
+  test('indentSelected indents all selected nodes', () => {
+    // Create doc: root > [h1, p1, p2]
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          contents: { de: 'Heading' },
+          children: [],
+        } as HeadingDocumentNode,
+        {
+          id: 'p1',
+          number: null,
+          type: 'content',
+          contents: { de: 'First' },
+          children: [],
+        },
+        {
+          id: 'p2',
+          number: null,
+          type: 'content',
+          contents: { de: 'Second' },
+          children: [],
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    // Select p1 and p2
+    act(() => {
+      result.current.handleNodeClick('p1', { shiftKey: false, ctrlKey: false, metaKey: false });
+    });
+    act(() => {
+      result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
+    });
+
+    expect(result.current.selectedIds.size).toBe(2);
+
+    // Indent selected
+    act(() => {
+      result.current.indentSelected();
+    });
+
+    // Both p1 and p2 should now be children of h1
+    expect(result.current.document.children.length).toBe(1);
+    const h1 = result.current.document.children[0] as HeadingDocumentNode;
+    expect(h1.children.length).toBe(2);
+    expect(h1.children[0].id).toBe('p1');
+    expect(h1.children[1].id).toBe('p2');
+  });
+
+  test('outdentSelected outdents all selected nodes', () => {
+    // Use default doc: root > [h1 > [p1, p2], h2]
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    // Select p1 and p2 (both children of h1)
+    act(() => {
+      result.current.handleNodeClick('p1', { shiftKey: false, ctrlKey: false, metaKey: false });
+    });
+    act(() => {
+      result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
+    });
+
+    expect(result.current.selectedIds.size).toBe(2);
+
+    // Outdent selected
+    act(() => {
+      result.current.outdentSelected();
+    });
+
+    // Both p1 and p2 should now be root-level siblings after h1
+    expect(result.current.document.children.length).toBe(4);
+    expect(result.current.document.children[0].id).toBe('h1');
+    expect(result.current.document.children[1].id).toBe('p1');
+    expect(result.current.document.children[2].id).toBe('p2');
+    expect(result.current.document.children[3].id).toBe('h2');
   });
 });

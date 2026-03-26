@@ -179,12 +179,12 @@ describe('useTreeOperations', () => {
     });
   });
 
-  describe('removeNode', () => {
+  describe('removeNodes', () => {
     test('removes leaf node', () => {
       const { result } = renderTreeOperations();
 
       act(() => {
-        result.current.removeNode('p1');
+        result.current.removeNodes(['p1']);
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -199,7 +199,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations();
 
       act(() => {
-        result.current.removeNode('h2'); // Has p2 as child
+        result.current.removeNodes(['h2']); // Has p2 as child
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -209,6 +209,22 @@ describe('useTreeOperations', () => {
       expect(h1.children[0].id).toBe('p1');
       // p2 should be gone with h2
       expect(getNodeAtPath(newDoc, [0, 1])).toBeNull();
+    });
+
+    test('removes multiple nodes in a single commit', () => {
+      const { result } = renderTreeOperations();
+
+      // Remove both p1 and h2 (siblings under h1)
+      act(() => {
+        result.current.removeNodes(['p1', 'h2']);
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+
+      // h1 should have no children left
+      expect(h1.children.length).toBe(0);
     });
   });
 
@@ -255,7 +271,7 @@ describe('useTreeOperations', () => {
     });
   });
 
-  describe('indentNode (Tab)', () => {
+  describe('indentNodes (Tab)', () => {
     test('moves content under previous sibling heading', () => {
       // Create doc with h1, then content at same level
       const doc: ContainerDocumentNode = {
@@ -283,7 +299,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.indentNode('p1');
+        result.current.indentNodes(['p1']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -299,7 +315,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations();
 
       act(() => {
-        result.current.indentNode('p1');
+        result.current.indentNodes(['p1']);
       });
 
       // Should not call commit if no-op
@@ -333,7 +349,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.indentNode('h2');
+        result.current.indentNodes(['h2']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -345,13 +361,11 @@ describe('useTreeOperations', () => {
 
     test.skip('moves list_item into nested list under previous item', () => {
       // Skipped: list_item nesting requires design decision about list_item structure
-      // The current DocumentNode type has list_item as LeafDocumentNode (no children)
-      // Supporting nested lists would require making list_item a hybrid type
       const listDoc = createDocumentWithList();
       const { result } = renderTreeOperations(listDoc);
 
       act(() => {
-        result.current.indentNode('li2');
+        result.current.indentNodes(['li2']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -362,15 +376,97 @@ describe('useTreeOperations', () => {
       expect(list.children[0].id).toBe('li1');
       expect(list.children[1].id).toBe('li3');
     });
+
+    test('indents multiple sibling nodes under previous heading', () => {
+      // doc: h1, p1, p2 at root level → both p1 and p2 should move under h1
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h1',
+            number: null,
+            type: 'heading',
+            contents: { de: 'Heading' },
+            children: [],
+          },
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'First' },
+            children: [],
+          },
+          {
+            id: 'p2',
+            number: null,
+            type: 'content',
+            contents: { de: 'Second' },
+            children: [],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['p1', 'p2']);
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // Only h1 remains at root
+      expect(newDoc.children.length).toBe(1);
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      // Both p1 and p2 are now children of h1
+      expect(h1.children.length).toBe(2);
+      expect(h1.children[0].id).toBe('p1');
+      expect(h1.children[1].id).toBe('p2');
+    });
+
+    test('skips nodes that cannot be indented in a batch', () => {
+      // doc: p1, h1 → p1 has no previous heading, h1 has no previous heading
+      // Neither can be indented
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'First' },
+            children: [],
+          },
+          {
+            id: 'h1',
+            number: null,
+            type: 'heading',
+            contents: { de: 'Heading' },
+            children: [],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['p1', 'h1']);
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
   });
 
-  describe('outdentNode (Shift-Tab)', () => {
+  describe('outdentNodes (Shift-Tab)', () => {
     test('moves content to be sibling of parent heading', () => {
       const { result } = renderTreeOperations();
 
       // p1 is child of h1, outdent should move it to root level after h1
       act(() => {
-        result.current.outdentNode('p1');
+        result.current.outdentNodes(['p1']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -391,7 +487,7 @@ describe('useTreeOperations', () => {
 
       // h1 is already at document level
       act(() => {
-        result.current.outdentNode('h1');
+        result.current.outdentNodes(['h1']);
       });
 
       expect(mockCommit).not.toHaveBeenCalled();
@@ -402,7 +498,7 @@ describe('useTreeOperations', () => {
 
       // h2 is child of h1, outdent should move it to root level after h1
       act(() => {
-        result.current.outdentNode('h2');
+        result.current.outdentNodes(['h2']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -414,7 +510,6 @@ describe('useTreeOperations', () => {
     });
 
     test('moves list_item out of nested list', () => {
-      // Create a nested list scenario
       const nestedListDoc: ContainerDocumentNode = {
         id: 'root',
         number: null,
@@ -440,7 +535,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(nestedListDoc);
 
       act(() => {
-        result.current.outdentNode('li2');
+        result.current.outdentNodes(['li2']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -451,8 +546,6 @@ describe('useTreeOperations', () => {
     });
 
     test('does nothing when outdenting list_item would place it outside any list', () => {
-      // document -> list -> list_item
-      // Outdenting list_item would make it a child of document, which is invalid
       const docWithTopLevelList: ContainerDocumentNode = {
         id: 'root',
         number: null,
@@ -473,16 +566,13 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(docWithTopLevelList);
 
       act(() => {
-        result.current.outdentNode('li1');
+        result.current.outdentNodes(['li1']);
       });
 
-      // Should NOT have called commit because the operation is invalid
       expect(mockCommit).not.toHaveBeenCalled();
     });
 
     test('does nothing when outdenting list_item in list under heading would violate rules', () => {
-      // document -> heading -> list -> list_item
-      // Outdenting list_item would make it a child of heading, which is invalid
       const docWithListUnderHeading: ContainerDocumentNode = {
         id: 'root',
         number: null,
@@ -508,15 +598,36 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(docWithListUnderHeading);
 
       act(() => {
-        result.current.outdentNode('li1');
+        result.current.outdentNodes(['li1']);
       });
 
-      // Should NOT have called commit because list_item cannot be child of heading
       expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('outdents multiple nested nodes', () => {
+      // h1 has children p1 and h2. Outdent both → both become root-level siblings after h1
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.outdentNodes(['p1', 'h2']);
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // Should have: h1, p1, h2 (with p2 child), h1b
+      expect(newDoc.children.length).toBe(4);
+      expect(newDoc.children[0].id).toBe('h1');
+      expect(newDoc.children[1].id).toBe('p1');
+      expect(newDoc.children[2].id).toBe('h2');
+      expect(newDoc.children[3].id).toBe('h1b');
+
+      // h1 should have no children left
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children.length).toBe(0);
     });
   });
 
-  describe('indentNode footnote into content', () => {
+  describe('indentNodes footnote into content', () => {
     test('moves footnote under previous sibling content', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
@@ -542,7 +653,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.indentNode('fn1');
+        result.current.indentNodes(['fn1']);
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -579,7 +690,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.indentNode('fn2');
+        result.current.indentNodes(['fn2']);
       });
 
       // Should not indent footnote into another footnote
@@ -611,7 +722,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.indentNode('fn1');
+        result.current.indentNodes(['fn1']);
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -625,7 +736,7 @@ describe('useTreeOperations', () => {
     });
   });
 
-  describe('outdentNode footnote from content', () => {
+  describe('outdentNodes footnote from content', () => {
     test('moves footnote to be sibling of parent content', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
@@ -652,7 +763,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.outdentNode('fn1');
+        result.current.outdentNodes(['fn1']);
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -700,7 +811,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.outdentNode('fn1');
+        result.current.outdentNodes(['fn1']);
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;

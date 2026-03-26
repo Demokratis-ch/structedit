@@ -64,7 +64,7 @@ export function TreeEditor({
     clearSelection,
     moveSelection,
     addNodeAfter,
-    removeNode,
+    removeNodes,
     updateNodeContents,
     updateNodeNumber,
     changeNodeType,
@@ -168,7 +168,7 @@ export function TreeEditor({
       if (!content || content === '<br>' || content.trim() === '') {
         if (flattenedNodes.length > 0) {
           e.preventDefault();
-          removeNode(id);
+          removeNodes([id]);
         }
       }
     } else if (e.key === 'Tab') {
