@@ -34,6 +34,7 @@ export const useTreeEditor = (
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNumberId, setEditingNumberId] = useState<string | null>(null);
   const anchorId = useRef<string | null>(null);
   const lastSelectedId = useRef<string | null>(null);
 
@@ -128,8 +129,20 @@ export const useTreeEditor = (
    * Handle double click to enter edit mode.
    */
   const handleNodeDoubleClick = useCallback((id: string) => {
+    setEditingNumberId(null);
     setSelectedIds(new Set([id]));
     setEditingId(id);
+    lastSelectedId.current = id;
+    anchorId.current = id;
+  }, []);
+
+  /**
+   * Handle double click on a node's number to enter number edit mode.
+   */
+  const handleNumberDoubleClick = useCallback((id: string) => {
+    setEditingId(null);
+    setEditingNumberId(id);
+    setSelectedIds(new Set([id]));
     lastSelectedId.current = id;
     anchorId.current = id;
   }, []);
@@ -140,6 +153,7 @@ export const useTreeEditor = (
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
     setEditingId(null);
+    setEditingNumberId(null);
     lastSelectedId.current = null;
     anchorId.current = null;
   }, []);
@@ -267,6 +281,8 @@ export const useTreeEditor = (
     selectedIds,
     editingId,
     setEditingId,
+    editingNumberId,
+    setEditingNumberId,
 
     // Drag state
     draggedNodeId,
@@ -275,6 +291,7 @@ export const useTreeEditor = (
     // Selection actions
     handleNodeClick,
     handleNodeDoubleClick,
+    handleNumberDoubleClick,
     clearSelection,
     moveSelection,
 

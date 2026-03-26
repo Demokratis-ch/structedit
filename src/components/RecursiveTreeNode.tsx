@@ -29,6 +29,9 @@ interface RecursiveTreeNodeProps {
   onUpdateContent: (id: string, content: string) => void;
   onKeyDown: (e: React.KeyboardEvent, id: string) => void;
   onFocus: (id: string) => void;
+  editingNumberId: string | null;
+  onNumberDoubleClick: (e: React.MouseEvent, id: string) => void;
+  onUpdateNumber: (id: string, number: string | null) => void;
 }
 
 export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
@@ -57,6 +60,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
   onUpdateContent,
   onKeyDown,
   onFocus,
+  editingNumberId,
+  onNumberDoubleClick,
+  onUpdateNumber,
 }) => {
   // Determine if node has children
   const hasChildren = 'children' in node && node.children.length > 0;
@@ -126,16 +132,52 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     return 'div';
   };
 
+  // Render an editable number badge (shared by list items and headings)
+  const renderNumberBadge = (currentNumber: string | null, baseClassName: string) => {
+    if (editingNumberId === node.id) {
+      return (
+        <input
+          type="text"
+          defaultValue={currentNumber || ''}
+          ref={(el) => el?.focus()}
+          className={`w-12 text-sm border border-blue-400 rounded px-1 py-0.5 outline-none bg-white flex-shrink-0 mr-2 mt-0.5 z-10 relative ${baseClassName}`}
+          onBlur={(e) => {
+            const val = e.target.value.trim();
+            onUpdateNumber(node.id, val || null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              onUpdateNumber(node.id, currentNumber);
+            }
+            e.stopPropagation();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+
+    return (
+      <div
+        className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border rounded px-1 cursor-pointer ${baseClassName}`}
+        onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
+      >
+        {currentNumber}
+      </div>
+    );
+  };
+
   // Render list item marker
   const renderListMarker = () => {
     if (node.type !== 'list_item') return null;
 
-    if (node.number) {
-      return (
-        <div className="w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm font-medium text-gray-500 mt-0.5 z-10 relative">
-          {node.number}
-        </div>
-      );
+    if (node.number || editingNumberId === node.id) {
+      return renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50');
     }
 
     return (
@@ -170,11 +212,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
     return (
       <div className="flex items-baseline flex-1">
         {/* Show number label for headings with numbers */}
-        {node.type === 'heading' && node.number && (
-          <div className="w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm font-semibold text-blue-600 mt-0.5 z-10 relative">
-            {node.number}
-          </div>
-        )}
+        {node.type === 'heading' &&
+          (node.number || editingNumberId === node.id) &&
+          renderNumberBadge(node.number, 'font-semibold text-blue-600 border-blue-200 bg-blue-50')}
 
         {'contents' in node && (
           <ContentBlock
@@ -230,6 +270,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               onUpdateContent={onUpdateContent}
               onKeyDown={onKeyDown}
               onFocus={onFocus}
+              editingNumberId={editingNumberId}
+              onNumberDoubleClick={onNumberDoubleClick}
+              onUpdateNumber={onUpdateNumber}
             />
           ))}
       </div>
@@ -344,6 +387,9 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               onUpdateContent={onUpdateContent}
               onKeyDown={onKeyDown}
               onFocus={onFocus}
+              editingNumberId={editingNumberId}
+              onNumberDoubleClick={onNumberDoubleClick}
+              onUpdateNumber={onUpdateNumber}
             />
           ))}
         </div>

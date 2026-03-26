@@ -236,6 +236,61 @@ describe('useTreeEditor', () => {
     expect(result.current.parentIndex.get('h2')).toBe('root');
   });
 
+  test('handleNumberDoubleClick sets editingNumberId and clears editingId', () => {
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    // First enter content edit mode
+    act(() => {
+      result.current.handleNodeDoubleClick('p1');
+    });
+    expect(result.current.editingId).toBe('p1');
+
+    // Now double-click a number
+    act(() => {
+      result.current.handleNumberDoubleClick('h1');
+    });
+
+    expect(result.current.editingNumberId).toBe('h1');
+    expect(result.current.editingId).toBeNull();
+    expect(result.current.selectedIds.has('h1')).toBe(true);
+  });
+
+  test('handleNodeDoubleClick clears editingNumberId', () => {
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    // First enter number edit mode
+    act(() => {
+      result.current.handleNumberDoubleClick('h1');
+    });
+    expect(result.current.editingNumberId).toBe('h1');
+
+    // Now double-click content
+    act(() => {
+      result.current.handleNodeDoubleClick('p1');
+    });
+
+    expect(result.current.editingNumberId).toBeNull();
+    expect(result.current.editingId).toBe('p1');
+  });
+
+  test('clearSelection clears editingNumberId', () => {
+    const doc = createTestDocument();
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    act(() => {
+      result.current.handleNumberDoubleClick('h1');
+    });
+    expect(result.current.editingNumberId).toBe('h1');
+
+    act(() => {
+      result.current.clearSelection();
+    });
+
+    expect(result.current.editingNumberId).toBeNull();
+  });
+
   test('exposes getReceivingParentId', () => {
     const doc = createTestDocument();
     const { result } = renderHook(() => useTreeEditor(doc));

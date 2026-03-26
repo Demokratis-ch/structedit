@@ -54,15 +54,19 @@ export function TreeEditor({
     selectedIds,
     editingId,
     setEditingId,
+    editingNumberId,
+    setEditingNumberId,
     draggedNodeId,
     setDraggedNodeId,
     handleNodeClick,
     handleNodeDoubleClick,
+    handleNumberDoubleClick,
     clearSelection,
     moveSelection,
     addNodeAfter,
     removeNode,
     updateNodeContents,
+    updateNodeNumber,
     changeNodeType,
     moveNodeById,
     indentSelected,
@@ -306,6 +310,16 @@ export function TreeEditor({
     handleNodeDoubleClick(id);
   };
 
+  const handleNumberDblClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    handleNumberDoubleClick(id);
+  };
+
+  const handleUpdateNumber = (id: string, number: string | null) => {
+    updateNodeNumber(id, number);
+    setEditingNumberId(null);
+  };
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <Toolbar
@@ -390,6 +404,9 @@ export function TreeEditor({
                   onUpdateContent={updateNodeContents}
                   onKeyDown={handleBlockKeyDown}
                   onFocus={setEditingId}
+                  editingNumberId={editingNumberId}
+                  onNumberDoubleClick={handleNumberDblClick}
+                  onUpdateNumber={handleUpdateNumber}
                 />
               )}
             </div>
