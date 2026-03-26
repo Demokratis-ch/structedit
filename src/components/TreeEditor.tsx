@@ -99,7 +99,7 @@ export function TreeEditor({
 
     const nodeType = flatNode.node.type;
     if (nodeType === 'heading') return 'heading';
-    if (nodeType === 'content') return 'p';
+    if (nodeType === 'content') return 'content';
     if (nodeType === 'footnote') return 'footnote';
     if (nodeType === 'list_item') {
       // Check parent list style via the node's number format
@@ -242,6 +242,21 @@ export function TreeEditor({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       clearSelection();
+    } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const shortcutMap: Record<string, string> = {
+        h: 'heading',
+        t: 'content',
+        c: 'content',
+        u: 'ul',
+        o: 'ol',
+        a: 'abc',
+        f: 'footnote',
+      };
+      const toolbarType = shortcutMap[e.key.toLowerCase()];
+      if (toolbarType) {
+        e.preventDefault();
+        handleBulkUpdateType(toolbarType);
+      }
     }
   };
 
@@ -258,7 +273,7 @@ export function TreeEditor({
       case 'heading':
         targetType = 'heading';
         break;
-      case 'p':
+      case 'content':
         targetType = 'content';
         break;
       case 'ul':
