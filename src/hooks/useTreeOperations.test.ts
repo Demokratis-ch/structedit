@@ -1245,8 +1245,8 @@ describe('useTreeOperations', () => {
       });
     });
 
-    describe('list style change', () => {
-      test('ul -> ol updates all item numbers to 1., 2., 3.', () => {
+    describe('list_item style change (single item only)', () => {
+      test('changes only selected item to numbered, leaves siblings unchanged', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
@@ -1274,12 +1274,13 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+        // Only li2 (index 1) should change
+        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
         expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
-        expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
+        expect((list.children[2] as ContainerDocumentNode).number).toBeNull();
       });
 
-      test('ol -> abc updates all item numbers to a., b., c.', () => {
+      test('changes only selected item to lettered', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
@@ -1303,11 +1304,12 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
+        // Only li1 (index 0) should change
         expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
       });
 
-      test('ol -> ul sets all item numbers to null', () => {
+      test('changes only selected item to unordered', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
@@ -1331,8 +1333,129 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
+        // Only li1 (index 0) should change
+        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+      });
+    });
+
+    describe('list node style change', () => {
+      test('list node + numbered: changes all children to 1., 2., 3.', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', null, 'A'),
+                createListItem('li2', null, 'B'),
+                createListItem('li3', null, 'C'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
+        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+        expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
+      });
+
+      test('list node + unordered: sets all children numbers to null', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'list', 'unordered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
         expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
         expect((list.children[1] as ContainerDocumentNode).number).toBeNull();
+      });
+
+      test('list node + lettered: changes all children to a., b., c.', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'A'),
+                createListItem('li2', '2.', 'B'),
+                createListItem('li3', '3.', 'C'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'list', 'lettered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+
+        expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
+        expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
+        expect((list.children[2] as ContainerDocumentNode).number).toBe('c.');
+      });
+
+      test('list node + non-list target: does nothing', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeType('list1', 'heading');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
       });
     });
 

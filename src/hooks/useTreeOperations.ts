@@ -337,8 +337,14 @@ export const useTreeOperations = ({
       // Handle list_item specially - it requires extraction from list
       if (node.type === 'list_item') {
         if (targetType === 'list') {
-          // Just change list style
-          changeListStyle(path, listStyle || 'numbered');
+          // Change only this item's number (not all siblings)
+          const style = listStyle || 'numbered';
+          const indexInParent = path[path.length - 1];
+          const newDoc = updateNodeAtPath(document, path, (n) => ({
+            ...n,
+            number: getNumberForStyle(style, indexInParent),
+          }));
+          commit(newDoc);
           return;
         }
         if (targetType === 'footnote') {
@@ -347,6 +353,24 @@ export const useTreeOperations = ({
         }
         // Extract from list and convert
         extractAndConvertListItem(path, node as ContainerDocumentNode, targetType);
+        return;
+      }
+
+      // Handle list node - can only change list style
+      if (node.type === 'list') {
+        if (targetType === 'list') {
+          const style = listStyle || 'numbered';
+          const listNode = node as ContainerDocumentNode;
+          const newChildren = listNode.children.map((child, i) => ({
+            ...child,
+            number: getNumberForStyle(style, i),
+          }));
+          const newDoc = updateNodeAtPath(document, path, () => ({
+            ...node,
+            children: newChildren,
+          }));
+          commit(newDoc);
+        }
         return;
       }
 
@@ -499,33 +523,6 @@ export const useTreeOperations = ({
       }
     },
     [document, nodeIndex, commit]
-  );
-
-  /**
-   * Change the numbering style of a list (affects all items).
-   */
-  const changeListStyle = useCallback(
-    (itemPath: NodePath, style: ListStyle) => {
-      const parentPath = itemPath.slice(0, -1);
-      const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
-
-      if (!parent || parent.type !== 'list') return;
-
-      // Update all items' numbers
-      const listNode = parent as ContainerDocumentNode;
-      const newChildren = listNode.children.map((child, i) => ({
-        ...child,
-        number: getNumberForStyle(style, i),
-      }));
-
-      const newDoc = updateNodeAtPath(document, parentPath, () => ({
-        ...parent,
-        children: newChildren,
-      }));
-
-      commit(newDoc);
-    },
-    [document, commit]
   );
 
   /**
