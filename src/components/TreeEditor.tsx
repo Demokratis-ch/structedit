@@ -99,7 +99,7 @@ export function TreeEditor({
 
     const nodeType = flatNode.node.type;
     if (nodeType === 'heading') return 'heading';
-    if (nodeType === 'content') return 'p';
+    if (nodeType === 'content') return 'content';
     if (nodeType === 'footnote') return 'footnote';
     if (nodeType === 'list_item') {
       // Check parent list style via the node's number format
@@ -245,8 +245,8 @@ export function TreeEditor({
     } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
       const shortcutMap: Record<string, string> = {
         h: 'heading',
-        t: 'p',
-        c: 'p',
+        t: 'content',
+        c: 'content',
         u: 'ul',
         o: 'ol',
         a: 'abc',
@@ -273,7 +273,7 @@ export function TreeEditor({
       case 'heading':
         targetType = 'heading';
         break;
-      case 'p':
+      case 'content':
         targetType = 'content';
         break;
       case 'ul':
