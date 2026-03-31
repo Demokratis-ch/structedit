@@ -362,282 +362,295 @@ export const useTreeOperations = ({
   };
 
   /**
-   * Change the type of a node.
-   * Handles conversions between heading, content, footnote, and list_item.
-   *
-   * @param id - Node ID to convert
-   * @param targetType - 'heading' | 'content' | 'list' | 'footnote'
-   * @param listStyle - For lists: 'unordered' | 'numbered' | 'lettered'
+   * Change the type of a single node in a document (pure function, no commit).
+   * Returns the new document, or null if the operation can't be performed.
    */
-  const changeNodeType = useCallback(
+  const changeNodeTypeInDoc = (
+    doc: ContainerDocumentNode,
+    idx: Map<string, NodePath>,
+    id: string,
+    targetType: 'heading' | 'content' | 'list' | 'footnote',
+    listStyle?: ListStyle
+  ): ContainerDocumentNode | null => {
+    const path = idx.get(id);
+    if (!path || path.length === 0) return null; // Can't change root
+
+    const node = getNodeAtPath(doc, path);
+    if (!node) return null;
+
+    // Get parent info
+    const parentPath = path.slice(0, -1);
+    const nodeIdxInParent = path[path.length - 1];
+    const parent = parentPath.length === 0 ? doc : getNodeAtPath(doc, parentPath);
+    if (!parent || !('children' in parent)) return null;
+
+    // Handle list_item specially - it requires extraction from list
+    if (node.type === 'list_item') {
+      if (targetType === 'list') {
+        // Change only this item's number (not all siblings)
+        const style = listStyle || 'numbered';
+        const indexInParent = path[path.length - 1];
+        return updateNodeAtPath(doc, path, (n) => ({
+          ...n,
+          number: getNumberForStyle(style, indexInParent),
+        }));
+      }
+      if (targetType === 'footnote') {
+        // list_item cannot be converted to footnote directly
+        return null;
+      }
+      // Extract from list and convert
+      return extractAndConvertListItemInDoc(doc, path, node as ContainerDocumentNode, targetType);
+    }
+
+    // Handle list node - can only change list style
+    if (node.type === 'list') {
+      if (targetType === 'list') {
+        const style = listStyle || 'numbered';
+        const listNode = node as ContainerDocumentNode;
+        const newChildren = listNode.children.map((child, i) => ({
+          ...child,
+          number: getNumberForStyle(style, i),
+        }));
+        return updateNodeAtPath(doc, path, () => ({
+          ...node,
+          children: newChildren,
+        }));
+      }
+      return null;
+    }
+
+    // Can only convert nodes with contents
+    if (!hasContents(node)) return null;
+
+    // Handle conversion to footnote
+    if (targetType === 'footnote') {
+      if (node.type === 'footnote') return null; // Already a footnote
+
+      // Create footnote node (leaf - no children)
+      const footnoteNode: LeafDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'footnote',
+        contents: node.contents,
+      };
+
+      // Replace node with footnote
+      let newDoc = updateNodeAtPath(doc, path, () => footnoteNode);
+
+      // If converting from heading or content with children, lift children as siblings
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(
+            newDoc,
+            parentPath,
+            nodeIdxInParent + 1 + i,
+            headingChildren[i]
+          );
+        }
+      } else if (node.type === 'content') {
+        const contentChildren = (node as ContentDocumentNode).children;
+        for (let i = 0; i < contentChildren.length; i++) {
+          newDoc = insertNodeAtPath(
+            newDoc,
+            parentPath,
+            nodeIdxInParent + 1 + i,
+            contentChildren[i]
+          );
+        }
+      }
+
+      return newDoc;
+    }
+
+    // Handle conversion to heading
+    if (targetType === 'heading') {
+      if (node.type === 'heading') return null; // Already a heading
+
+      const newNode: HeadingDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'heading',
+        contents: node.contents,
+        children: [],
+      };
+
+      return updateNodeAtPath(doc, path, () => newNode);
+    }
+
+    // Handle conversion to content
+    if (targetType === 'content') {
+      if (node.type === 'content') return null; // Already content
+
+      const contentNode: ContentDocumentNode = {
+        id: node.id,
+        number: node.number,
+        type: 'content',
+        contents: node.contents,
+        children: [],
+      };
+
+      let newDoc = updateNodeAtPath(doc, path, () => contentNode);
+
+      // If converting from heading, lift children as siblings
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(
+            newDoc,
+            parentPath,
+            nodeIdxInParent + 1 + i,
+            headingChildren[i]
+          );
+        }
+      }
+      // footnote -> content: no children to lift (footnote is a leaf node)
+
+      return newDoc;
+    }
+
+    // Handle conversion to list
+    if (targetType === 'list') {
+      const style = listStyle || 'numbered';
+
+      const listItem: ContainerDocumentNode = {
+        id: generateId(),
+        number: getNumberForStyle(style, 0),
+        type: 'list_item',
+        children: [
+          {
+            id: node.id,
+            number: null,
+            type: 'content',
+            contents: node.contents,
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const list: ContainerDocumentNode = {
+        id: generateId(),
+        number: null,
+        type: 'list',
+        children: [listItem],
+      };
+
+      let newDoc = updateNodeAtPath(doc, path, () => list);
+
+      // If it was a heading, lift its children after the new list
+      if (node.type === 'heading') {
+        const headingChildren = (node as HeadingDocumentNode).children;
+        for (let i = 0; i < headingChildren.length; i++) {
+          newDoc = insertNodeAtPath(
+            newDoc,
+            parentPath,
+            nodeIdxInParent + 1 + i,
+            headingChildren[i]
+          );
+        }
+      }
+
+      // Merge adjacent lists in the parent
+      newDoc = mergeAdjacentLists(newDoc, parentPath);
+
+      return newDoc;
+    }
+
+    return null;
+  };
+
+  /**
+   * Change the type of one or more nodes.
+   * Processes all nodes sequentially with index rebuilding, committing once at the end.
+   */
+  const changeNodeTypes = useCallback(
     (
-      id: string,
+      ids: string[],
       targetType: 'heading' | 'content' | 'list' | 'footnote',
       listStyle?: ListStyle
     ) => {
-      const path = nodeIndex.get(id);
-      if (!path || path.length === 0) return; // Can't change root
+      let doc = document;
+      let changed = false;
 
-      const node = getNodeAtPath(document, path);
-      if (!node) return;
-
-      // Get parent info
-      const parentPath = path.slice(0, -1);
-      const nodeIndexInParent = path[path.length - 1];
-      const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
-      if (!parent || !('children' in parent)) return;
-
-      // Handle list_item specially - it requires extraction from list
-      if (node.type === 'list_item') {
-        if (targetType === 'list') {
-          // Change only this item's number (not all siblings)
-          const style = listStyle || 'numbered';
-          const indexInParent = path[path.length - 1];
-          const newDoc = updateNodeAtPath(document, path, (n) => ({
-            ...n,
-            number: getNumberForStyle(style, indexInParent),
-          }));
-          commit(newDoc);
-          return;
+      // Process in forward (flat) order — callers sort IDs before passing them in.
+      // Unlike removeNodes/outdentNodes (which reverse), forward order is correct here
+      // because type changes that alter structure (e.g., list merging) read naturally.
+      for (const id of ids) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const result = changeNodeTypeInDoc(doc, idx, id, targetType, listStyle);
+        if (result) {
+          doc = result;
+          changed = true;
         }
-        if (targetType === 'footnote') {
-          // list_item cannot be converted to footnote directly
-          return;
-        }
-        // Extract from list and convert
-        extractAndConvertListItem(path, node as ContainerDocumentNode, targetType);
-        return;
       }
 
-      // Handle list node - can only change list style
-      if (node.type === 'list') {
-        if (targetType === 'list') {
-          const style = listStyle || 'numbered';
-          const listNode = node as ContainerDocumentNode;
-          const newChildren = listNode.children.map((child, i) => ({
-            ...child,
-            number: getNumberForStyle(style, i),
-          }));
-          const newDoc = updateNodeAtPath(document, path, () => ({
-            ...node,
-            children: newChildren,
-          }));
-          commit(newDoc);
-        }
-        return;
-      }
-
-      // Can only convert nodes with contents
-      if (!hasContents(node)) return;
-
-      // Handle conversion to footnote
-      if (targetType === 'footnote') {
-        if (node.type === 'footnote') return; // Already a footnote
-
-        // Create footnote node (leaf - no children)
-        const footnoteNode: LeafDocumentNode = {
-          id: node.id,
-          number: node.number,
-          type: 'footnote',
-          contents: node.contents,
-        };
-
-        // Replace node with footnote
-        let newDoc = updateNodeAtPath(document, path, () => footnoteNode);
-
-        // If converting from heading or content with children, lift children as siblings
-        if (node.type === 'heading') {
-          const headingChildren = (node as HeadingDocumentNode).children;
-          for (let i = 0; i < headingChildren.length; i++) {
-            newDoc = insertNodeAtPath(
-              newDoc,
-              parentPath,
-              nodeIndexInParent + 1 + i,
-              headingChildren[i]
-            );
-          }
-        } else if (node.type === 'content') {
-          const contentChildren = (node as ContentDocumentNode).children;
-          for (let i = 0; i < contentChildren.length; i++) {
-            newDoc = insertNodeAtPath(
-              newDoc,
-              parentPath,
-              nodeIndexInParent + 1 + i,
-              contentChildren[i]
-            );
-          }
-        }
-
-        commit(newDoc);
-        return;
-      }
-
-      // Handle conversion to heading
-      if (targetType === 'heading') {
-        if (node.type === 'heading') return; // Already a heading
-
-        // content -> heading: add empty children
-        const newNode: HeadingDocumentNode = {
-          id: node.id,
-          number: node.number,
-          type: 'heading',
-          contents: node.contents,
-          children: [],
-        };
-
-        const newDoc = updateNodeAtPath(document, path, () => newNode);
-        commit(newDoc);
-        return;
-      }
-
-      // Handle conversion to content
-      if (targetType === 'content') {
-        if (node.type === 'content') return; // Already content
-
-        // Create content node (with empty children array)
-        const contentNode: ContentDocumentNode = {
-          id: node.id,
-          number: node.number,
-          type: 'content',
-          contents: node.contents,
-          children: [],
-        };
-
-        // Replace node with content
-        let newDoc = updateNodeAtPath(document, path, () => contentNode);
-
-        // If converting from heading, lift children as siblings
-        if (node.type === 'heading') {
-          const headingChildren = (node as HeadingDocumentNode).children;
-          for (let i = 0; i < headingChildren.length; i++) {
-            newDoc = insertNodeAtPath(
-              newDoc,
-              parentPath,
-              nodeIndexInParent + 1 + i,
-              headingChildren[i]
-            );
-          }
-        }
-        // footnote -> content: no children to lift (footnote is a leaf node)
-
-        commit(newDoc);
-        return;
-      }
-
-      // Handle conversion to list
-      if (targetType === 'list') {
-        const style = listStyle || 'numbered';
-
-        // Create list item from the node (container with child content node)
-        const listItem: ContainerDocumentNode = {
-          id: generateId(),
-          number: getNumberForStyle(style, 0),
-          type: 'list_item',
-          children: [
-            {
-              id: node.id,
-              number: null,
-              type: 'content',
-              contents: node.contents,
-              children: [],
-            } as ContentDocumentNode,
-          ],
-        };
-
-        // Create list container
-        const list: ContainerDocumentNode = {
-          id: generateId(),
-          number: null,
-          type: 'list',
-          children: [listItem],
-        };
-
-        // Replace node with list
-        let newDoc = updateNodeAtPath(document, path, () => list);
-
-        // If it was a heading, lift its children after the new list
-        if (node.type === 'heading') {
-          const headingChildren = (node as HeadingDocumentNode).children;
-          for (let i = 0; i < headingChildren.length; i++) {
-            newDoc = insertNodeAtPath(
-              newDoc,
-              parentPath,
-              nodeIndexInParent + 1 + i,
-              headingChildren[i]
-            );
-          }
-        }
-
-        // Merge adjacent lists in the parent
-        newDoc = mergeAdjacentLists(newDoc, parentPath);
-
-        commit(newDoc);
-        return;
+      if (changed) {
+        commit(doc);
       }
     },
     [document, nodeIndex, commit]
   );
 
   /**
-   * Extract a list_item from its list and convert to heading or content.
+   * Extract a list_item from its list and convert to heading or content (pure function, no commit).
+   * Returns the new document, or null if the operation can't be performed.
    */
-  const extractAndConvertListItem = useCallback(
-    (itemPath: NodePath, item: ContainerDocumentNode, targetType: 'heading' | 'content') => {
-      const listPath = itemPath.slice(0, -1);
-      const itemIndexInList = itemPath[itemPath.length - 1];
-      const list = getNodeAtPath(document, listPath) as ContainerDocumentNode;
+  const extractAndConvertListItemInDoc = (
+    doc: ContainerDocumentNode,
+    itemPath: NodePath,
+    item: ContainerDocumentNode,
+    targetType: 'heading' | 'content'
+  ): ContainerDocumentNode | null => {
+    const listPath = itemPath.slice(0, -1);
+    const itemIndexInList = itemPath[itemPath.length - 1];
+    const list = getNodeAtPath(doc, listPath) as ContainerDocumentNode;
 
-      if (!list || list.type !== 'list') return;
+    if (!list || list.type !== 'list') return null;
 
-      // Extract contents from the first child content node
-      const firstChild = item.children[0];
-      const contents = firstChild && 'contents' in firstChild ? firstChild.contents : {};
+    // Extract contents from the first child content node
+    const firstChild = item.children[0];
+    const contents = firstChild && 'contents' in firstChild ? firstChild.contents : {};
 
-      // Create the converted node
-      const convertedNode: DocumentNode =
-        targetType === 'heading'
-          ? ({
-              id: item.id,
-              number: null,
-              type: 'heading',
-              contents,
-              children: [],
-            } as HeadingDocumentNode)
-          : ({
-              id: item.id,
-              number: null,
-              type: 'content',
-              contents,
-              children: [],
-            } as ContentDocumentNode);
+    // Create the converted node
+    const convertedNode: DocumentNode =
+      targetType === 'heading'
+        ? ({
+            id: item.id,
+            number: null,
+            type: 'heading',
+            contents,
+            children: [],
+          } as HeadingDocumentNode)
+        : ({
+            id: item.id,
+            number: null,
+            type: 'content',
+            contents,
+            children: [],
+          } as ContentDocumentNode);
 
-      // Get parent of list info
-      const listParentPath = listPath.slice(0, -1);
-      const listIndexInParent = listPath[listPath.length - 1];
+    // Get parent of list info
+    const listParentPath = listPath.slice(0, -1);
+    const listIndexInParent = listPath[listPath.length - 1];
 
-      if (list.children.length === 1) {
-        // Only item in list - replace entire list with converted node
-        const newDoc = updateNodeAtPath(document, listPath, () => convertedNode);
-        commit(newDoc);
+    if (list.children.length === 1) {
+      // Only item in list - replace entire list with converted node
+      return updateNodeAtPath(doc, listPath, () => convertedNode);
+    } else {
+      // Multiple items - remove from list, insert converted node
+      let newDoc = removeNodeAtPath(doc, itemPath);
+
+      // If it was the first item, insert before the list; otherwise, insert after
+      if (itemIndexInList === 0) {
+        newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent, convertedNode);
       } else {
-        // Multiple items - remove from list, insert converted node
-        // Remove the item from the list
-        let newDoc = removeNodeAtPath(document, itemPath);
-
-        // Determine where to insert the converted node
-        // If it was the first item, insert before the list
-        // Otherwise, insert after the list
-        if (itemIndexInList === 0) {
-          newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent, convertedNode);
-        } else {
-          newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent + 1, convertedNode);
-        }
-
-        commit(newDoc);
+        newDoc = insertNodeAtPath(newDoc, listParentPath, listIndexInParent + 1, convertedNode);
       }
-    },
-    [document, commit]
-  );
+
+      return newDoc;
+    }
+  };
 
   /**
    * Move a node to a new position relative to a target node.
@@ -739,7 +752,7 @@ export const useTreeOperations = ({
     updateNodeNumber,
     indentNodes,
     outdentNodes,
-    changeNodeType,
+    changeNodeTypes,
     moveNodeById,
     getReceivingParentId,
     nodeIndex,

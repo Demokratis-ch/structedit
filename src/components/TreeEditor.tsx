@@ -67,7 +67,7 @@ export function TreeEditor({
     removeNodes,
     updateNodeContents,
     updateNodeNumber,
-    changeNodeType,
+    changeNodeTypes,
     moveNodeById,
     indentSelected,
     outdentSelected,
@@ -271,8 +271,10 @@ export function TreeEditor({
   };
 
   const handleBulkUpdateType = (toolbarType: string) => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
+    if (selectedIds.size === 0) return;
+
+    // Sort IDs by flat order for consistent processing
+    const ids = flattenedNodes.filter((fn) => selectedIds.has(fn.node.id)).map((fn) => fn.node.id);
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
@@ -305,10 +307,7 @@ export function TreeEditor({
         return;
     }
 
-    // Apply type change to each selected node
-    ids.forEach((id) => {
-      changeNodeType(id, targetType, listStyle);
-    });
+    changeNodeTypes(ids, targetType, listStyle);
   };
 
   const handleDownload = () => {

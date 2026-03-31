@@ -828,7 +828,7 @@ describe('useTreeOperations', () => {
     });
   });
 
-  describe('changeNodeType', () => {
+  describe('changeNodeTypes', () => {
     describe('content -> heading', () => {
       test('converts content to heading with empty children', () => {
         const doc: ContainerDocumentNode = {
@@ -849,7 +849,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'heading');
+          result.current.changeNodeTypes(['p1'], 'heading');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -880,7 +880,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'heading');
+          result.current.changeNodeTypes(['p1'], 'heading');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -911,7 +911,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'heading');
+          result.current.changeNodeTypes(['h1'], 'heading');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -938,7 +938,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'content');
+          result.current.changeNodeTypes(['h1'], 'content');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -993,7 +993,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'content');
+          result.current.changeNodeTypes(['h1'], 'content');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1026,7 +1026,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'content');
+          result.current.changeNodeTypes(['p1'], 'content');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1053,7 +1053,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1093,7 +1093,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1121,7 +1121,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'lettered');
+          result.current.changeNodeTypes(['p1'], 'list', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1149,7 +1149,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'unordered');
+          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1187,7 +1187,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'list', 'numbered');
+          result.current.changeNodeTypes(['h1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1229,7 +1229,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'content');
+          result.current.changeNodeTypes(['li1'], 'content');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1263,7 +1263,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li2', 'content');
+          result.current.changeNodeTypes(['li2'], 'content');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1303,7 +1303,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'heading');
+          result.current.changeNodeTypes(['li1'], 'heading');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1336,7 +1336,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'heading');
+          result.current.changeNodeTypes(['li1'], 'heading');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1379,7 +1379,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li2', 'list', 'numbered');
+          result.current.changeNodeTypes(['li2'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1409,7 +1409,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'list', 'lettered');
+          result.current.changeNodeTypes(['li1'], 'list', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1438,7 +1438,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'list', 'unordered');
+          result.current.changeNodeTypes(['li1'], 'list', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1473,7 +1473,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'list', 'numbered');
+          result.current.changeNodeTypes(['list1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1502,7 +1502,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'list', 'unordered');
+          result.current.changeNodeTypes(['list1'], 'list', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1534,7 +1534,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'list', 'lettered');
+          result.current.changeNodeTypes(['list1'], 'list', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1563,7 +1563,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'heading');
+          result.current.changeNodeTypes(['list1'], 'heading');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1575,7 +1575,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations();
 
         act(() => {
-          result.current.changeNodeType('root', 'content');
+          result.current.changeNodeTypes(['root'], 'content');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1599,7 +1599,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'content');
+          result.current.changeNodeTypes(['list1'], 'content');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1632,7 +1632,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1673,7 +1673,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1720,7 +1720,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1769,7 +1769,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1802,7 +1802,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'footnote');
+          result.current.changeNodeTypes(['p1'], 'footnote');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -1835,7 +1835,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'footnote');
+          result.current.changeNodeTypes(['p1'], 'footnote');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1886,7 +1886,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('p1', 'footnote');
+          result.current.changeNodeTypes(['p1'], 'footnote');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1918,7 +1918,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('fn1', 'footnote');
+          result.current.changeNodeTypes(['fn1'], 'footnote');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1967,7 +1967,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'footnote');
+          result.current.changeNodeTypes(['h1'], 'footnote');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2001,7 +2001,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('h1', 'footnote');
+          result.current.changeNodeTypes(['h1'], 'footnote');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2034,7 +2034,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('fn1', 'content');
+          result.current.changeNodeTypes(['fn1'], 'content');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
@@ -2066,7 +2066,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('fn1', 'content');
+          result.current.changeNodeTypes(['fn1'], 'content');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2097,7 +2097,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('list1', 'footnote');
+          result.current.changeNodeTypes(['list1'], 'footnote');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2121,11 +2121,102 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeType('li1', 'footnote');
+          result.current.changeNodeTypes(['li1'], 'footnote');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('changeNodeTypes (batch)', () => {
+    test('changes type for multiple content nodes to heading', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'First' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p2',
+            number: null,
+            type: 'content',
+            contents: { de: 'Second' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p3',
+            number: null,
+            type: 'content',
+            contents: { de: 'Third' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'heading');
+      });
+
+      // Single commit for all three changes
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children[0].type).toBe('heading');
+      expect(newDoc.children[1].type).toBe('heading');
+      expect(newDoc.children[2].type).toBe('heading');
+    });
+
+    test('handles mixed node types (content + heading -> footnote)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h1',
+            number: '1',
+            type: 'heading',
+            contents: { de: 'Heading' },
+            children: [],
+          } as HeadingDocumentNode,
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            contents: { de: 'Paragraph' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.changeNodeTypes(['h1', 'p1'], 'footnote');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children[0].type).toBe('footnote');
+      expect(newDoc.children[1].type).toBe('footnote');
+    });
+
+    test('commits nothing when no nodes can be changed', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeNodeTypes(['root'], 'content');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
     });
   });
 
