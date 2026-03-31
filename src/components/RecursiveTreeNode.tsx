@@ -1,4 +1,4 @@
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
 import type { DocumentNode, Language } from '../types/document';
 import { ContentBlock } from './ContentBlock';
@@ -32,7 +32,33 @@ interface RecursiveTreeNodeProps {
   editingNumberId: string | null;
   onNumberDoubleClick: (e: React.MouseEvent, id: string) => void;
   onUpdateNumber: (id: string, number: string | null) => void;
+  onAddNodeBefore: (id: string) => void;
+  onAddNodeAfter: (id: string) => void;
 }
+
+const AddNodeButton: React.FC<{
+  position: 'top' | 'bottom';
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ position, isSelected, onClick }) => (
+  <button
+    className={`
+      absolute ${position === 'top' ? '-top-3' : '-bottom-3'} left-1/2 -translate-x-1/2 z-30
+      w-6 h-6 rounded-lg flex items-center justify-center
+      bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-600
+      transition-all duration-150 cursor-pointer border border-gray-200
+      ${isSelected ? 'opacity-60 hover:!opacity-100' : 'opacity-0 pointer-events-none'}
+    `}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    onMouseDown={(e) => e.preventDefault()}
+    title={position === 'top' ? 'Add node above' : 'Add node below'}
+  >
+    <Plus size={12} />
+  </button>
+);
 
 export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
   node,
@@ -63,6 +89,8 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
   editingNumberId,
   onNumberDoubleClick,
   onUpdateNumber,
+  onAddNodeBefore,
+  onAddNodeAfter,
 }) => {
   // Determine if node has children
   const hasChildren = 'children' in node && node.children.length > 0;
@@ -293,6 +321,8 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               editingNumberId={editingNumberId}
               onNumberDoubleClick={onNumberDoubleClick}
               onUpdateNumber={onUpdateNumber}
+              onAddNodeBefore={onAddNodeBefore}
+              onAddNodeAfter={onAddNodeAfter}
             />
           ))}
       </div>
@@ -357,6 +387,22 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
         </div>
       </div>
 
+      {/* Add node buttons */}
+      {!isEditing && (
+        <AddNodeButton
+          position="top"
+          isSelected={isSelected}
+          onClick={() => onAddNodeBefore(node.id)}
+        />
+      )}
+      {!isEditing && (
+        <AddNodeButton
+          position="bottom"
+          isSelected={isSelected}
+          onClick={() => onAddNodeAfter(node.id)}
+        />
+      )}
+
       {/* Node type indicator */}
       <span
         className={`
@@ -410,6 +456,8 @@ export const RecursiveTreeNode: React.FC<RecursiveTreeNodeProps> = ({
               editingNumberId={editingNumberId}
               onNumberDoubleClick={onNumberDoubleClick}
               onUpdateNumber={onUpdateNumber}
+              onAddNodeBefore={onAddNodeBefore}
+              onAddNodeAfter={onAddNodeAfter}
             />
           ))}
         </div>

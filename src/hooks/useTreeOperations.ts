@@ -31,6 +31,34 @@ interface UseTreeOperationsProps {
   language: Language;
 }
 
+/** Create a new empty sibling node appropriate for the given parent. */
+function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
+  if (parent.type === 'list') {
+    return {
+      id: generateId(),
+      number: null,
+      type: 'list_item',
+      children: [
+        {
+          id: generateId(),
+          number: null,
+          type: 'content',
+          contents: { [language]: '' },
+          children: [],
+        } as ContentDocumentNode,
+      ],
+    } as ContainerDocumentNode;
+  }
+
+  return {
+    id: generateId(),
+    number: null,
+    type: 'content',
+    contents: { [language]: '' },
+    children: [],
+  } as ContentDocumentNode;
+}
+
 export const useTreeOperations = ({
   document,
   commit,
@@ -52,42 +80,36 @@ export const useTreeOperations = ({
 
       if (!parent || !('children' in parent)) return;
 
-      // Determine new node type based on parent context
-      let newNode: DocumentNode;
-
-      if (parent.type === 'list') {
-        // Inside a list, create a list_item (container with child content node)
-        newNode = {
-          id: generateId(),
-          number: null,
-          type: 'list_item',
-          children: [
-            {
-              id: generateId(),
-              number: null,
-              type: 'content',
-              contents: { [language]: '' },
-              children: [],
-            } as ContentDocumentNode,
-          ],
-        } as ContainerDocumentNode;
-      } else {
-        // Default to content node
-        newNode = {
-          id: generateId(),
-          number: null,
-          type: 'content',
-          contents: { [language]: '' },
-          children: [],
-        } as ContentDocumentNode;
-      }
-
+      const newNode = createNewSiblingNode(parent, language);
       const newDoc = insertNodeAtPath(document, parentPath, siblingIndex + 1, newNode);
       commit(newDoc);
 
       return newNode.id;
     },
-    [document, nodeIndex, parentIndex, language, commit]
+    [document, nodeIndex, language, commit]
+  );
+
+  /**
+   * Add a new sibling node before the specified node.
+   */
+  const addNodeBefore = useCallback(
+    (beforeId: string) => {
+      const path = nodeIndex.get(beforeId);
+      if (!path || path.length === 0) return;
+
+      const parentPath = path.slice(0, -1);
+      const siblingIndex = path[path.length - 1];
+      const parent = parentPath.length === 0 ? document : getNodeAtPath(document, parentPath);
+
+      if (!parent || !('children' in parent)) return;
+
+      const newNode = createNewSiblingNode(parent, language);
+      const newDoc = insertNodeAtPath(document, parentPath, siblingIndex, newNode);
+      commit(newDoc);
+
+      return newNode.id;
+    },
+    [document, nodeIndex, language, commit]
   );
 
   /**
@@ -747,6 +769,7 @@ export const useTreeOperations = ({
 
   return {
     addNodeAfter,
+    addNodeBefore,
     removeNodes,
     updateNodeContents,
     updateNodeNumber,

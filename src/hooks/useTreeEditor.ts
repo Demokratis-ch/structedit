@@ -44,6 +44,7 @@ export const useTreeEditor = (
   // Tree operations
   const {
     addNodeAfter,
+    addNodeBefore,
     removeNodes,
     updateNodeContents,
     updateNodeNumber,
@@ -283,6 +284,7 @@ export const useTreeEditor = (
 
     // Tree operations
     addNodeAfter,
+    addNodeBefore,
     removeNodes,
     updateNodeContents,
     updateNodeNumber,

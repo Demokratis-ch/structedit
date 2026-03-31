@@ -179,6 +179,88 @@ describe('useTreeOperations', () => {
     });
   });
 
+  describe('addNodeBefore', () => {
+    test('inserts sibling before specified node', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.addNodeBefore('h2');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+
+      // New node should be inserted before h2 (was at index 1, now at index 2)
+      expect(h1.children.length).toBe(3);
+      expect(h1.children[0].id).toBe('p1');
+      expect(h1.children[2].id).toBe('h2');
+      // New node is in the middle
+      const newNode = h1.children[1] as LeafDocumentNode;
+      expect(newNode.type).toBe('content');
+      expect(newNode.contents.de).toBe('');
+    });
+
+    test('creates content node by default', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.addNodeBefore('p1');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const newNode = h1.children[0] as LeafDocumentNode;
+      expect(newNode.type).toBe('content');
+      expect(newNode.contents.de).toBe('');
+    });
+
+    test('creates list_item when parent is list', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.addNodeBefore('li2');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const list = h1.children[0] as ContainerDocumentNode;
+
+      expect(list.children.length).toBe(4);
+      // New item should be at index 1 (before li2 which shifts to index 2)
+      const newItem = list.children[1] as ContainerDocumentNode;
+      expect(newItem.type).toBe('list_item');
+      expect(list.children[2].id).toBe('li2');
+    });
+
+    test('returns the new node ID', () => {
+      const { result } = renderTreeOperations();
+      let newId: string | undefined;
+
+      act(() => {
+        newId = result.current.addNodeBefore('p1');
+      });
+
+      expect(newId).toBeDefined();
+      expect(typeof newId).toBe('string');
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children[0].id).toBe(newId);
+    });
+
+    test('does nothing for root node', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.addNodeBefore('root');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
   describe('removeNodes', () => {
     test('removes leaf node', () => {
       const { result } = renderTreeOperations();

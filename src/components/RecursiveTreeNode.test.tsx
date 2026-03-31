@@ -43,6 +43,8 @@ const defaultProps = {
   editingNumberId: null as string | null,
   onNumberDoubleClick: vi.fn(),
   onUpdateNumber: vi.fn(),
+  onAddNodeBefore: vi.fn(),
+  onAddNodeAfter: vi.fn(),
 };
 
 describe('RecursiveTreeNode', () => {
@@ -241,6 +243,56 @@ describe('RecursiveTreeNode', () => {
       expect(badge?.textContent).toBe('i.');
       fireEvent.doubleClick(badge!);
       expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'fn-with-num');
+    });
+  });
+
+  describe('add node buttons', () => {
+    test('calls onAddNodeBefore when clicking add-before button', () => {
+      const onAddNodeBefore = vi.fn();
+      const node = createTestNode();
+      const { getByTitle } = render(
+        <RecursiveTreeNode
+          {...defaultProps}
+          node={node}
+          isSelected={true}
+          onAddNodeBefore={onAddNodeBefore}
+        />
+      );
+
+      fireEvent.click(getByTitle('Add node above'));
+      expect(onAddNodeBefore).toHaveBeenCalledWith('h1');
+    });
+
+    test('calls onAddNodeAfter when clicking add-after button', () => {
+      const onAddNodeAfter = vi.fn();
+      const node = createTestNode();
+      const { getByTitle } = render(
+        <RecursiveTreeNode
+          {...defaultProps}
+          node={node}
+          isSelected={true}
+          onAddNodeAfter={onAddNodeAfter}
+        />
+      );
+
+      fireEvent.click(getByTitle('Add node below'));
+      expect(onAddNodeAfter).toHaveBeenCalledWith('h1');
+    });
+
+    test('hides add buttons when editing', () => {
+      const node = createTestNode();
+      const { queryByTitle } = render(
+        <RecursiveTreeNode
+          {...defaultProps}
+          node={node}
+          isSelected={true}
+          isEditing={true}
+          editingId="h1"
+        />
+      );
+
+      expect(queryByTitle('Add node above')).toBeNull();
+      expect(queryByTitle('Add node below')).toBeNull();
     });
   });
 
