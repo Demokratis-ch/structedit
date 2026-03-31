@@ -48,6 +48,29 @@ const getContainer = () => {
   return container;
 };
 
+/** Assert that a node (found by text content) has selected styling. */
+const expectNodeSelected = (text: string) => {
+  const el = screen.getByText(text);
+  const wrapper = el.closest('[draggable]') as HTMLElement;
+  expect(wrapper.className).toContain('bg-blue');
+};
+
+/** Assert that a node (found by text content) does NOT have selected styling. */
+const expectNodeNotSelected = (text: string) => {
+  const el = screen.getByText(text);
+  const wrapper = el.closest('[draggable]') as HTMLElement;
+  expect(wrapper.className).not.toContain('bg-blue');
+};
+
+/**
+ * Get the draggable wrapper element for a node found by text content.
+ * Useful for checking DOM nesting relationships.
+ */
+const getNodeWrapper = (text: string) => {
+  const el = screen.getByText(text);
+  return el.closest('[draggable]') as HTMLElement;
+};
+
 describe('TreeEditor keyboard shortcuts', () => {
   describe('type change shortcuts with a node selected', () => {
     const shortcutTests = [
@@ -132,6 +155,31 @@ describe('TreeEditor keyboard shortcuts', () => {
 
       expect(screen.getByText('First Heading')).toBeInTheDocument();
     });
+
+    test('type shortcuts do not fire while in edit mode', async () => {
+      vi.useFakeTimers();
+      renderTreeEditor();
+      selectFirstNode();
+      const container = getContainer();
+
+      // Enter edit mode via double-click
+      await act(async () => {
+        fireEvent.doubleClick(screen.getByText('First Heading'));
+        vi.runAllTimers();
+      });
+
+      // Press 'f' (footnote shortcut) — should type into the editor, not change node type
+      fireEvent.keyDown(container, { key: 'f' });
+
+      // Node should still be a heading (type indicator visible when selected)
+      // If the shortcut had fired, the node would have been converted to footnote
+      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      // The heading should still be rendered as an h-tag (not converted)
+      const headingEl = screen.getByText('First Heading');
+      expect(headingEl.tagName).toMatch(/^H\d$/);
+
+      vi.useRealTimers();
+    });
   });
 });
 
@@ -213,8 +261,7 @@ describe('double-click inline editing', () => {
     // The node should no longer be editable
     expect(firstHeading.getAttribute('contenteditable')).toBe('false');
     // The node should still be selected (has selected styling)
-    const nodeWrapper = firstHeading.closest('[draggable]') as HTMLElement;
-    expect(nodeWrapper.className).toContain('bg-blue');
+    expectNodeSelected('First Heading');
 
     vi.useRealTimers();
   });
@@ -231,5 +278,401 @@ describe('FloatingToolbar tooltips', () => {
     expect(screen.getByTitle('Ordered List (O)')).toBeInTheDocument();
     expect(screen.getByTitle('Alpha List (A)')).toBeInTheDocument();
     expect(screen.getByTitle('Footnote (F)')).toBeInTheDocument();
+  });
+});
+
+describe('selection and navigation', () => {
+  test('ArrowDown selects first node when nothing is selected', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    fireEvent.keyDown(container, { key: 'ArrowDown' });
+
+    expectNodeSelected('First Heading');
+  });
+
+  test('ArrowDown moves selection to next node', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'ArrowDown' });
+
+    expectNodeSelected('Second Heading');
+    expectNodeNotSelected('First Heading');
+  });
+
+  test('ArrowUp moves selection to previous node', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    fireEvent.click(screen.getByText('Second Heading'));
+    fireEvent.keyDown(container, { key: 'ArrowUp' });
+
+    expectNodeSelected('First Heading');
+  });
+
+  test('Shift+ArrowDown extends selection range', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'ArrowDown', shiftKey: true });
+
+    expectNodeSelected('First Heading');
+    expectNodeSelected('Second Heading');
+  });
+
+  test('Escape clears selection when not editing', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+    expectNodeSelected('First Heading');
+
+    fireEvent.keyDown(container, { key: 'Escape' });
+
+    expectNodeNotSelected('First Heading');
+  });
+
+  test('clicking empty area clears selection', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+    expectNodeSelected('First Heading');
+
+    fireEvent.click(container);
+
+    expectNodeNotSelected('First Heading');
+  });
+
+  test('ArrowUp on first node stays on first node', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'ArrowUp' });
+
+    expectNodeSelected('First Heading');
+  });
+
+  test('ArrowDown on last node stays on last node', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    fireEvent.click(screen.getByText('Second Heading'));
+    fireEvent.keyDown(container, { key: 'ArrowDown' });
+
+    expectNodeSelected('Second Heading');
+  });
+
+  test('Ctrl+click toggles multi-select', () => {
+    renderTreeEditor();
+
+    // Select first node
+    selectFirstNode();
+    expectNodeSelected('First Heading');
+
+    // Ctrl+click second node to add to selection
+    fireEvent.click(screen.getByText('Second Heading'), { ctrlKey: true });
+
+    expectNodeSelected('First Heading');
+    expectNodeSelected('Second Heading');
+
+    // Ctrl+click first node again to deselect it
+    fireEvent.click(screen.getByText('First Heading'), { ctrlKey: true });
+
+    expectNodeNotSelected('First Heading');
+    expectNodeSelected('Second Heading');
+  });
+});
+
+describe('node operations via keyboard', () => {
+  test('Delete key removes selected node', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    // Select first node
+    selectFirstNode();
+
+    // Press Delete
+    fireEvent.keyDown(container, { key: 'Delete' });
+
+    // First heading should be gone
+    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    // Second heading should still be there
+    expect(screen.getByText('Second Heading')).toBeInTheDocument();
+  });
+
+  test('Tab indents selected node under previous sibling', () => {
+    // Need heading followed by content at same level for indent to work
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          contents: { de: 'Parent Heading' },
+          children: [],
+        },
+        {
+          id: 'c1',
+          number: null,
+          type: 'content',
+          contents: { de: 'Child Content' },
+          children: [],
+        },
+      ],
+    };
+
+    render(
+      <TreeEditor
+        initialDocument={doc}
+        pdfUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const container = getContainer();
+
+    // Select the content node
+    fireEvent.click(screen.getByText('Child Content'));
+
+    // Before indent: content node is a sibling of heading (not nested inside it)
+    const headingWrapper = getNodeWrapper('Parent Heading');
+    const contentWrapper = getNodeWrapper('Child Content');
+    expect(headingWrapper.contains(contentWrapper)).toBe(false);
+
+    // Press Tab to indent
+    fireEvent.keyDown(container, { key: 'Tab' });
+
+    // After indent: content node should be nested inside the heading's subtree
+    const headingWrapperAfter = getNodeWrapper('Parent Heading');
+    const contentWrapperAfter = getNodeWrapper('Child Content');
+    expect(headingWrapperAfter.contains(contentWrapperAfter)).toBe(true);
+  });
+
+  test('Shift+Tab outdents selected node', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          contents: { de: 'Parent Heading' },
+          children: [
+            {
+              id: 'c1',
+              number: null,
+              type: 'content',
+              contents: { de: 'Nested Content' },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <TreeEditor
+        initialDocument={doc}
+        pdfUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const container = getContainer();
+
+    // Select the nested content node
+    fireEvent.click(screen.getByText('Nested Content'));
+
+    // Before outdent: content node is nested inside heading
+    const headingWrapper = getNodeWrapper('Parent Heading');
+    const contentWrapper = getNodeWrapper('Nested Content');
+    expect(headingWrapper.contains(contentWrapper)).toBe(true);
+
+    // Press Shift+Tab to outdent
+    fireEvent.keyDown(container, { key: 'Tab', shiftKey: true });
+
+    // After outdent: content node should no longer be nested inside heading
+    const headingWrapperAfter = getNodeWrapper('Parent Heading');
+    const contentWrapperAfter = getNodeWrapper('Nested Content');
+    expect(headingWrapperAfter.contains(contentWrapperAfter)).toBe(false);
+  });
+});
+
+describe('undo and redo', () => {
+  test('Ctrl+Z undoes last operation', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    // Select and delete a node
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'Delete' });
+    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+
+    // Undo with Ctrl+Z
+    fireEvent.keyDown(container, { key: 'z', ctrlKey: true });
+
+    // Node should be restored
+    expect(screen.getByText('First Heading')).toBeInTheDocument();
+  });
+
+  test('Ctrl+Y redoes undone operation', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    // Select and delete a node
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'Delete' });
+    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+
+    // Undo
+    fireEvent.keyDown(container, { key: 'z', ctrlKey: true });
+    expect(screen.getByText('First Heading')).toBeInTheDocument();
+
+    // Redo with Ctrl+Y
+    fireEvent.keyDown(container, { key: 'y', ctrlKey: true });
+    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+  });
+
+  test('Cmd+Shift+Z redoes undone operation', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    // Select and delete a node
+    selectFirstNode();
+    fireEvent.keyDown(container, { key: 'Delete' });
+
+    // Undo
+    fireEvent.keyDown(container, { key: 'z', metaKey: true });
+    expect(screen.getByText('First Heading')).toBeInTheDocument();
+
+    // Redo with Cmd+Shift+Z
+    fireEvent.keyDown(container, { key: 'z', metaKey: true, shiftKey: true });
+    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+  });
+});
+
+describe('edit mode behaviors', () => {
+  test('Backspace on empty node in edit mode deletes the node', async () => {
+    vi.useFakeTimers();
+
+    // Create document with an empty content node
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          contents: { de: 'First Heading' },
+          children: [],
+        },
+        {
+          id: 'empty',
+          number: null,
+          type: 'content',
+          contents: { de: '' },
+          children: [],
+        },
+      ],
+    };
+
+    render(
+      <TreeEditor
+        initialDocument={doc}
+        pdfUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    // The empty content node renders a contenteditable with min-height but no text.
+    // Find it by locating the second draggable wrapper (the empty node's wrapper)
+    // and double-clicking to enter edit mode.
+    const headingWrapper = getNodeWrapper('First Heading');
+    const allDraggables = document.querySelectorAll('[draggable]');
+    // The empty node is the second draggable (after the heading)
+    const emptyNodeWrapper = Array.from(allDraggables).find(
+      (el) => el !== headingWrapper
+    ) as HTMLElement;
+
+    await act(async () => {
+      fireEvent.doubleClick(emptyNodeWrapper);
+      vi.runAllTimers();
+    });
+
+    // Press Backspace on the empty node — should delete it since content is empty
+    const activeEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(activeEl, { key: 'Backspace' });
+      vi.runAllTimers();
+    });
+
+    // The empty node should be deleted, only the heading remains
+    expect(screen.getByText('First Heading')).toBeInTheDocument();
+    const remainingDraggables = document.querySelectorAll('[draggable]');
+    expect(remainingDraggables.length).toBe(1);
+
+    vi.useRealTimers();
+  });
+});
+
+describe('empty document', () => {
+  const createEmptyDocument = (): ContainerDocumentNode => ({
+    id: 'root',
+    number: null,
+    type: 'document',
+    children: [],
+  });
+
+  test('shows empty state message', () => {
+    render(
+      <TreeEditor
+        initialDocument={createEmptyDocument()}
+        pdfUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Document is empty')).toBeInTheDocument();
+    expect(screen.getByText('Click here to start writing')).toBeInTheDocument();
+  });
+
+  test('clicking empty state does not crash', () => {
+    render(
+      <TreeEditor
+        initialDocument={createEmptyDocument()}
+        pdfUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    // Click the empty state area — addNodeAfter(document.id) is called.
+    // Note: addNodeAfter currently bails out for the root node (path.length === 0),
+    // so no node is added. This test verifies the click doesn't crash.
+    const clickTarget = screen.getByText('Click here to start writing');
+    fireEvent.click(clickTarget);
+
+    expect(screen.getByText('Document is empty')).toBeInTheDocument();
   });
 });
