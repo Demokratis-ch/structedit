@@ -64,6 +64,7 @@ export function TreeEditor({
     clearSelection,
     moveSelection,
     addNodeAfter,
+    addNodeBefore,
     removeNodes,
     updateNodeContents,
     updateNodeNumber,
@@ -151,6 +152,22 @@ export function TreeEditor({
       moveNodeById(draggedNodeId, dropTarget.id, dropTarget.position);
     }
     handleDragEnd();
+  };
+
+  const handleAddNodeBefore = (id: string) => {
+    const newId = addNodeBefore(id);
+    if (newId) {
+      setEditingId(newId);
+      setTimeout(() => blockRefs.current[newId]?.focus(), 0);
+    }
+  };
+
+  const handleAddNodeAfter = (id: string) => {
+    const newId = addNodeAfter(id);
+    if (newId) {
+      setEditingId(newId);
+      setTimeout(() => blockRefs.current[newId]?.focus(), 0);
+    }
   };
 
   const handleBlockKeyDown = (e: React.KeyboardEvent, id: string) => {
@@ -440,6 +457,8 @@ export function TreeEditor({
                   editingNumberId={editingNumberId}
                   onNumberDoubleClick={handleNumberDblClick}
                   onUpdateNumber={handleUpdateNumber}
+                  onAddNodeBefore={handleAddNodeBefore}
+                  onAddNodeAfter={handleAddNodeAfter}
                 />
               )}
             </div>
