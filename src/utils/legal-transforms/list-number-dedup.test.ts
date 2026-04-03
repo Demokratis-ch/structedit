@@ -194,6 +194,35 @@ describe('listNumberDedupTransform', () => {
     expect(innerContent1.contents.de).toBe('Inner second');
   });
 
+  it('handles list items whose first child is not a content node', () => {
+    const input = createDoc([
+      {
+        id: 'outer-list',
+        number: null,
+        type: 'list' as const,
+        children: [
+          {
+            id: 'item-with-nested-only',
+            number: '1.',
+            type: 'list_item' as const,
+            children: [list([{ number: '1.', content: '1 Sub item' }])],
+          },
+        ],
+      },
+    ]);
+
+    const result = listNumberDedupTransform(input, 'de');
+
+    const outerList = result.children[0] as ContainerDocumentNode;
+    const outerItem = outerList.children[0] as ContainerDocumentNode;
+    // Should not have undefined in children
+    expect(outerItem.children.every((c) => c !== undefined)).toBe(true);
+    // The nested list should still be processed
+    const innerList = outerItem.children[0] as ContainerDocumentNode;
+    expect(innerList.type).toBe('list');
+    expect(innerList.children[0].number).toBe('1');
+  });
+
   it('preserves the document id', () => {
     const input = createDoc([list([{ number: '1.', content: '1 Text' }])]);
     const originalId = input.id;

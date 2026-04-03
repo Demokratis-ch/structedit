@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   ContainerDocumentNode,
+  ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
@@ -139,6 +140,45 @@ describe('Document Utils', () => {
       expect(item1Content.type).toBe('content');
       const item2 = list.children[1] as ContainerDocumentNode;
       expect(item2.number).toBe('2.');
+    });
+
+    it('converts nested ol lists into nested list structure', () => {
+      const html = `<ol>
+        <li>Dieser Erlass regelt das Bildungswesen in der Volksschule.</li>
+        <li>Er gilt für:
+            <ol>
+                <li>die öffentliche Volksschule; </li>
+                <li>die Sonderschulen;</li>
+                <li>die Spitalschulen und die Schulen in Zentren des Asylbereichs; </li>
+                <li>die Privatschulen.</li>
+            </ol>
+        </li>
+        <li>Er regelt zudem die schulpsychologische Versorgung im Bereich der Volksschule und die <br />ergänzenden Angebote.</li>
+      </ol>`;
+      const doc = parseHtmlToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      expect(list.children.length).toBe(3);
+
+      // Second item should have content + nested list
+      const item2 = list.children[1] as ContainerDocumentNode;
+      expect(item2.type).toBe('list_item');
+      expect(item2.children.length).toBe(2); // content + nested list
+
+      const item2Content = item2.children[0] as ContentDocumentNode;
+      expect(item2Content.type).toBe('content');
+      expect(item2Content.contents.de).toContain('Er gilt für:');
+
+      const nestedList = item2.children[1] as ContainerDocumentNode;
+      expect(nestedList.type).toBe('list');
+      expect(nestedList.children.length).toBe(4);
+
+      const nestedItem1 = nestedList.children[0] as ContainerDocumentNode;
+      expect(nestedItem1.type).toBe('list_item');
+      expect(nestedItem1.number).toBe('1.');
+      const nestedItem1Content = nestedItem1.children[0] as ContentDocumentNode;
+      expect(nestedItem1Content.type).toBe('content');
+      expect(nestedItem1Content.contents.de).toContain('die öffentliche Volksschule');
     });
 
     it('strips inline formatting from contents', () => {
