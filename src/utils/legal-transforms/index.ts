@@ -1,11 +1,13 @@
 import type { ContainerDocumentNode, Language } from '../../types/document';
 import { articleTransform } from './article';
 import { letteredItemsTransform } from './lettered-items';
+import { listNumberDedupTransform } from './list-number-dedup';
 import { romanSectionTransform } from './roman-section';
 import type { TreeTransform } from './types';
 
 export { articleTransform } from './article';
 export { letteredItemsTransform } from './lettered-items';
+export { listNumberDedupTransform } from './list-number-dedup';
 export { LEGAL_PATTERNS } from './patterns';
 export { romanSectionTransform } from './roman-section';
 // Re-export types
@@ -21,6 +23,8 @@ export interface LegalTransformConfig {
   articles?: boolean;
   /** Enable lettered item grouping (a., b., c.). Default: true */
   letteredItems?: boolean;
+  /** Enable list number deduplication (removes leading numbers from list item text). Default: true */
+  listNumberDedup?: boolean;
 }
 
 /**
@@ -36,9 +40,10 @@ export function composeTransforms(...transforms: TreeTransform[]): TreeTransform
  * Apply Swiss legal document transforms to a tree.
  *
  * Transform order matters:
- * 1. Roman sections first - Creates top-level structure (I., II., III.)
- * 2. Articles second - Creates nested structure within sections (Art. 1, Art. 2)
- * 3. Lettered items last - Groups items within articles (a., b., c.)
+ * 1. List number dedup first - Fixes duplicate numbering from Mammoth's ol/sup output
+ * 2. Roman sections - Creates top-level structure (I., II., III.)
+ * 3. Articles - Creates nested structure within sections (Art. 1, Art. 2)
+ * 4. Lettered items last - Groups items within articles (a., b., c.)
  *
  * @param root - The document tree to transform
  * @param language - The language of the document content
@@ -50,10 +55,18 @@ export function applySwissLegalTransforms(
   language: Language,
   config: LegalTransformConfig = {}
 ): ContainerDocumentNode {
-  const { romanSections = true, articles = true, letteredItems = true } = config;
+  const {
+    romanSections = true,
+    articles = true,
+    letteredItems = true,
+    listNumberDedup = true,
+  } = config;
 
   const transforms: TreeTransform[] = [];
 
+  if (listNumberDedup) {
+    transforms.push(listNumberDedupTransform);
+  }
   if (romanSections) {
     transforms.push(romanSectionTransform);
   }
