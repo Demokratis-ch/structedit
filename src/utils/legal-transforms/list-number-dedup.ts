@@ -37,9 +37,13 @@ function processListItem(
   listItem: ContainerDocumentNode,
   language: Language
 ): ContainerDocumentNode {
+  if (listItem.children.length === 0) {
+    return listItem;
+  }
+
   const firstChild = listItem.children[0];
   const extracted =
-    firstChild?.type === 'content'
+    firstChild.type === 'content'
       ? extractLeadingNumber(firstChild as ContentDocumentNode, language)
       : null;
 
@@ -51,7 +55,7 @@ function processListItem(
           [language]: extracted.strippedContent,
         },
       }
-    : firstChild;
+    : processNode(firstChild, language);
 
   const remainingChildren = listItem.children.slice(1).map((child) => processNode(child, language));
 

@@ -107,6 +107,64 @@ export const parseHtmlToTree = (
     return (node.textContent || '').replace(/[\s\n]+/g, ' ').trim();
   };
 
+  const getDirectText = (li: Node): string => {
+    let text = '';
+    for (const child of Array.from(li.childNodes)) {
+      const name = child.nodeName.toLowerCase();
+      if (name === 'ol' || name === 'ul') continue;
+      if (child.nodeType === Node.TEXT_NODE) {
+        text += child.textContent || '';
+      } else if (child instanceof HTMLElement) {
+        // Inline element — collect its text recursively (excluding nested lists)
+        text += getDirectText(child);
+      }
+    }
+    return text.replace(/[\s\n]+/g, ' ').trim();
+  };
+
+  const processListElement = (domNode: Node, tagName: string): ContainerDocumentNode => {
+    const list: ContainerDocumentNode = {
+      id: generateId(),
+      number: null,
+      type: 'list',
+      children: [],
+    };
+
+    const items = Array.from(domNode.childNodes).filter((n) => n.nodeName.toLowerCase() === 'li');
+
+    items.forEach((li, index) => {
+      const listItem: ContainerDocumentNode = {
+        id: generateId(),
+        number: tagName === 'ol' ? `${index + 1}.` : null,
+        type: 'list_item',
+        children: [],
+      };
+
+      const directText = getDirectText(li);
+      if (directText) {
+        listItem.children.push({
+          id: generateId(),
+          number: null,
+          type: 'content',
+          contents: { [language]: directText },
+          children: [],
+        } as ContentDocumentNode);
+      }
+
+      // Recursively process nested lists
+      for (const child of Array.from(li.childNodes)) {
+        const childTag = child.nodeName.toLowerCase();
+        if (childTag === 'ol' || childTag === 'ul') {
+          listItem.children.push(processListElement(child, childTag));
+        }
+      }
+
+      list.children.push(listItem);
+    });
+
+    return list;
+  };
+
   const walkDom = (domNode: Node) => {
     if (domNode.nodeType === Node.COMMENT_NODE) return;
     if (domNode.nodeName === 'SCRIPT' || domNode.nodeName === 'STYLE') return;
@@ -138,35 +196,8 @@ export const parseHtmlToTree = (
 
     // Lists - create list container with list_item children
     if (tagName === 'ul' || tagName === 'ol') {
-      const list: ContainerDocumentNode = {
-        id: generateId(),
-        number: null,
-        type: 'list',
-        children: [],
-      };
-
+      const list = processListElement(domNode, tagName);
       addChild(list);
-
-      // Process list items
-      const items = Array.from(domNode.childNodes).filter((n) => n.nodeName.toLowerCase() === 'li');
-
-      items.forEach((li, index) => {
-        const listItem: ContainerDocumentNode = {
-          id: generateId(),
-          number: tagName === 'ol' ? `${index + 1}.` : null,
-          type: 'list_item',
-          children: [
-            {
-              id: generateId(),
-              number: null,
-              type: 'content',
-              contents: { [language]: getInnerHtml(li) },
-              children: [],
-            } as ContentDocumentNode,
-          ],
-        };
-        list.children.push(listItem);
-      });
       return;
     }
 
