@@ -5,7 +5,7 @@
  */
 export const LEGAL_PATTERNS = {
   /** Art. 1 or § 1 patterns (case-insensitive) */
-  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?/i,
+  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?(\s+[a-z]\))?/i,
 
   /** Section headers I. II. III. IV. V. VI. VII. VIII. IX. X. etc. */
   romanSection: /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})\.(\s|$)/,

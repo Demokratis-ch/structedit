@@ -57,6 +57,10 @@ describe('patterns', () => {
       '§ 5 Title',
       '§ 12 Title',
       'art. 1 lowercase',
+      'Art. 46 b) Title',
+      'Art. 3 a) Title',
+      '§ 10 c) Title',
+      'Art. 1 Abs. 2 c) Title',
     ])('matches: %s', (input) => {
       expect(matchArticle(input).matched).toBe(true);
     });
@@ -69,6 +73,12 @@ describe('patterns', () => {
       ['§ 5 Title', '§ 5', 'Title'],
       ['§ 12 Title', '§ 12', 'Title'],
       ['art. 1 lowercase', 'art. 1', 'lowercase'],
+      ['Art. 46 b) Title', 'Art. 46 b)', 'Title'],
+      ['Art. 3 a) First item', 'Art. 3 a)', 'First item'],
+      ['§ 10 c) Some title', '§ 10 c)', 'Some title'],
+      ['Art. 1 Abs. 2 c) Title', 'Art. 1 Abs. 2 c)', 'Title'],
+      ['Art. 1', 'Art. 1', ''],
+      ['§ 5', '§ 5', ''],
     ])('extracts number from %s → number=%s, rest=%s', (input, expectedNumber, expectedRest) => {
       const result = matchArticle(input);
       expect(result.number).toBe(expectedNumber);

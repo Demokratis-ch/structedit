@@ -41,9 +41,9 @@ function getRomanSectionMatch(node: DocumentNode): { number: string; rest: strin
  *
  * Output tree:
  *   document
- *     heading("I. First Section")
+ *     heading(number: "I.", "First Section")
  *       content("Some text")
- *     heading("II. Second Section")
+ *     heading(number: "II.", "Second Section")
  */
 export const romanSectionTransform: TreeTransform = (
   root: ContainerDocumentNode,

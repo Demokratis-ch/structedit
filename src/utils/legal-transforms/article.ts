@@ -94,7 +94,7 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
  *
  * Output tree:
  *   heading("I. Section")
- *     heading("Art. 1 Title")
+ *     heading(number: "Art. 1", "Title")
  *       content("Article content")
  */
 export const articleTransform: TreeTransform = (

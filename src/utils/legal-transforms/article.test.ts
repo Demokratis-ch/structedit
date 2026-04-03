@@ -135,6 +135,42 @@ describe('articleTransform', () => {
     expect(h.contents.de).toBe('Title');
   });
 
+  it('handles article with spaced letter-paren suffix', () => {
+    const input = createDoc([content('Art. 46 b) Title'), content('Content')]);
+
+    const result = articleTransform(input, 'de');
+
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.type).toBe('heading');
+    expect(h.number).toBe('Art. 46 b)');
+    expect(h.contents.de).toBe('Title');
+    expect(h.children).toHaveLength(1);
+  });
+
+  it('handles article with no title after number', () => {
+    const input = createDoc([content('Art. 1'), content('Content')]);
+
+    const result = articleTransform(input, 'de');
+
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.type).toBe('heading');
+    expect(h.number).toBe('Art. 1');
+    expect(h.contents.de).toBe('');
+    expect(h.children).toHaveLength(1);
+  });
+
+  it('handles combined Abs. and letter-paren suffix', () => {
+    const input = createDoc([content('Art. 1 Abs. 2 c) Title'), content('Content')]);
+
+    const result = articleTransform(input, 'de');
+
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.type).toBe('heading');
+    expect(h.number).toBe('Art. 1 Abs. 2 c)');
+    expect(h.contents.de).toBe('Title');
+    expect(h.children).toHaveLength(1);
+  });
+
   it('handles empty document', () => {
     const input = createDoc([]);
 
