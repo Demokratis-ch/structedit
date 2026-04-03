@@ -52,6 +52,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
         const result = await mammoth.convertToHtml({ arrayBuffer }, options);
         const html = result.value; // The generated HTML
         const messages = result.messages; // Any warnings
+        // console.log('Mammoth conversion result:', { html, messages });
 
         if (messages.length > 0) {
           console.warn('Mammoth conversion warnings:', messages);
