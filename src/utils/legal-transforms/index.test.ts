@@ -80,13 +80,15 @@ describe('applySwissLegalTransforms', () => {
 
     // I. should contain Art. 1 as nested heading
     const section1 = result.children[0] as HeadingDocumentNode;
-    expect(section1.contents.de).toBe('I. First Section');
+    expect(section1.number).toBe('I.');
+    expect(section1.contents.de).toBe('First Section');
     expect(section1.children).toHaveLength(1);
     expect(section1.children[0].type).toBe('heading');
 
     // Art. 1 should contain a list
     const article = section1.children[0] as HeadingDocumentNode;
-    expect(article.contents.de).toBe('Art. 1 Title');
+    expect(article.number).toBe('Art. 1');
+    expect(article.contents.de).toBe('Title');
     expect(article.children).toHaveLength(1);
     expect(article.children[0].type).toBe('list');
 
@@ -144,27 +146,32 @@ describe('applySwissLegalTransforms', () => {
 
     // Section I
     const section1 = result.children[0] as HeadingDocumentNode;
-    expect(section1.contents.de).toContain('I.');
+    expect(section1.number).toBe('I.');
+    expect(section1.contents.de).toBe('First Section');
     expect(section1.children).toHaveLength(2); // Art. 1 and Art. 2
 
     // Art. 1 under Section I
     const art1 = section1.children[0] as HeadingDocumentNode;
-    expect(art1.contents.de).toContain('Art. 1');
+    expect(art1.number).toBe('Art. 1');
+    expect(art1.contents.de).toBe('First Article');
     expect(art1.children).toHaveLength(2); // intro text and list
 
     // Art. 2 under Section I
     const art2 = section1.children[1] as HeadingDocumentNode;
-    expect(art2.contents.de).toContain('Art. 2');
+    expect(art2.number).toBe('Art. 2');
+    expect(art2.contents.de).toBe('Second Article');
     expect(art2.children).toHaveLength(1); // More content
 
     // Section II
     const section2 = result.children[1] as HeadingDocumentNode;
-    expect(section2.contents.de).toContain('II.');
+    expect(section2.number).toBe('II.');
+    expect(section2.contents.de).toBe('Second Section');
     expect(section2.children).toHaveLength(1); // Art. 3
 
     // Art. 3 under Section II
     const art3 = section2.children[0] as HeadingDocumentNode;
-    expect(art3.contents.de).toContain('Art. 3');
+    expect(art3.number).toBe('Art. 3');
+    expect(art3.contents.de).toBe('Third Article');
   });
 
   it('preserves existing headings', () => {

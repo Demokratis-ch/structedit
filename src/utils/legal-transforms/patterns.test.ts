@@ -20,6 +20,25 @@ describe('patterns', () => {
     });
 
     it.each([
+      ['I. First Section', 'I.', 'First Section'],
+      ['II. Second', 'II.', 'Second'],
+      ['III. Section Three', 'III.', 'Section Three'],
+      ['IV. Section Four', 'IV.', 'Section Four'],
+      ['IX. Section Nine', 'IX.', 'Section Nine'],
+      ['X. Last', 'X.', 'Last'],
+    ])('extracts number from %s → number=%s, rest=%s', (input, expectedNumber, expectedRest) => {
+      const result = matchRomanSection(input);
+      expect(result.number).toBe(expectedNumber);
+      expect(result.rest).toBe(expectedRest);
+    });
+
+    it('returns undefined number/rest for non-match', () => {
+      const result = matchRomanSection('Not a roman section');
+      expect(result.number).toBeUndefined();
+      expect(result.rest).toBeUndefined();
+    });
+
+    it.each([
       ['Some text I. here', 'roman numeral in middle of text'],
       ['I First Section', 'roman numeral without period'],
       ['i. lowercase', 'lowercase roman numeral'],
@@ -40,6 +59,26 @@ describe('patterns', () => {
       'art. 1 lowercase',
     ])('matches: %s', (input) => {
       expect(matchArticle(input).matched).toBe(true);
+    });
+
+    it.each([
+      ['Art. 1 Title', 'Art. 1', 'Title'],
+      ['Art. 12 Title', 'Art. 12', 'Title'],
+      ['Art. 12a Title', 'Art. 12a', 'Title'],
+      ['Art. 1 Abs. 2 Title', 'Art. 1 Abs. 2', 'Title'],
+      ['§ 5 Title', '§ 5', 'Title'],
+      ['§ 12 Title', '§ 12', 'Title'],
+      ['art. 1 lowercase', 'art. 1', 'lowercase'],
+    ])('extracts number from %s → number=%s, rest=%s', (input, expectedNumber, expectedRest) => {
+      const result = matchArticle(input);
+      expect(result.number).toBe(expectedNumber);
+      expect(result.rest).toBe(expectedRest);
+    });
+
+    it('returns undefined number/rest for non-match', () => {
+      const result = matchArticle('Not an article');
+      expect(result.number).toBeUndefined();
+      expect(result.rest).toBeUndefined();
     });
 
     it.each([

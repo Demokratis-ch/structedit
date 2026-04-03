@@ -10,13 +10,18 @@ import { extractCleanText, matchRomanSection } from './patterns';
 import type { TreeTransform } from './types';
 
 /**
- * Check if a node is a content node with roman numeral section pattern
+ * Check if a node is a content node with roman numeral section pattern.
+ * Returns the extracted number and rest if matched.
  */
-function isRomanSectionContent(node: DocumentNode): boolean {
-  if (node.type !== 'content') return false;
+function getRomanSectionMatch(node: DocumentNode): { number: string; rest: string } | null {
+  if (node.type !== 'content') return null;
   const contentNode = node as ContentDocumentNode;
   const text = extractCleanText(contentNode.contents.de || '');
-  return matchRomanSection(text).matched;
+  const result = matchRomanSection(text);
+  if (result.matched && result.number && result.rest !== undefined) {
+    return { number: result.number, rest: result.rest };
+  }
+  return null;
 }
 
 /**
@@ -53,18 +58,20 @@ export const romanSectionTransform: TreeTransform = (
   let currentSection: HeadingDocumentNode | null = null;
 
   for (const child of root.children) {
-    if (isRomanSectionContent(child)) {
+    const sectionMatch = getRomanSectionMatch(child);
+    if (sectionMatch) {
       // Flush current section if any
       if (currentSection) {
         newChildren.push(currentSection);
       }
-      // Start new section - convert content to heading
+      // Start new section - convert content to heading with number extracted
       const contentNode = child as ContentDocumentNode;
+      const language = Object.keys(contentNode.contents)[0] as Language;
       currentSection = {
         id: generateId(),
-        number: null,
+        number: sectionMatch.number,
         type: 'heading',
-        contents: { ...contentNode.contents },
+        contents: { [language]: sectionMatch.rest },
         children: [],
       };
     } else if (currentSection) {

@@ -10,13 +10,18 @@ import { extractCleanText, matchArticle } from './patterns';
 import type { TreeTransform } from './types';
 
 /**
- * Check if a node is a content node with article pattern
+ * Check if a node is a content node with article pattern.
+ * Returns the extracted number and rest if matched.
  */
-function isArticleContent(node: DocumentNode): boolean {
-  if (node.type !== 'content') return false;
+function getArticleMatch(node: DocumentNode): { number: string; rest: string } | null {
+  if (node.type !== 'content') return null;
   const contentNode = node as ContentDocumentNode;
   const text = extractCleanText(contentNode.contents.de || '');
-  return matchArticle(text).matched;
+  const result = matchArticle(text);
+  if (result.matched && result.number && result.rest !== undefined) {
+    return { number: result.number, rest: result.rest };
+  }
+  return null;
 }
 
 /**
@@ -38,18 +43,20 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
     }
 
     // Then check for article pattern at this level
-    if (isArticleContent(processedChild)) {
+    const articleMatch = getArticleMatch(processedChild);
+    if (articleMatch) {
       // Flush previous article
       if (currentArticle) {
         newChildren.push(currentArticle);
       }
-      // Start new article heading
+      // Start new article heading with number extracted
       const contentNode = processedChild as ContentDocumentNode;
+      const language = Object.keys(contentNode.contents)[0] as Language;
       currentArticle = {
         id: generateId(),
-        number: null,
+        number: articleMatch.number,
         type: 'heading',
-        contents: { ...contentNode.contents },
+        contents: { [language]: articleMatch.rest },
         children: [],
       };
     } else if (currentArticle && processedChild.type === 'content') {

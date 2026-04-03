@@ -4,7 +4,7 @@ import { articleTransform } from './article';
 import { content, createDoc, heading, list } from './test-helpers';
 
 describe('articleTransform', () => {
-  it('converts article content to heading', () => {
+  it('converts article content to heading with number extracted', () => {
     const input = createDoc([content('Art. 1 Title'), content('Article content')]);
 
     const result = articleTransform(input, 'de');
@@ -12,7 +12,8 @@ describe('articleTransform', () => {
     expect(result.children).toHaveLength(1);
     expect(result.children[0].type).toBe('heading');
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.contents.de).toBe('Art. 1 Title');
+    expect(h.number).toBe('Art. 1');
+    expect(h.contents.de).toBe('Title');
   });
 
   it('nests following content under article', () => {
@@ -38,9 +39,11 @@ describe('articleTransform', () => {
     expect(result.children).toHaveLength(2);
     const art1 = result.children[0] as HeadingDocumentNode;
     const art2 = result.children[1] as HeadingDocumentNode;
-    expect(art1.contents.de).toBe('Art. 1 First');
+    expect(art1.number).toBe('Art. 1');
+    expect(art1.contents.de).toBe('First');
     expect(art1.children).toHaveLength(1);
-    expect(art2.contents.de).toBe('Art. 2 Second');
+    expect(art2.number).toBe('Art. 2');
+    expect(art2.contents.de).toBe('Second');
     expect(art2.children).toHaveLength(1);
   });
 
@@ -55,7 +58,8 @@ describe('articleTransform', () => {
     expect(section.children).toHaveLength(1);
     expect(section.children[0].type).toBe('heading');
     const article = section.children[0] as HeadingDocumentNode;
-    expect(article.contents.de).toBe('Art. 1 Title');
+    expect(article.number).toBe('Art. 1');
+    expect(article.contents.de).toBe('Title');
   });
 
   it('stops nesting at next article', () => {
@@ -80,7 +84,8 @@ describe('articleTransform', () => {
     expect(result.children).toHaveLength(1);
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.type).toBe('heading');
-    expect(h.contents.de).toBe('§ 5 Some title');
+    expect(h.number).toBe('§ 5');
+    expect(h.contents.de).toBe('Some title');
   });
 
   it('preserves non-content nodes', () => {
@@ -115,7 +120,8 @@ describe('articleTransform', () => {
 
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.type).toBe('heading');
-    expect(h.contents.de).toContain('Art. 1 Abs. 2');
+    expect(h.number).toBe('Art. 1 Abs. 2');
+    expect(h.contents.de).toBe('Title');
   });
 
   it('handles article with letter suffix', () => {
@@ -125,7 +131,8 @@ describe('articleTransform', () => {
 
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.type).toBe('heading');
-    expect(h.contents.de).toContain('Art. 12a');
+    expect(h.number).toBe('Art. 12a');
+    expect(h.contents.de).toBe('Title');
   });
 
   it('handles empty document', () => {
@@ -167,7 +174,8 @@ describe('articleTransform', () => {
     expect(subsection.children).toHaveLength(1);
     expect(subsection.children[0].type).toBe('heading');
     const article = subsection.children[0] as HeadingDocumentNode;
-    expect(article.contents.de).toBe('Art. 1 Deep');
+    expect(article.number).toBe('Art. 1');
+    expect(article.contents.de).toBe('Deep');
   });
 
   it('nests multiple content nodes under article', () => {
