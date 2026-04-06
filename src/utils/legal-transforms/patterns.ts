@@ -5,7 +5,7 @@
  */
 export const LEGAL_PATTERNS = {
   /** Art. 1 or § 1 patterns (case-insensitive) */
-  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?/i,
+  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?(\s+[a-z]\))?/i,
 
   /** Section headers I. II. III. IV. V. VI. VII. VIII. IX. X. etc. */
   romanSection: /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})\.(\s|$)/,
@@ -25,6 +25,8 @@ export const LEGAL_PATTERNS = {
  */
 export interface PatternMatchResult {
   matched: boolean;
+  number?: string;
+  rest?: string;
 }
 
 /**
@@ -40,8 +42,12 @@ export interface LetteredItemMatchResult {
  * Check if text matches a roman numeral section pattern (I., II., etc.)
  */
 export function matchRomanSection(text: string): PatternMatchResult {
+  const match = text.match(LEGAL_PATTERNS.romanSection);
+  if (!match) return { matched: false };
   return {
-    matched: LEGAL_PATTERNS.romanSection.test(text),
+    matched: true,
+    number: `${match[1]}.`,
+    rest: text.slice(match[0].length).trim(),
   };
 }
 
@@ -49,8 +55,12 @@ export function matchRomanSection(text: string): PatternMatchResult {
  * Check if text matches an article pattern (Art. X, § X)
  */
 export function matchArticle(text: string): PatternMatchResult {
+  const match = text.match(LEGAL_PATTERNS.article);
+  if (!match) return { matched: false };
   return {
-    matched: LEGAL_PATTERNS.article.test(text),
+    matched: true,
+    number: match[0],
+    rest: text.slice(match[0].length).trim(),
   };
 }
 

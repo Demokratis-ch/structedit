@@ -306,7 +306,8 @@ describe('Document Utils', () => {
       // Art. should become a heading
       const heading = doc.children[0] as HeadingDocumentNode;
       expect(heading.type).toBe('heading');
-      expect(heading.contents.de).toContain('Art. 1');
+      expect(heading.number).toBe('Art. 1');
+      expect(heading.contents.de).toBe('Some article title');
     });
 
     it('detects roman numeral as heading', () => {
@@ -314,7 +315,8 @@ describe('Document Utils', () => {
       const doc = parseHtmlLegalToTree(html);
       const heading = doc.children[0] as HeadingDocumentNode;
       expect(heading.type).toBe('heading');
-      expect(heading.contents.de).toContain('I.');
+      expect(heading.number).toBe('I.');
+      expect(heading.contents.de).toBe('First Section');
     });
 
     it('converts lettered items to list_item with number', () => {
@@ -336,7 +338,8 @@ describe('Document Utils', () => {
       const doc = parseHtmlLegalToTree('<p>Art. 1 Abs. 2 (geändert)</p>');
       const heading = doc.children[0] as HeadingDocumentNode;
       expect(heading.type).toBe('heading');
-      expect(heading.contents.de).toContain('Art. 1 Abs. 2');
+      expect(heading.number).toBe('Art. 1 Abs. 2');
+      expect(heading.contents.de).toBe('(geändert)');
     });
 
     it('detects § pattern as heading', () => {
@@ -388,12 +391,14 @@ describe('Document Utils', () => {
       // Section I should be at root
       const sectionI = doc.children[0] as HeadingDocumentNode;
       expect(sectionI.type).toBe('heading');
-      expect(sectionI.contents.de).toContain('I.');
+      expect(sectionI.number).toBe('I.');
+      expect(sectionI.contents.de).toBe('First Section');
 
       // Section II should also be at root
       const sectionII = doc.children[1] as HeadingDocumentNode;
       expect(sectionII.type).toBe('heading');
-      expect(sectionII.contents.de).toContain('II.');
+      expect(sectionII.number).toBe('II.');
+      expect(sectionII.contents.de).toBe('Second Section');
     });
   });
 

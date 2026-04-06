@@ -4,7 +4,7 @@ import { romanSectionTransform } from './roman-section';
 import { content, createDoc, heading, list } from './test-helpers';
 
 describe('romanSectionTransform', () => {
-  it('converts roman numeral content to heading', () => {
+  it('converts roman numeral content to heading with number extracted', () => {
     const input = createDoc([content('I. First Section'), content('Some content')]);
 
     const result = romanSectionTransform(input, 'de');
@@ -12,7 +12,8 @@ describe('romanSectionTransform', () => {
     expect(result.children).toHaveLength(1);
     expect(result.children[0].type).toBe('heading');
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.contents.de).toBe('I. First Section');
+    expect(h.number).toBe('I.');
+    expect(h.contents.de).toBe('First Section');
     expect(h.children).toHaveLength(1);
     expect(h.children[0].type).toBe('content');
   });
@@ -30,9 +31,11 @@ describe('romanSectionTransform', () => {
     expect(result.children).toHaveLength(2);
     const section1 = result.children[0] as HeadingDocumentNode;
     const section2 = result.children[1] as HeadingDocumentNode;
-    expect(section1.contents.de).toBe('I. First');
+    expect(section1.number).toBe('I.');
+    expect(section1.contents.de).toBe('First');
     expect(section1.children).toHaveLength(1);
-    expect(section2.contents.de).toBe('II. Second');
+    expect(section2.number).toBe('II.');
+    expect(section2.contents.de).toBe('Second');
     expect(section2.children).toHaveLength(1);
   });
 
@@ -64,7 +67,8 @@ describe('romanSectionTransform', () => {
     expect(result.children[0].type).toBe('heading');
     expect((result.children[0] as HeadingDocumentNode).contents.de).toBe('Existing heading');
     expect(result.children[1].type).toBe('heading');
-    expect((result.children[1] as HeadingDocumentNode).contents.de).toBe('I. First Section');
+    expect((result.children[1] as HeadingDocumentNode).number).toBe('I.');
+    expect((result.children[1] as HeadingDocumentNode).contents.de).toBe('First Section');
   });
 
   it('preserves existing lists in document', () => {
@@ -161,8 +165,11 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(3);
-    expect((result.children[0] as HeadingDocumentNode).contents.de).toContain('III.');
-    expect((result.children[1] as HeadingDocumentNode).contents.de).toContain('IV.');
-    expect((result.children[2] as HeadingDocumentNode).contents.de).toContain('IX.');
+    expect((result.children[0] as HeadingDocumentNode).number).toBe('III.');
+    expect((result.children[0] as HeadingDocumentNode).contents.de).toBe('Section Three');
+    expect((result.children[1] as HeadingDocumentNode).number).toBe('IV.');
+    expect((result.children[1] as HeadingDocumentNode).contents.de).toBe('Section Four');
+    expect((result.children[2] as HeadingDocumentNode).number).toBe('IX.');
+    expect((result.children[2] as HeadingDocumentNode).contents.de).toBe('Section Nine');
   });
 });
