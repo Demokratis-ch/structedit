@@ -29,15 +29,15 @@ Paths are index arrays (e.g., `[0, 2, 1]` = root's first child → its third chi
 React 19, TypeScript, Vite, TailwindCSS + DaisyUI, Vitest
 
 ### Source directories (`src/`)
-- `components/` - UI: TreeEditor, TreeNodeItem, LoadDocument, FloatingToolbar, ui/
+- `components/` - UI: TreeEditor, RecursiveTreeNode, ContentBlock, LoadDocument, FloatingToolbar, Toolbar, Header, SourcePreview, ui/
 - `hooks/` - useTreeEditor, useTreeHistory, useTreeOperations (all have tests)
-- `types/` - document.ts (tree types), editor.ts (selection/state)
-- `utils/` - tree-utils.ts (immutable ops), document-utils.ts (parsing)
+- `types/` - document.ts (tree types), editor.ts (selection/state), index.ts (Docling API types), mammoth.d.ts
+- `utils/` - tree-utils.ts (immutable ops), document-utils.ts (parsing), legal-transforms/ (Swiss legal document patterns)
 - `test/` - Fixtures and integration tests
 
 ### Key files
-- `src/types/document.ts` - Core tree types: DocumentNode, ContainerDocumentNode, LeafDocumentNode
-- `src/utils/tree-utils.ts` - getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath
+- `src/types/document.ts` - Core tree types: DocumentNode, ContainerDocumentNode, LeafDocumentNode, HeadingDocumentNode, ContentDocumentNode
+- `src/utils/tree-utils.ts` - getNodeAtPath, updateNodeAtPath, insertNodeAtPath, removeNodeAtPath, moveNode, buildIndices, mergeAdjacentLists, flattenForRendering
 - `src/hooks/useTreeEditor.ts` - Main editor hook integrating all state
 
 ### Commands
