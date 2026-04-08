@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import type React from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { ContentBlock } from './ContentBlock';
 

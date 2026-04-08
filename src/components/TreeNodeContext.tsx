@@ -1,3 +1,4 @@
+import type React from 'react';
 import { createContext, useContext } from 'react';
 import type { Language } from '../types/document';
 
