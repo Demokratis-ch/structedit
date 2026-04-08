@@ -8,6 +8,7 @@ import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { SourcePreview } from './SourcePreview';
 import { Toolbar } from './Toolbar';
+import { TreeCallbacksContext, TreeStateContext } from './TreeNodeContext';
 
 interface TreeEditorProps {
   initialDocument: ContainerDocumentNode;
@@ -369,6 +370,49 @@ export function TreeEditor({
     setEditingNumberId(null);
   };
 
+  // Ref indirection: callbacks close over changing state, so we store
+  // the latest versions in a ref and wrap them in stable arrow functions.
+  // The context value only changes when `language` changes (rare).
+  const cbRef = useRef<Record<string, (...args: any[]) => any>>({});
+  cbRef.current.handleDragStart = handleDragStart;
+  cbRef.current.handleDragOver = handleDragOver;
+  cbRef.current.handleDrop = handleDrop;
+  cbRef.current.handleDragEnd = handleDragEnd;
+  cbRef.current.handleClick = handleClick;
+  cbRef.current.handleDoubleClick = handleDoubleClick;
+  cbRef.current.setHoveredHandleId = setHoveredHandleId;
+  cbRef.current.updateNodeContents = updateNodeContents;
+  cbRef.current.handleBlockKeyDown = handleBlockKeyDown;
+  cbRef.current.setEditingId = setEditingId;
+  cbRef.current.handleNumberDblClick = handleNumberDblClick;
+  cbRef.current.handleUpdateNumber = handleUpdateNumber;
+  cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
+  cbRef.current.handleAddNodeAfter = handleAddNodeAfter;
+
+  const callbacksCtx = useMemo(
+    () => ({
+      language,
+      blockRefs,
+      onDragStart: (e: React.DragEvent, id: string) => cbRef.current.handleDragStart(e, id),
+      onDragOver: (e: React.DragEvent, id: string) => cbRef.current.handleDragOver(e, id),
+      onDrop: (e: React.DragEvent) => cbRef.current.handleDrop(e),
+      onDragEnd: () => cbRef.current.handleDragEnd(),
+      onClick: (e: React.MouseEvent, id: string) => cbRef.current.handleClick(e, id),
+      onDoubleClick: (e: React.MouseEvent, id: string) => cbRef.current.handleDoubleClick(e, id),
+      onHoverHandle: (id: string | null) => cbRef.current.setHoveredHandleId(id),
+      onUpdateContent: (id: string, c: string) => cbRef.current.updateNodeContents(id, c),
+      onKeyDown: (e: React.KeyboardEvent, id: string) => cbRef.current.handleBlockKeyDown(e, id),
+      onFocus: (id: string) => cbRef.current.setEditingId(id),
+      onNumberDoubleClick: (e: React.MouseEvent, id: string) =>
+        cbRef.current.handleNumberDblClick(e, id),
+      onUpdateNumber: (id: string, n: string | null) => cbRef.current.handleUpdateNumber(id, n),
+      onAddNodeBefore: (id: string) => cbRef.current.handleAddNodeBefore(id),
+      onAddNodeAfter: (id: string) => cbRef.current.handleAddNodeAfter(id),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [language]
+  );
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <Toolbar
@@ -428,38 +472,33 @@ export function TreeEditor({
                   <p className="text-sm">Click here to start writing</p>
                 </div>
               ) : (
-                <RecursiveTreeNode
-                  node={document}
-                  depth={0}
-                  isSelected={false}
-                  isEditing={false}
-                  isDragging={false}
-                  isDropTarget={false}
-                  dropPosition={null}
-                  hoveredHandleId={hoveredHandleId}
-                  language={language}
-                  selectedIds={selectedIds}
-                  editingId={editingId}
-                  draggedNodeId={draggedNodeId}
-                  dropTarget={dropTarget}
-                  receivingParentId={receivingParentId}
-                  blockRefs={blockRefs}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
-                  onClick={handleClick}
-                  onDoubleClick={handleDoubleClick}
-                  onHoverHandle={setHoveredHandleId}
-                  onUpdateContent={updateNodeContents}
-                  onKeyDown={handleBlockKeyDown}
-                  onFocus={setEditingId}
-                  editingNumberId={editingNumberId}
-                  onNumberDoubleClick={handleNumberDblClick}
-                  onUpdateNumber={handleUpdateNumber}
-                  onAddNodeBefore={handleAddNodeBefore}
-                  onAddNodeAfter={handleAddNodeAfter}
-                />
+                <TreeCallbacksContext.Provider value={callbacksCtx}>
+                  <TreeStateContext.Provider
+                    value={{
+                      selectedIds,
+                      editingId,
+                      editingNumberId,
+                      draggedNodeId,
+                      dropTarget,
+                      receivingParentId,
+                      hoveredHandleId,
+                    }}
+                  >
+                    <RecursiveTreeNode
+                      node={document}
+                      depth={0}
+                      isSelected={false}
+                      isEditing={false}
+                      isDragging={false}
+                      isDropTarget={false}
+                      dropPosition={null}
+                      isEditingNumber={false}
+                      isHoveredHandle={false}
+                      isReceivingParent={false}
+                      isInvalidDrop={false}
+                    />
+                  </TreeStateContext.Provider>
+                </TreeCallbacksContext.Provider>
               )}
             </div>
           </div>

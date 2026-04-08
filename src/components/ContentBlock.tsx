@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef } from 'react';
 
 interface ContentBlockProps {
   html: string;
@@ -13,53 +13,61 @@ interface ContentBlockProps {
   blockRefs: React.MutableRefObject<{ [key: string]: HTMLElement | null }>;
 }
 
-export const ContentBlock = ({
-  html,
-  tagName,
-  className,
-  onChange,
-  onKeyDown,
-  onFocus,
-  disabled,
-  blockId,
-  blockRefs,
-}: ContentBlockProps) => {
-  const contentEditableRef = useRef<HTMLElement>(null);
+export const ContentBlock = memo(
+  ({
+    html,
+    tagName,
+    className,
+    onChange,
+    onKeyDown,
+    onFocus,
+    disabled,
+    blockId,
+    blockRefs,
+  }: ContentBlockProps) => {
+    const contentEditableRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    const el = contentEditableRef.current;
-    if (el) {
-      blockRefs.current[blockId] = el;
-    }
-    return () => {
-      if (blockRefs.current && blockRefs.current[blockId] === el) {
-        delete blockRefs.current[blockId];
+    useEffect(() => {
+      const el = contentEditableRef.current;
+      if (el) {
+        blockRefs.current[blockId] = el;
       }
+      return () => {
+        if (blockRefs.current && blockRefs.current[blockId] === el) {
+          delete blockRefs.current[blockId];
+        }
+      };
+    }, [blockId, blockRefs, tagName]);
+
+    useLayoutEffect(() => {
+      if (contentEditableRef.current && contentEditableRef.current.innerHTML !== html) {
+        contentEditableRef.current.innerHTML = html;
+      }
+    }, [html, tagName]);
+
+    const handleInput = (e: React.FormEvent<HTMLElement>) => {
+      onChange(e.currentTarget.innerHTML);
     };
-  }, [blockId, blockRefs, tagName]);
 
-  useLayoutEffect(() => {
-    if (contentEditableRef.current && contentEditableRef.current.innerHTML !== html) {
-      contentEditableRef.current.innerHTML = html;
-    }
-  }, [html, tagName]);
+    const Tag = tagName as any;
 
-  const handleInput = (e: React.FormEvent<HTMLElement>) => {
-    onChange(e.currentTarget.innerHTML);
-  };
-
-  const Tag = tagName as any;
-
-  return (
-    <Tag
-      ref={contentEditableRef}
-      className={className}
-      contentEditable={!disabled}
-      onInput={handleInput}
-      onKeyDown={onKeyDown}
-      onFocus={onFocus}
-      suppressContentEditableWarning
-      spellCheck={false}
-    />
-  );
-};
+    return (
+      <Tag
+        ref={contentEditableRef}
+        className={className}
+        contentEditable={!disabled}
+        onInput={handleInput}
+        onKeyDown={onKeyDown}
+        onFocus={onFocus}
+        suppressContentEditableWarning
+        spellCheck={false}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.html === next.html &&
+    prev.disabled === next.disabled &&
+    prev.className === next.className &&
+    prev.tagName === next.tagName &&
+    prev.blockId === next.blockId
+);

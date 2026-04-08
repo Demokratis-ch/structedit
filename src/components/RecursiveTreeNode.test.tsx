@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react';
+import type React from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import type {
   ContainerDocumentNode,
@@ -6,6 +7,12 @@ import type {
   LeafDocumentNode,
 } from '../types/document';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
+import {
+  TreeCallbacksContext,
+  type TreeCallbacksContextValue,
+  TreeStateContext,
+  type TreeStateContextValue,
+} from './TreeNodeContext';
 
 const createTestNode = (): HeadingDocumentNode => ({
   id: 'h1',
@@ -15,21 +22,9 @@ const createTestNode = (): HeadingDocumentNode => ({
   children: [],
 });
 
-const defaultProps = {
-  depth: 1,
-  isSelected: false,
-  isEditing: false,
-  isDragging: false,
-  isDropTarget: false,
-  dropPosition: null as 'top' | 'bottom' | null,
-  hoveredHandleId: null,
-  language: 'de' as const,
-  selectedIds: new Set<string>(),
-  editingId: null,
-  draggedNodeId: null,
-  dropTarget: null,
-  receivingParentId: null,
-  blockRefs: { current: {} },
+const defaultCallbacks: TreeCallbacksContextValue = {
+  language: 'de',
+  blockRefs: { current: {} } as React.MutableRefObject<{ [key: string]: HTMLElement | null }>,
   onDragStart: vi.fn(),
   onDragOver: vi.fn(),
   onDrop: vi.fn(),
@@ -40,25 +35,62 @@ const defaultProps = {
   onUpdateContent: vi.fn(),
   onKeyDown: vi.fn(),
   onFocus: vi.fn(),
-  editingNumberId: null as string | null,
   onNumberDoubleClick: vi.fn(),
   onUpdateNumber: vi.fn(),
   onAddNodeBefore: vi.fn(),
   onAddNodeAfter: vi.fn(),
 };
 
+const defaultState: TreeStateContextValue = {
+  selectedIds: new Set<string>(),
+  editingId: null,
+  editingNumberId: null,
+  draggedNodeId: null,
+  dropTarget: null,
+  receivingParentId: null,
+  hoveredHandleId: null,
+};
+
+const defaultProps = {
+  depth: 1,
+  isSelected: false,
+  isEditing: false,
+  isDragging: false,
+  isDropTarget: false,
+  dropPosition: null as 'top' | 'bottom' | null,
+  isEditingNumber: false,
+  isHoveredHandle: false,
+  isReceivingParent: false,
+  isInvalidDrop: false,
+};
+
+function renderWithContext(
+  ui: React.ReactElement,
+  overrides: {
+    callbacks?: Partial<TreeCallbacksContextValue>;
+    state?: Partial<TreeStateContextValue>;
+  } = {}
+) {
+  return render(
+    <TreeCallbacksContext.Provider value={{ ...defaultCallbacks, ...overrides.callbacks }}>
+      <TreeStateContext.Provider value={{ ...defaultState, ...overrides.state }}>
+        {ui}
+      </TreeStateContext.Provider>
+    </TreeCallbacksContext.Provider>
+  );
+}
+
 describe('RecursiveTreeNode', () => {
   describe('drop indicator', () => {
-    test('shows blue drop indicator when drop is valid (receivingParentId is set)', () => {
+    test('shows blue drop indicator when drop is valid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="top"
-          draggedNodeId="other-node"
-          receivingParentId="some-parent"
+          isInvalidDrop={false}
         />
       );
 
@@ -67,16 +99,15 @@ describe('RecursiveTreeNode', () => {
       expect(container.querySelector('.bg-red-500')).toBeNull();
     });
 
-    test('shows red drop indicator when drop is invalid (receivingParentId is null while dragging)', () => {
+    test('shows red drop indicator when drop is invalid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="top"
-          draggedNodeId="other-node"
-          receivingParentId={null}
+          isInvalidDrop={true}
         />
       );
 
@@ -87,14 +118,13 @@ describe('RecursiveTreeNode', () => {
 
     test('shows blue indicator at bottom position when valid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="bottom"
-          draggedNodeId="other-node"
-          receivingParentId="some-parent"
+          isInvalidDrop={false}
         />
       );
 
@@ -105,14 +135,13 @@ describe('RecursiveTreeNode', () => {
 
     test('shows red indicator at bottom position when invalid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="bottom"
-          draggedNodeId="other-node"
-          receivingParentId={null}
+          isInvalidDrop={true}
         />
       );
 
@@ -123,15 +152,8 @@ describe('RecursiveTreeNode', () => {
 
     test('does not show indicator when not a drop target', () => {
       const node = createTestNode();
-      const { container } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={false}
-          dropPosition={null}
-          draggedNodeId="other-node"
-          receivingParentId={null}
-        />
+      const { container } = renderWithContext(
+        <RecursiveTreeNode {...defaultProps} node={node} isDropTarget={false} dropPosition={null} />
       );
 
       expect(container.querySelector('.bg-blue-600')).toBeNull();
@@ -148,7 +170,7 @@ describe('RecursiveTreeNode', () => {
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
-      const { container } = render(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
@@ -163,13 +185,9 @@ describe('RecursiveTreeNode', () => {
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
-      const { container } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          onNumberDoubleClick={onNumberDoubleClick}
-        />
-      );
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+        callbacks: { onNumberDoubleClick },
+      });
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
@@ -179,7 +197,7 @@ describe('RecursiveTreeNode', () => {
 
     test('heading with a number still renders a solid badge (not dashed)', () => {
       const node = createTestNode(); // has number: '1'
-      const { container } = render(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
 
       const solidBadge = container.querySelector('.border-blue-200');
       expect(solidBadge).not.toBeNull();
@@ -194,13 +212,9 @@ describe('RecursiveTreeNode', () => {
         type: 'list_item',
         children: [],
       };
-      const { container } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          onNumberDoubleClick={onNumberDoubleClick}
-        />
-      );
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+        callbacks: { onNumberDoubleClick },
+      });
 
       // The bullet marker div
       const bullet = container.querySelector('.rounded-full')?.parentElement;
@@ -216,7 +230,7 @@ describe('RecursiveTreeNode', () => {
         type: 'footnote',
         contents: { de: 'A footnote' },
       };
-      const { container } = render(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
@@ -230,13 +244,9 @@ describe('RecursiveTreeNode', () => {
         type: 'footnote',
         contents: { de: 'A footnote' },
       };
-      const { container } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          onNumberDoubleClick={onNumberDoubleClick}
-        />
-      );
+      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+        callbacks: { onNumberDoubleClick },
+      });
 
       const badge = container.querySelector('.border-amber-200');
       expect(badge).not.toBeNull();
@@ -250,13 +260,9 @@ describe('RecursiveTreeNode', () => {
     test('calls onAddNodeBefore when clicking add-before button', () => {
       const onAddNodeBefore = vi.fn();
       const node = createTestNode();
-      const { getByTitle } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isSelected={true}
-          onAddNodeBefore={onAddNodeBefore}
-        />
+      const { getByTitle } = renderWithContext(
+        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} />,
+        { callbacks: { onAddNodeBefore } }
       );
 
       fireEvent.click(getByTitle('Add node above'));
@@ -266,13 +272,9 @@ describe('RecursiveTreeNode', () => {
     test('calls onAddNodeAfter when clicking add-after button', () => {
       const onAddNodeAfter = vi.fn();
       const node = createTestNode();
-      const { getByTitle } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isSelected={true}
-          onAddNodeAfter={onAddNodeAfter}
-        />
+      const { getByTitle } = renderWithContext(
+        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} />,
+        { callbacks: { onAddNodeAfter } }
       );
 
       fireEvent.click(getByTitle('Add node below'));
@@ -281,14 +283,8 @@ describe('RecursiveTreeNode', () => {
 
     test('hides add buttons when editing', () => {
       const node = createTestNode();
-      const { queryByTitle } = render(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isSelected={true}
-          isEditing={true}
-          editingId="h1"
-        />
+      const { queryByTitle } = renderWithContext(
+        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} isEditing={true} />
       );
 
       expect(queryByTitle('Add node above')).toBeNull();
@@ -296,17 +292,74 @@ describe('RecursiveTreeNode', () => {
     });
   });
 
+  describe('memoization', () => {
+    test('is wrapped in React.memo', () => {
+      expect((RecursiveTreeNode as any).$$typeof).toBe(Symbol.for('react.memo'));
+    });
+
+    test('custom comparator exists', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      expect(compare).toBeDefined();
+      expect(typeof compare).toBe('function');
+    });
+
+    test('skips re-render when all props are identical', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const node = createTestNode();
+      const props = { ...defaultProps, node };
+      expect(compare(props, props)).toBe(true);
+    });
+
+    test('triggers re-render when isSelected changes', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const node = createTestNode();
+      const prev = { ...defaultProps, node };
+      const next = { ...prev, isSelected: true };
+      expect(compare(prev, next)).toBe(false);
+    });
+
+    test('triggers re-render when isEditing changes', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const node = createTestNode();
+      const prev = { ...defaultProps, node };
+      const next = { ...prev, isEditing: true };
+      expect(compare(prev, next)).toBe(false);
+    });
+
+    test('triggers re-render when node reference changes', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const prev = { ...defaultProps, node: createTestNode() };
+      const next = { ...defaultProps, node: createTestNode() };
+      expect(compare(prev, next)).toBe(false);
+    });
+
+    test('triggers re-render when isReceivingParent changes', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const node = createTestNode();
+      const prev = { ...defaultProps, node };
+      const next = { ...prev, isReceivingParent: true };
+      expect(compare(prev, next)).toBe(false);
+    });
+
+    test('does not compare selectedIds (no longer a prop)', () => {
+      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
+      const node = createTestNode();
+      const prev = { ...defaultProps, node, selectedIds: new Set(['a']) };
+      const next = { ...defaultProps, node, selectedIds: new Set(['b']) };
+      expect(compare(prev, next)).toBe(true);
+    });
+  });
+
   describe('cursor style during drag', () => {
     test('shows not-allowed cursor when drop is invalid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="top"
-          draggedNodeId="other-node"
-          receivingParentId={null}
+          isInvalidDrop={true}
         />
       );
 
@@ -316,14 +369,13 @@ describe('RecursiveTreeNode', () => {
 
     test('does not show not-allowed cursor when drop is valid', () => {
       const node = createTestNode();
-      const { container } = render(
+      const { container } = renderWithContext(
         <RecursiveTreeNode
           {...defaultProps}
           node={node}
           isDropTarget={true}
           dropPosition="top"
-          draggedNodeId="other-node"
-          receivingParentId="some-parent"
+          isInvalidDrop={false}
         />
       );
 
