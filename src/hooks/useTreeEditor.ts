@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
+import { TreeUIStore } from '../stores/TreeUIStore';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 import { DEFAULT_LANGUAGE } from '../utils/document-utils';
@@ -31,15 +32,12 @@ export const useTreeEditor = (
     parentIndex,
   } = useTreeHistory(initialDocument);
 
-  // Selection state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingNumberId, setEditingNumberId] = useState<string | null>(null);
+  // UI state store (stable reference, never changes)
+  const store = useRef(new TreeUIStore()).current;
+
+  // Refs for selection anchoring
   const anchorId = useRef<string | null>(null);
   const lastSelectedId = useRef<string | null>(null);
-
-  // Drag state
-  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
 
   // Tree operations
   const {
@@ -95,69 +93,81 @@ export const useTreeEditor = (
             rangeIds.add(flattenedNodes[i].node.id);
           }
 
-          setSelectedIds(rangeIds);
+          store.setSelection(rangeIds);
           lastSelectedId.current = id;
         }
       } else if (ctrlKey || metaKey) {
         // Toggle selection
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          if (next.has(id)) {
-            next.delete(id);
-          } else {
-            next.add(id);
-          }
-          return next;
-        });
+        const prev = store.getSelectedIds();
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        store.setSelection(next);
         lastSelectedId.current = id;
         anchorId.current = id;
       } else {
         // Single selection
-        setSelectedIds(new Set([id]));
+        store.setSelection(new Set([id]));
         lastSelectedId.current = id;
         anchorId.current = id;
       }
 
       // Clear edit mode on click (unless double-click handles it)
-      if (editingId && editingId !== id) {
-        setEditingId(null);
+      const currentEditingId = store.getEditingId();
+      if (currentEditingId && currentEditingId !== id) {
+        store.setEditingId(null);
       }
     },
-    [flattenedNodes, nodeIdToFlatIndex, editingId]
+    [flattenedNodes, nodeIdToFlatIndex, store]
   );
 
   /**
    * Handle double click to enter edit mode.
    */
-  const handleNodeDoubleClick = useCallback((id: string) => {
-    setEditingNumberId(null);
-    setSelectedIds(new Set([id]));
-    setEditingId(id);
-    lastSelectedId.current = id;
-    anchorId.current = id;
-  }, []);
+  const handleNodeDoubleClick = useCallback(
+    (id: string) => {
+      store.batch(() => {
+        store.setEditingNumberId(null);
+        store.setSelection(new Set([id]));
+        store.setEditingId(id);
+      });
+      lastSelectedId.current = id;
+      anchorId.current = id;
+    },
+    [store]
+  );
 
   /**
    * Handle double click on a node's number to enter number edit mode.
    */
-  const handleNumberDoubleClick = useCallback((id: string) => {
-    setEditingId(null);
-    setEditingNumberId(id);
-    setSelectedIds(new Set([id]));
-    lastSelectedId.current = id;
-    anchorId.current = id;
-  }, []);
+  const handleNumberDoubleClick = useCallback(
+    (id: string) => {
+      store.batch(() => {
+        store.setEditingId(null);
+        store.setEditingNumberId(id);
+        store.setSelection(new Set([id]));
+      });
+      lastSelectedId.current = id;
+      anchorId.current = id;
+    },
+    [store]
+  );
 
   /**
    * Clear all selection.
    */
   const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setEditingId(null);
-    setEditingNumberId(null);
+    store.batch(() => {
+      store.setSelection(new Set());
+      store.setEditingId(null);
+      store.setEditingNumberId(null);
+    });
     lastSelectedId.current = null;
     anchorId.current = null;
-  }, []);
+  }, [store]);
 
   /**
    * Move selection up or down.
@@ -173,7 +183,7 @@ export const useTreeEditor = (
           direction === 'down'
             ? flattenedNodes[0].node.id
             : flattenedNodes[flattenedNodes.length - 1].node.id;
-        setSelectedIds(new Set([newId]));
+        store.setSelection(new Set([newId]));
         lastSelectedId.current = newId;
         anchorId.current = newId;
         return;
@@ -203,33 +213,35 @@ export const useTreeEditor = (
             rangeIds.add(flattenedNodes[i].node.id);
           }
 
-          setSelectedIds(rangeIds);
+          store.setSelection(rangeIds);
         }
       } else {
-        setSelectedIds(new Set([newId]));
+        store.setSelection(new Set([newId]));
         anchorId.current = newId;
       }
 
       lastSelectedId.current = newId;
     },
-    [flattenedNodes, nodeIdToFlatIndex]
+    [flattenedNodes, nodeIdToFlatIndex, store]
   );
 
   /**
    * Delete selected nodes.
    */
   const deleteSelected = useCallback(() => {
+    const selectedIds = store.getSelectedIds();
     if (selectedIds.size === 0) return;
 
     const ids = [...selectedIds].filter((id) => nodeIdToFlatIndex.has(id));
     removeNodes(ids);
     clearSelection();
-  }, [selectedIds, nodeIdToFlatIndex, removeNodes, clearSelection]);
+  }, [store, nodeIdToFlatIndex, removeNodes, clearSelection]);
 
   /**
    * Indent selected nodes (Tab).
    */
   const indentSelected = useCallback(() => {
+    const selectedIds = store.getSelectedIds();
     if (selectedIds.size === 0) return;
 
     // Process nodes in flat order
@@ -240,12 +252,13 @@ export const useTreeEditor = (
       .map((item) => item.id);
 
     indentNodes(sortedIds);
-  }, [selectedIds, nodeIdToFlatIndex, indentNodes]);
+  }, [store, nodeIdToFlatIndex, indentNodes]);
 
   /**
    * Outdent selected nodes (Shift+Tab).
    */
   const outdentSelected = useCallback(() => {
+    const selectedIds = store.getSelectedIds();
     if (selectedIds.size === 0) return;
 
     // Sort in flat order; outdentNodes handles reverse processing internally
@@ -256,7 +269,7 @@ export const useTreeEditor = (
       .map((item) => item.id);
 
     outdentNodes(sortedIds);
-  }, [selectedIds, nodeIdToFlatIndex, outdentNodes]);
+  }, [store, nodeIdToFlatIndex, outdentNodes]);
 
   return {
     // Document state
@@ -264,16 +277,8 @@ export const useTreeEditor = (
     flattenedNodes,
     language,
 
-    // Selection state
-    selectedIds,
-    editingId,
-    setEditingId,
-    editingNumberId,
-    setEditingNumberId,
-
-    // Drag state
-    draggedNodeId,
-    setDraggedNodeId,
+    // UI state store
+    store,
 
     // Selection actions
     handleNodeClick,

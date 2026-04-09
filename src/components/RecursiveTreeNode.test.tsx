@@ -1,6 +1,7 @@
 import { fireEvent, render } from '@testing-library/react';
 import type React from 'react';
 import { describe, expect, test, vi } from 'vitest';
+import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
   ContainerDocumentNode,
   HeadingDocumentNode,
@@ -10,8 +11,7 @@ import { RecursiveTreeNode } from './RecursiveTreeNode';
 import {
   TreeCallbacksContext,
   type TreeCallbacksContextValue,
-  TreeStateContext,
-  type TreeStateContextValue,
+  TreeUIStoreContext,
 } from './TreeNodeContext';
 
 const createTestNode = (): HeadingDocumentNode => ({
@@ -41,41 +41,17 @@ const defaultCallbacks: TreeCallbacksContextValue = {
   onAddNodeAfter: vi.fn(),
 };
 
-const defaultState: TreeStateContextValue = {
-  selectedIds: new Set<string>(),
-  editingId: null,
-  editingNumberId: null,
-  draggedNodeId: null,
-  dropTarget: null,
-  receivingParentId: null,
-  hoveredHandleId: null,
-};
-
-const defaultProps = {
-  depth: 1,
-  isSelected: false,
-  isEditing: false,
-  isDragging: false,
-  isDropTarget: false,
-  dropPosition: null as 'top' | 'bottom' | null,
-  isEditingNumber: false,
-  isHoveredHandle: false,
-  isReceivingParent: false,
-  isInvalidDrop: false,
-};
-
 function renderWithContext(
   ui: React.ReactElement,
   overrides: {
     callbacks?: Partial<TreeCallbacksContextValue>;
-    state?: Partial<TreeStateContextValue>;
+    store?: TreeUIStore;
   } = {}
 ) {
+  const store = overrides.store ?? new TreeUIStore();
   return render(
     <TreeCallbacksContext.Provider value={{ ...defaultCallbacks, ...overrides.callbacks }}>
-      <TreeStateContext.Provider value={{ ...defaultState, ...overrides.state }}>
-        {ui}
-      </TreeStateContext.Provider>
+      <TreeUIStoreContext.Provider value={store}>{ui}</TreeUIStoreContext.Provider>
     </TreeCallbacksContext.Provider>
   );
 }
@@ -84,15 +60,14 @@ describe('RecursiveTreeNode', () => {
   describe('drop indicator', () => {
     test('shows blue drop indicator when drop is valid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="top"
-          isInvalidDrop={false}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'top' });
+      store.setReceivingParentId('parent');
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const indicator = container.querySelector('.bg-blue-600');
       expect(indicator).not.toBeNull();
@@ -101,15 +76,14 @@ describe('RecursiveTreeNode', () => {
 
     test('shows red drop indicator when drop is invalid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="top"
-          isInvalidDrop={true}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'top' });
+      store.setReceivingParentId(null); // no receiving parent = invalid
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const indicator = container.querySelector('.bg-red-500');
       expect(indicator).not.toBeNull();
@@ -118,15 +92,14 @@ describe('RecursiveTreeNode', () => {
 
     test('shows blue indicator at bottom position when valid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="bottom"
-          isInvalidDrop={false}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'bottom' });
+      store.setReceivingParentId('parent');
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const indicator = container.querySelector('.bg-blue-600');
       expect(indicator).not.toBeNull();
@@ -135,15 +108,14 @@ describe('RecursiveTreeNode', () => {
 
     test('shows red indicator at bottom position when invalid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="bottom"
-          isInvalidDrop={true}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'bottom' });
+      store.setReceivingParentId(null);
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const indicator = container.querySelector('.bg-red-500');
       expect(indicator).not.toBeNull();
@@ -152,9 +124,7 @@ describe('RecursiveTreeNode', () => {
 
     test('does not show indicator when not a drop target', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode {...defaultProps} node={node} isDropTarget={false} dropPosition={null} />
-      );
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
 
       expect(container.querySelector('.bg-blue-600')).toBeNull();
       expect(container.querySelector('.bg-red-500')).toBeNull();
@@ -170,7 +140,7 @@ describe('RecursiveTreeNode', () => {
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
@@ -185,7 +155,7 @@ describe('RecursiveTreeNode', () => {
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
         callbacks: { onNumberDoubleClick },
       });
 
@@ -197,7 +167,7 @@ describe('RecursiveTreeNode', () => {
 
     test('heading with a number still renders a solid badge (not dashed)', () => {
       const node = createTestNode(); // has number: '1'
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
 
       const solidBadge = container.querySelector('.border-blue-200');
       expect(solidBadge).not.toBeNull();
@@ -212,7 +182,7 @@ describe('RecursiveTreeNode', () => {
         type: 'list_item',
         children: [],
       };
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
         callbacks: { onNumberDoubleClick },
       });
 
@@ -230,7 +200,7 @@ describe('RecursiveTreeNode', () => {
         type: 'footnote',
         contents: { de: 'A footnote' },
       };
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />);
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
@@ -244,7 +214,7 @@ describe('RecursiveTreeNode', () => {
         type: 'footnote',
         contents: { de: 'A footnote' },
       };
-      const { container } = renderWithContext(<RecursiveTreeNode {...defaultProps} node={node} />, {
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
         callbacks: { onNumberDoubleClick },
       });
 
@@ -260,10 +230,13 @@ describe('RecursiveTreeNode', () => {
     test('calls onAddNodeBefore when clicking add-before button', () => {
       const onAddNodeBefore = vi.fn();
       const node = createTestNode();
-      const { getByTitle } = renderWithContext(
-        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} />,
-        { callbacks: { onAddNodeBefore } }
-      );
+      const store = new TreeUIStore();
+      store.setSelection(new Set(['h1']));
+
+      const { getByTitle } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        callbacks: { onAddNodeBefore },
+        store,
+      });
 
       fireEvent.click(getByTitle('Add node above'));
       expect(onAddNodeBefore).toHaveBeenCalledWith('h1');
@@ -272,10 +245,13 @@ describe('RecursiveTreeNode', () => {
     test('calls onAddNodeAfter when clicking add-after button', () => {
       const onAddNodeAfter = vi.fn();
       const node = createTestNode();
-      const { getByTitle } = renderWithContext(
-        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} />,
-        { callbacks: { onAddNodeAfter } }
-      );
+      const store = new TreeUIStore();
+      store.setSelection(new Set(['h1']));
+
+      const { getByTitle } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        callbacks: { onAddNodeAfter },
+        store,
+      });
 
       fireEvent.click(getByTitle('Add node below'));
       expect(onAddNodeAfter).toHaveBeenCalledWith('h1');
@@ -283,9 +259,13 @@ describe('RecursiveTreeNode', () => {
 
     test('hides add buttons when editing', () => {
       const node = createTestNode();
-      const { queryByTitle } = renderWithContext(
-        <RecursiveTreeNode {...defaultProps} node={node} isSelected={true} isEditing={true} />
-      );
+      const store = new TreeUIStore();
+      store.setSelection(new Set(['h1']));
+      store.setEditingId('h1');
+
+      const { queryByTitle } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       expect(queryByTitle('Add node above')).toBeNull();
       expect(queryByTitle('Add node below')).toBeNull();
@@ -303,65 +283,40 @@ describe('RecursiveTreeNode', () => {
       expect(typeof compare).toBe('function');
     });
 
-    test('skips re-render when all props are identical', () => {
+    test('skips re-render when node and depth are identical', () => {
       const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
       const node = createTestNode();
-      const props = { ...defaultProps, node };
+      const props = { node, depth: 1 };
       expect(compare(props, props)).toBe(true);
-    });
-
-    test('triggers re-render when isSelected changes', () => {
-      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
-      const node = createTestNode();
-      const prev = { ...defaultProps, node };
-      const next = { ...prev, isSelected: true };
-      expect(compare(prev, next)).toBe(false);
-    });
-
-    test('triggers re-render when isEditing changes', () => {
-      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
-      const node = createTestNode();
-      const prev = { ...defaultProps, node };
-      const next = { ...prev, isEditing: true };
-      expect(compare(prev, next)).toBe(false);
     });
 
     test('triggers re-render when node reference changes', () => {
       const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
-      const prev = { ...defaultProps, node: createTestNode() };
-      const next = { ...defaultProps, node: createTestNode() };
+      const prev = { node: createTestNode(), depth: 1 };
+      const next = { node: createTestNode(), depth: 1 };
       expect(compare(prev, next)).toBe(false);
     });
 
-    test('triggers re-render when isReceivingParent changes', () => {
+    test('triggers re-render when depth changes', () => {
       const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
       const node = createTestNode();
-      const prev = { ...defaultProps, node };
-      const next = { ...prev, isReceivingParent: true };
+      const prev = { node, depth: 1 };
+      const next = { node, depth: 2 };
       expect(compare(prev, next)).toBe(false);
-    });
-
-    test('does not compare selectedIds (no longer a prop)', () => {
-      const compare = (RecursiveTreeNode as any).compare as (a: any, b: any) => boolean;
-      const node = createTestNode();
-      const prev = { ...defaultProps, node, selectedIds: new Set(['a']) };
-      const next = { ...defaultProps, node, selectedIds: new Set(['b']) };
-      expect(compare(prev, next)).toBe(true);
     });
   });
 
   describe('cursor style during drag', () => {
     test('shows not-allowed cursor when drop is invalid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="top"
-          isInvalidDrop={true}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'top' });
+      store.setReceivingParentId(null);
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const nodeElement = container.firstChild as HTMLElement;
       expect(nodeElement.classList.contains('cursor-not-allowed')).toBe(true);
@@ -369,15 +324,14 @@ describe('RecursiveTreeNode', () => {
 
     test('does not show not-allowed cursor when drop is valid', () => {
       const node = createTestNode();
-      const { container } = renderWithContext(
-        <RecursiveTreeNode
-          {...defaultProps}
-          node={node}
-          isDropTarget={true}
-          dropPosition="top"
-          isInvalidDrop={false}
-        />
-      );
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('other');
+      store.setDropTarget({ id: 'h1', position: 'top' });
+      store.setReceivingParentId('parent');
+
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
 
       const nodeElement = container.firstChild as HTMLElement;
       expect(nodeElement.classList.contains('cursor-not-allowed')).toBe(false);

@@ -1,11 +1,12 @@
 import type React from 'react';
 import { createContext, useContext } from 'react';
+import type { TreeUIStore } from '../stores/TreeUIStore';
 import type { Language } from '../types/document';
 
 /**
  * Stable context for callbacks and rarely-changing refs.
- * RecursiveTreeNode reads from this — since the value never changes,
- * useContext here does NOT bypass React.memo.
+ * RecursiveTreeNode reads from this — since the value only changes
+ * when `language` changes, useContext here does NOT bypass React.memo.
  */
 export interface TreeCallbacksContextValue {
   language: Language;
@@ -26,22 +27,14 @@ export interface TreeCallbacksContextValue {
   onAddNodeAfter: (id: string) => void;
 }
 
-/**
- * Frequently-changing state context. Only TreeNodeBridge reads from this.
- * RecursiveTreeNode must NEVER use this context directly.
- */
-export interface TreeStateContextValue {
-  selectedIds: Set<string>;
-  editingId: string | null;
-  editingNumberId: string | null;
-  draggedNodeId: string | null;
-  dropTarget: { id: string; position: 'top' | 'bottom' } | null;
-  receivingParentId: string | null;
-  hoveredHandleId: string | null;
-}
-
 export const TreeCallbacksContext = createContext<TreeCallbacksContextValue>(null!);
-export const TreeStateContext = createContext<TreeStateContextValue>(null!);
+
+/**
+ * Stable context holding the TreeUIStore instance.
+ * The store reference never changes — individual nodes subscribe
+ * to their own state via useSyncExternalStore in useNodeState().
+ */
+export const TreeUIStoreContext = createContext<TreeUIStore>(null!);
 
 export const useTreeCallbacks = () => useContext(TreeCallbacksContext);
-export const useTreeState = () => useContext(TreeStateContext);
+export const useTreeUIStore = () => useContext(TreeUIStoreContext);
