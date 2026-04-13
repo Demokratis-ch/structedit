@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
 import { TreeEditor } from './TreeEditor';
@@ -36,28 +36,30 @@ const renderTreeEditor = () =>
     />
   );
 
-const selectFirstNode = () => {
-  // Click the first heading node to select it
-  const firstHeading = screen.getByText('First Heading');
-  fireEvent.click(firstHeading);
+const getContainer = () => {
+  // The container is the tree editor pane that receives keyboard events
+  return screen.getByTestId('tree-editor-pane');
 };
 
-const getContainer = () => {
-  // The container is the element with tabIndex that receives keyboard events
-  const container = document.querySelector('[tabindex="0"]') as HTMLElement;
-  return container;
+/** Get a within-scoped query object for the tree editor (right pane). */
+const getTreePane = () => within(getContainer());
+
+const selectFirstNode = () => {
+  // Click the first heading node to select it
+  const firstHeading = getTreePane().getByText('First Heading');
+  fireEvent.click(firstHeading);
 };
 
 /** Assert that a node (found by text content) has selected styling. */
 const expectNodeSelected = (text: string) => {
-  const el = screen.getByText(text);
+  const el = getTreePane().getByText(text);
   const wrapper = el.closest('[draggable]') as HTMLElement;
   expect(wrapper.className).toContain('bg-blue');
 };
 
 /** Assert that a node (found by text content) does NOT have selected styling. */
 const expectNodeNotSelected = (text: string) => {
-  const el = screen.getByText(text);
+  const el = getTreePane().getByText(text);
   const wrapper = el.closest('[draggable]') as HTMLElement;
   expect(wrapper.className).not.toContain('bg-blue');
 };
@@ -67,7 +69,7 @@ const expectNodeNotSelected = (text: string) => {
  * Useful for checking DOM nesting relationships.
  */
 const getNodeWrapper = (text: string) => {
-  const el = screen.getByText(text);
+  const el = getTreePane().getByText(text);
   return el.closest('[draggable]') as HTMLElement;
 };
 
@@ -106,7 +108,7 @@ describe('TreeEditor keyboard shortcuts', () => {
       fireEvent.keyDown(container, { key: 'h' });
 
       // The node should still be visible (wasn't deleted or broken)
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
 
     test('uppercase keys also work (case insensitive)', () => {
@@ -117,7 +119,7 @@ describe('TreeEditor keyboard shortcuts', () => {
       // Uppercase H should also work
       fireEvent.keyDown(container, { key: 'H' });
 
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
   });
 
@@ -130,8 +132,8 @@ describe('TreeEditor keyboard shortcuts', () => {
       fireEvent.keyDown(container, { key: 'h' });
 
       // Both headings should still be there, unchanged
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
-      expect(screen.getByText('Second Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
     });
 
     test('shortcuts do not fire with Ctrl modifier', () => {
@@ -142,7 +144,7 @@ describe('TreeEditor keyboard shortcuts', () => {
       // Ctrl+H should not trigger the shortcut
       fireEvent.keyDown(container, { key: 'h', ctrlKey: true });
 
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
 
     test('shortcuts do not fire with Meta modifier', () => {
@@ -153,7 +155,7 @@ describe('TreeEditor keyboard shortcuts', () => {
       // Cmd+H should not trigger the shortcut
       fireEvent.keyDown(container, { key: 'h', metaKey: true });
 
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
 
     test('type shortcuts do not fire while in edit mode', async () => {
@@ -164,7 +166,7 @@ describe('TreeEditor keyboard shortcuts', () => {
 
       // Enter edit mode via double-click
       await act(async () => {
-        fireEvent.doubleClick(screen.getByText('First Heading'));
+        fireEvent.doubleClick(getTreePane().getByText('First Heading'));
         vi.runAllTimers();
       });
 
@@ -173,9 +175,9 @@ describe('TreeEditor keyboard shortcuts', () => {
 
       // Node should still be a heading (type indicator visible when selected)
       // If the shortcut had fired, the node would have been converted to footnote
-      expect(screen.getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
       // The heading should still be rendered as an h-tag (not converted)
-      const headingEl = screen.getByText('First Heading');
+      const headingEl = getTreePane().getByText('First Heading');
       expect(headingEl.tagName).toMatch(/^H\d$/);
 
       vi.useRealTimers();
@@ -188,7 +190,7 @@ describe('double-click inline editing', () => {
     vi.useFakeTimers();
     renderTreeEditor();
 
-    const firstHeading = screen.getByText('First Heading');
+    const firstHeading = getTreePane().getByText('First Heading');
 
     // Double-click and flush timers in a single act boundary
     await act(async () => {
@@ -208,7 +210,7 @@ describe('double-click inline editing', () => {
     vi.useFakeTimers();
     renderTreeEditor();
 
-    const firstHeading = screen.getByText('First Heading');
+    const firstHeading = getTreePane().getByText('First Heading');
 
     // Enter edit mode via double-click
     await act(async () => {
@@ -240,7 +242,7 @@ describe('double-click inline editing', () => {
     vi.useFakeTimers();
     renderTreeEditor();
 
-    const firstHeading = screen.getByText('First Heading');
+    const firstHeading = getTreePane().getByText('First Heading');
 
     // Enter edit mode via double-click
     await act(async () => {
@@ -306,7 +308,7 @@ describe('selection and navigation', () => {
     renderTreeEditor();
     const container = getContainer();
 
-    fireEvent.click(screen.getByText('Second Heading'));
+    fireEvent.click(getTreePane().getByText('Second Heading'));
     fireEvent.keyDown(container, { key: 'ArrowUp' });
 
     expectNodeSelected('First Heading');
@@ -361,7 +363,7 @@ describe('selection and navigation', () => {
     renderTreeEditor();
     const container = getContainer();
 
-    fireEvent.click(screen.getByText('Second Heading'));
+    fireEvent.click(getTreePane().getByText('Second Heading'));
     fireEvent.keyDown(container, { key: 'ArrowDown' });
 
     expectNodeSelected('Second Heading');
@@ -375,13 +377,13 @@ describe('selection and navigation', () => {
     expectNodeSelected('First Heading');
 
     // Ctrl+click second node to add to selection
-    fireEvent.click(screen.getByText('Second Heading'), { ctrlKey: true });
+    fireEvent.click(getTreePane().getByText('Second Heading'), { ctrlKey: true });
 
     expectNodeSelected('First Heading');
     expectNodeSelected('Second Heading');
 
     // Ctrl+click first node again to deselect it
-    fireEvent.click(screen.getByText('First Heading'), { ctrlKey: true });
+    fireEvent.click(getTreePane().getByText('First Heading'), { ctrlKey: true });
 
     expectNodeNotSelected('First Heading');
     expectNodeSelected('Second Heading');
@@ -400,9 +402,9 @@ describe('node operations via keyboard', () => {
     fireEvent.keyDown(container, { key: 'Delete' });
 
     // First heading should be gone
-    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
     // Second heading should still be there
-    expect(screen.getByText('Second Heading')).toBeInTheDocument();
+    expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
   });
 
   test('Tab indents selected node under previous sibling', () => {
@@ -442,7 +444,7 @@ describe('node operations via keyboard', () => {
     const container = getContainer();
 
     // Select the content node
-    fireEvent.click(screen.getByText('Child Content'));
+    fireEvent.click(getTreePane().getByText('Child Content'));
 
     // Before indent: content node is a sibling of heading (not nested inside it)
     const headingWrapper = getNodeWrapper('Parent Heading');
@@ -495,7 +497,7 @@ describe('node operations via keyboard', () => {
     const container = getContainer();
 
     // Select the nested content node
-    fireEvent.click(screen.getByText('Nested Content'));
+    fireEvent.click(getTreePane().getByText('Nested Content'));
 
     // Before outdent: content node is nested inside heading
     const headingWrapper = getNodeWrapper('Parent Heading');
@@ -520,13 +522,13 @@ describe('undo and redo', () => {
     // Select and delete a node
     selectFirstNode();
     fireEvent.keyDown(container, { key: 'Delete' });
-    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
 
     // Undo with Ctrl+Z
     fireEvent.keyDown(container, { key: 'z', ctrlKey: true });
 
     // Node should be restored
-    expect(screen.getByText('First Heading')).toBeInTheDocument();
+    expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
   });
 
   test('Ctrl+Y redoes undone operation', () => {
@@ -536,15 +538,15 @@ describe('undo and redo', () => {
     // Select and delete a node
     selectFirstNode();
     fireEvent.keyDown(container, { key: 'Delete' });
-    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
 
     // Undo
     fireEvent.keyDown(container, { key: 'z', ctrlKey: true });
-    expect(screen.getByText('First Heading')).toBeInTheDocument();
+    expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
 
     // Redo with Ctrl+Y
     fireEvent.keyDown(container, { key: 'y', ctrlKey: true });
-    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
   });
 
   test('Cmd+Shift+Z redoes undone operation', () => {
@@ -557,11 +559,11 @@ describe('undo and redo', () => {
 
     // Undo
     fireEvent.keyDown(container, { key: 'z', metaKey: true });
-    expect(screen.getByText('First Heading')).toBeInTheDocument();
+    expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
 
     // Redo with Cmd+Shift+Z
     fireEvent.keyDown(container, { key: 'z', metaKey: true, shiftKey: true });
-    expect(screen.queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
   });
 });
 
@@ -625,7 +627,7 @@ describe('edit mode behaviors', () => {
     });
 
     // The empty node should be deleted, only the heading remains
-    expect(screen.getByText('First Heading')).toBeInTheDocument();
+    expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     const remainingDraggables = document.querySelectorAll('[draggable]');
     expect(remainingDraggables.length).toBe(1);
 
@@ -674,5 +676,28 @@ describe('empty document', () => {
     fireEvent.click(clickTarget);
 
     expect(screen.getByText('Document is empty')).toBeInTheDocument();
+  });
+});
+
+describe('document outline', () => {
+  test('clicking a heading in the outline selects the corresponding node in the tree', async () => {
+    vi.useFakeTimers();
+    // jsdom doesn't implement scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+    renderTreeEditor();
+
+    // The outline tab should be visible (no pdfUrl, so outline is the default tab)
+    const outlineNav = screen.getByRole('navigation', { name: /document outline/i });
+    const outlineButton = within(outlineNav).getByText('First Heading');
+
+    await act(async () => {
+      fireEvent.click(outlineButton);
+      vi.runAllTimers();
+    });
+
+    // The corresponding node in the tree editor should be selected
+    expectNodeSelected('First Heading');
+
+    vi.useRealTimers();
   });
 });
