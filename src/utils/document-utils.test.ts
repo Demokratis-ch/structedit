@@ -402,6 +402,44 @@ describe('Document Utils', () => {
     });
   });
 
+  describe('full HTML document (Docling-style)', () => {
+    it('parses a full HTML document with DOCTYPE, head, style, and body', () => {
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Test document</title>
+<style>html { font-family: Arial; } h1 { color: #333; }</style>
+</head>
+<body>
+<div class='page'>
+<h2>Gesetz über die digitale Verwaltung (DVG) 1</h2>
+<p>(Vom …)</p>
+<p>Der Kantonsrat beschliesst:</p>
+<h2>I. Allgemeine Bestimmungen</h2>
+<h2>§ 1 Gegenstand</h2>
+<ul>
+<li>1 Dieses Gesetz regelt die Rahmenbedingungen.</li>
+</ul>
+<p>2 Es:</p>
+<ol>
+<li style="list-style-type: 'a) ';">definiert die Prinzipien;</li>
+<li style="list-style-type: 'b) ';">schafft die Grundlagen;</li>
+</ol>
+<h2>§ 2 Geltungsbereich</h2>
+<p>Dieses Gesetz gilt für die öffentlichen Organe.</p>
+</div>
+</body>
+</html>`;
+      const doc = parseHtmlToTree(html);
+      expect(doc.type).toBe('document');
+      expect(doc.children.length).toBeGreaterThan(0);
+      // Should contain headings, not just plain content
+      const hasHeadings = doc.children.some((c) => c.type === 'heading');
+      expect(hasHeadings).toBe(true);
+    });
+  });
+
   // Real document integration tests (ported from real-conversion.test.ts)
   describe('Real Document Conversion (Tree)', () => {
     const readFixture = (filename: string) => {
