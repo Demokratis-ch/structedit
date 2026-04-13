@@ -5,8 +5,8 @@ import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
 import { FloatingToolbar } from './FloatingToolbar';
+import { LeftPane } from './LeftPane';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
-import { SourcePreview } from './SourcePreview';
 import { Toolbar } from './Toolbar';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 
@@ -94,6 +94,17 @@ export function TreeEditor({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+
+  const handleOutlineHeadingClick = useCallback(
+    (nodeId: string) => {
+      store.setSelection(new Set([nodeId]));
+      // Scroll the node into view after React renders the selection change
+      requestAnimationFrame(() => {
+        blockRefs.current[nodeId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    },
+    [store]
+  );
 
   // Compute toolbar type for single selected node
   const selectedNodeType = useMemo(() => {
@@ -451,9 +462,15 @@ export function TreeEditor({
         onDownload={handleDownload}
       />
       <div className="flex-1 flex overflow-hidden">
-        {pdfUrl && <SourcePreview url={pdfUrl} />}
+        <LeftPane
+          pdfUrl={pdfUrl}
+          document={document}
+          language={language}
+          onHeadingClick={handleOutlineHeadingClick}
+        />
         <div
           className="flex-1 overflow-y-auto bg-white relative outline-none"
+          data-testid="tree-editor-pane"
           ref={containerRef}
           tabIndex={0}
           onKeyDown={handleGlobalKeyDown}
