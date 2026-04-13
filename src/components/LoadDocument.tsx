@@ -77,6 +77,29 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
       }
     }
 
+    // HTML Handling (Client-Side)
+    const nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.html') || nameLower.endsWith('.htm') || file.type === 'text/html') {
+      try {
+        const html = await file.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const sourceUrl = URL.createObjectURL(blob);
+
+        setText(html);
+        const doc = parseHtmlLegalToTree(html);
+        onConvert(doc, sourceUrl, html, file.name);
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      } catch (err) {
+        console.error('HTML parsing failed', err);
+        alert(`Failed to parse HTML: ${err instanceof Error ? err.message : String(err)}`);
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    }
+
     // PDF Handling via Docling API (Fallback/Alternative)
     try {
       throw new Error('TODO: set up backend for PDF conversion');
@@ -172,6 +195,10 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
     if (isHtml) {
       try {
         doc = parseHtmlLegalToTree(text);
+        const blob = new Blob([text], { type: 'text/html' });
+        const sourceUrl = URL.createObjectURL(blob);
+        onConvert(doc, sourceUrl, text, null);
+        return;
       } catch (e) {
         console.error('Failed to parse HTML', e);
         // Fallback: wrap plain text in simple document
@@ -225,7 +252,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
           <div className="text-center">
             <Upload className="w-16 h-16 mx-auto mb-4 text-green-mid" />
             <p className="text-xl font-medium text-gray-700">Drop your document here</p>
-            <p className="text-gray-500">PDF or DOCX files supported</p>
+            <p className="text-gray-500">PDF, DOCX, or HTML files supported</p>
           </div>
         </div>
       )}
@@ -243,7 +270,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".pdf,.docx,.doc"
+                accept=".pdf,.docx,.doc,.html,.htm"
                 onChange={handleFileInputChange}
               />
               <Button

@@ -201,8 +201,14 @@ export const parseHtmlToTree = (
       return;
     }
 
-    // Paragraphs and divs - create content nodes
-    if (tagName === 'p' || tagName === 'div') {
+    // Divs - transparent containers, recurse into children
+    if (tagName === 'div') {
+      Array.from(domNode.childNodes).forEach(walkDom);
+      return;
+    }
+
+    // Paragraphs - create content nodes
+    if (tagName === 'p') {
       const content = getInnerHtml(domNode);
       if (content) {
         const contentNode: ContentDocumentNode = {
