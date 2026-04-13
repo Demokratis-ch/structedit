@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
@@ -8,7 +8,7 @@ import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { SourcePreview } from './SourcePreview';
 import { Toolbar } from './Toolbar';
-import { TreeCallbacksContext, TreeStateContext } from './TreeNodeContext';
+import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 
 interface TreeEditorProps {
   initialDocument: ContainerDocumentNode;
@@ -52,13 +52,7 @@ export function TreeEditor({
   const {
     document,
     flattenedNodes,
-    selectedIds,
-    editingId,
-    setEditingId,
-    editingNumberId,
-    setEditingNumberId,
-    draggedNodeId,
-    setDraggedNodeId,
+    store,
     handleNodeClick,
     handleNodeDoubleClick,
     handleNumberDoubleClick,
@@ -84,17 +78,26 @@ export function TreeEditor({
     getReceivingParentId,
   } = useTreeEditor(initialDocument, language);
 
+  // Subscribe to aggregate store values needed at this level
+  const selectedCount = useSyncExternalStore(
+    store.subscribe,
+    useCallback(() => store.getSelectedCount(), [store])
+  );
+  const editingId = useSyncExternalStore(
+    store.subscribe,
+    useCallback(() => store.getEditingId(), [store])
+  );
+  const selectedIds = useSyncExternalStore(
+    store.subscribe,
+    useCallback(() => store.getSelectedIds(), [store])
+  );
+
   const containerRef = useRef<HTMLDivElement>(null);
   const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
-  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(
-    null
-  );
-  const [hoveredHandleId, setHoveredHandleId] = useState<string | null>(null);
-  const [receivingParentId, setReceivingParentId] = useState<string | null>(null);
 
   // Compute toolbar type for single selected node
   const selectedNodeType = useMemo(() => {
-    if (selectedIds.size !== 1) return null;
+    if (selectedCount !== 1) return null;
     const selectedId = Array.from(selectedIds)[0];
     const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
     if (!flatNode) return null;
@@ -120,35 +123,43 @@ export function TreeEditor({
       return 'ol';
     }
     return null;
-  }, [selectedIds, flattenedNodes]);
+  }, [selectedCount, selectedIds, flattenedNodes]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedNodeId(id);
+    store.setDraggedNodeId(id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    const draggedNodeId = store.getDraggedNodeId();
     if (draggedNodeId === id) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setDropTarget({ id, position: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom' });
+    store.setDropTarget({
+      id,
+      position: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom',
+    });
 
     // Compute receiving parent for visual feedback
     if (draggedNodeId) {
       const parentId = getReceivingParentId(draggedNodeId, id);
-      setReceivingParentId(parentId);
+      store.setReceivingParentId(parentId);
     }
   };
 
   const handleDragEnd = () => {
-    setDraggedNodeId(null);
-    setDropTarget(null);
-    setHoveredHandleId(null);
-    setReceivingParentId(null);
+    store.batch(() => {
+      store.setDraggedNodeId(null);
+      store.setDropTarget(null);
+      store.setHoveredHandleId(null);
+      store.setReceivingParentId(null);
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    const draggedNodeId = store.getDraggedNodeId();
+    const dropTarget = store.getDropTarget();
     if (draggedNodeId && dropTarget) {
       moveNodeById(draggedNodeId, dropTarget.id, dropTarget.position);
     }
@@ -158,7 +169,7 @@ export function TreeEditor({
   const handleAddNodeBefore = (id: string) => {
     const newId = addNodeBefore(id);
     if (newId) {
-      setEditingId(newId);
+      store.setEditingId(newId);
       setTimeout(() => blockRefs.current[newId]?.focus(), 0);
     }
   };
@@ -166,7 +177,7 @@ export function TreeEditor({
   const handleAddNodeAfter = (id: string) => {
     const newId = addNodeAfter(id);
     if (newId) {
-      setEditingId(newId);
+      store.setEditingId(newId);
       setTimeout(() => blockRefs.current[newId]?.focus(), 0);
     }
   };
@@ -177,7 +188,7 @@ export function TreeEditor({
       const newId = addNodeAfter(id);
       // Focus the newly created node so the user can type in it immediately
       if (newId) {
-        setEditingId(newId);
+        store.setEditingId(newId);
         setTimeout(() => blockRefs.current[newId]?.focus(), 0);
       }
     } else if (e.key === 'Backspace') {
@@ -198,15 +209,16 @@ export function TreeEditor({
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation(); // Prevent global handler from also clearing selection
       // Exit edit mode but keep the node selected
-      setEditingId(null);
+      store.setEditingId(null);
       containerRef.current?.focus();
     } else if (e.key === 'ArrowUp' && isCursorAtStart(e.currentTarget as HTMLElement)) {
       const index = flattenedNodes.findIndex((fn) => fn.node.id === id);
       if (index > 0) {
         e.preventDefault();
         const prevId = flattenedNodes[index - 1].node.id;
-        setEditingId(prevId);
+        store.setEditingId(prevId);
         setTimeout(() => {
           const el = blockRefs.current[prevId];
           if (el) {
@@ -224,7 +236,7 @@ export function TreeEditor({
       if (index < flattenedNodes.length - 1) {
         e.preventDefault();
         const nextId = flattenedNodes[index + 1].node.id;
-        setEditingId(nextId);
+        store.setEditingId(nextId);
         setTimeout(() => blockRefs.current[nextId]?.focus(), 0);
       }
     }
@@ -241,9 +253,11 @@ export function TreeEditor({
       redo();
       return;
     }
-    if (editingId) return;
+    const currentEditingId = store.getEditingId();
+    if (currentEditingId) return;
 
-    if (selectedIds.size === 0) {
+    const currentSelectedIds = store.getSelectedIds();
+    if (currentSelectedIds.size === 0) {
       if (flattenedNodes.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         moveSelection(e.key === 'ArrowDown' ? 'down' : 'up', false);
@@ -289,10 +303,13 @@ export function TreeEditor({
   };
 
   const handleBulkUpdateType = (toolbarType: string) => {
-    if (selectedIds.size === 0) return;
+    const currentSelectedIds = store.getSelectedIds();
+    if (currentSelectedIds.size === 0) return;
 
     // Sort IDs by flat order for consistent processing
-    const ids = flattenedNodes.filter((fn) => selectedIds.has(fn.node.id)).map((fn) => fn.node.id);
+    const ids = flattenedNodes
+      .filter((fn) => currentSelectedIds.has(fn.node.id))
+      .map((fn) => fn.node.id);
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
@@ -367,7 +384,15 @@ export function TreeEditor({
 
   const handleUpdateNumber = (id: string, number: string | null) => {
     updateNodeNumber(id, number);
-    setEditingNumberId(null);
+    store.setEditingNumberId(null);
+  };
+
+  const handleSetHoveredHandleId = (id: string | null) => {
+    store.setHoveredHandleId(id);
+  };
+
+  const handleSetEditingId = (id: string) => {
+    store.setEditingId(id);
   };
 
   // Ref indirection: callbacks close over changing state, so we store
@@ -380,10 +405,10 @@ export function TreeEditor({
   cbRef.current.handleDragEnd = handleDragEnd;
   cbRef.current.handleClick = handleClick;
   cbRef.current.handleDoubleClick = handleDoubleClick;
-  cbRef.current.setHoveredHandleId = setHoveredHandleId;
+  cbRef.current.setHoveredHandleId = handleSetHoveredHandleId;
   cbRef.current.updateNodeContents = updateNodeContents;
   cbRef.current.handleBlockKeyDown = handleBlockKeyDown;
-  cbRef.current.setEditingId = setEditingId;
+  cbRef.current.setEditingId = handleSetEditingId;
   cbRef.current.handleNumberDblClick = handleNumberDblClick;
   cbRef.current.handleUpdateNumber = handleUpdateNumber;
   cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
@@ -473,37 +498,15 @@ export function TreeEditor({
                 </div>
               ) : (
                 <TreeCallbacksContext.Provider value={callbacksCtx}>
-                  <TreeStateContext.Provider
-                    value={{
-                      selectedIds,
-                      editingId,
-                      editingNumberId,
-                      draggedNodeId,
-                      dropTarget,
-                      receivingParentId,
-                      hoveredHandleId,
-                    }}
-                  >
-                    <RecursiveTreeNode
-                      node={document}
-                      depth={0}
-                      isSelected={false}
-                      isEditing={false}
-                      isDragging={false}
-                      isDropTarget={false}
-                      dropPosition={null}
-                      isEditingNumber={false}
-                      isHoveredHandle={false}
-                      isReceivingParent={false}
-                      isInvalidDrop={false}
-                    />
-                  </TreeStateContext.Provider>
+                  <TreeUIStoreContext.Provider value={store}>
+                    <RecursiveTreeNode node={document} depth={0} />
+                  </TreeUIStoreContext.Provider>
                 </TreeCallbacksContext.Provider>
               )}
             </div>
           </div>
           <FloatingToolbar
-            selectedCount={selectedIds.size}
+            selectedCount={selectedCount}
             isEditing={!!editingId}
             selectedNodeType={selectedNodeType}
             onUpdateType={handleBulkUpdateType}

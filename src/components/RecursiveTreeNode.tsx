@@ -1,22 +1,14 @@
 import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
 import { memo } from 'react';
+import { useNodeState } from '../hooks/useNodeState';
 import type { DocumentNode } from '../types/document';
 import { ContentBlock } from './ContentBlock';
-import { useTreeCallbacks, useTreeState } from './TreeNodeContext';
+import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 
 interface RecursiveTreeNodeProps {
   node: DocumentNode;
   depth: number;
-  isSelected: boolean;
-  isEditing: boolean;
-  isDragging: boolean;
-  isDropTarget: boolean;
-  dropPosition: 'top' | 'bottom' | null;
-  isEditingNumber: boolean;
-  isHoveredHandle: boolean;
-  isReceivingParent: boolean;
-  isInvalidDrop: boolean;
 }
 
 const AddNodeButton: React.FC<{
@@ -44,48 +36,25 @@ const AddNodeButton: React.FC<{
 );
 
 /**
- * Bridge component that reads global state from context and computes
- * derived boolean props for each child node. This re-renders on every
- * context change (cheap), but RecursiveTreeNode's memo comparator
- * ensures only nodes with actual prop changes re-render (expensive).
+ * Recursive tree node component. Each node subscribes to its own UI state
+ * via useSyncExternalStore (through useNodeState), so only nodes whose
+ * state actually changes will re-render.
  */
-export const TreeNodeBridge: React.FC<{ node: DocumentNode; depth: number }> = ({
-  node,
-  depth,
-}) => {
-  const ctx = useTreeState();
-  const isDropTarget = ctx.dropTarget?.id === node.id;
-  return (
-    <RecursiveTreeNode
-      node={node}
-      depth={depth}
-      isSelected={ctx.selectedIds.has(node.id)}
-      isEditing={ctx.editingId === node.id}
-      isDragging={ctx.draggedNodeId === node.id}
-      isDropTarget={isDropTarget}
-      dropPosition={isDropTarget ? ctx.dropTarget!.position : null}
-      isEditingNumber={ctx.editingNumberId === node.id}
-      isHoveredHandle={ctx.hoveredHandleId === node.id}
-      isReceivingParent={ctx.receivingParentId === node.id}
-      isInvalidDrop={isDropTarget && ctx.draggedNodeId !== null && ctx.receivingParentId === null}
-    />
-  );
-};
-
 export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
-  ({
-    node,
-    depth,
-    isSelected,
-    isEditing,
-    isDragging,
-    isDropTarget,
-    dropPosition,
-    isEditingNumber,
-    isHoveredHandle,
-    isReceivingParent,
-    isInvalidDrop,
-  }) => {
+  ({ node, depth }) => {
+    const store = useTreeUIStore();
+    const {
+      isSelected,
+      isEditing,
+      isDragging,
+      isDropTarget,
+      dropPosition,
+      isEditingNumber,
+      isHoveredHandle,
+      isReceivingParent,
+      isInvalidDrop,
+    } = useNodeState(store, node.id);
+
     const {
       language,
       blockRefs,
@@ -304,7 +273,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         <div className="space-y-1">
           {hasChildren &&
             node.children.map((child) => (
-              <TreeNodeBridge key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
             ))}
         </div>
       );
@@ -407,23 +376,12 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             }}
           >
             {node.children.map((child) => (
-              <TreeNodeBridge key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
             ))}
           </div>
         )}
       </div>
     );
   },
-  (prev, next) =>
-    prev.node === next.node &&
-    prev.depth === next.depth &&
-    prev.isSelected === next.isSelected &&
-    prev.isEditing === next.isEditing &&
-    prev.isDragging === next.isDragging &&
-    prev.isDropTarget === next.isDropTarget &&
-    prev.dropPosition === next.dropPosition &&
-    prev.isEditingNumber === next.isEditingNumber &&
-    prev.isHoveredHandle === next.isHoveredHandle &&
-    prev.isReceivingParent === next.isReceivingParent &&
-    prev.isInvalidDrop === next.isInvalidDrop
+  (prev, next) => prev.node === next.node && prev.depth === next.depth
 );

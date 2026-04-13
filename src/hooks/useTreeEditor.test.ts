@@ -57,8 +57,8 @@ describe('useTreeEditor', () => {
     const doc = createTestDocument();
     const { result } = renderHook(() => useTreeEditor(doc));
 
-    expect(result.current.selectedIds.size).toBe(0);
-    expect(result.current.editingId).toBeNull();
+    expect(result.current.store.getSelectedIds().size).toBe(0);
+    expect(result.current.store.getEditingId()).toBeNull();
   });
 
   test('handleNodeClick selects single node', () => {
@@ -69,8 +69,8 @@ describe('useTreeEditor', () => {
       result.current.handleNodeClick('p1', { shiftKey: false, ctrlKey: false, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(1);
-    expect(result.current.selectedIds.has('p1')).toBe(true);
+    expect(result.current.store.getSelectedIds().size).toBe(1);
+    expect(result.current.store.getSelectedIds().has('p1')).toBe(true);
   });
 
   test('handleNodeClick with ctrl/meta toggles selection', () => {
@@ -87,18 +87,18 @@ describe('useTreeEditor', () => {
       result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(2);
-    expect(result.current.selectedIds.has('p1')).toBe(true);
-    expect(result.current.selectedIds.has('p2')).toBe(true);
+    expect(result.current.store.getSelectedIds().size).toBe(2);
+    expect(result.current.store.getSelectedIds().has('p1')).toBe(true);
+    expect(result.current.store.getSelectedIds().has('p2')).toBe(true);
 
     // Ctrl+click p1 again - should remove from selection
     act(() => {
       result.current.handleNodeClick('p1', { shiftKey: false, ctrlKey: true, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(1);
-    expect(result.current.selectedIds.has('p1')).toBe(false);
-    expect(result.current.selectedIds.has('p2')).toBe(true);
+    expect(result.current.store.getSelectedIds().size).toBe(1);
+    expect(result.current.store.getSelectedIds().has('p1')).toBe(false);
+    expect(result.current.store.getSelectedIds().has('p2')).toBe(true);
   });
 
   test('handleNodeClick with shift selects range', () => {
@@ -116,10 +116,10 @@ describe('useTreeEditor', () => {
     });
 
     // Should select h1, p1, p2 (all nodes in flat order between anchor and target)
-    expect(result.current.selectedIds.size).toBe(3);
-    expect(result.current.selectedIds.has('h1')).toBe(true);
-    expect(result.current.selectedIds.has('p1')).toBe(true);
-    expect(result.current.selectedIds.has('p2')).toBe(true);
+    expect(result.current.store.getSelectedIds().size).toBe(3);
+    expect(result.current.store.getSelectedIds().has('h1')).toBe(true);
+    expect(result.current.store.getSelectedIds().has('p1')).toBe(true);
+    expect(result.current.store.getSelectedIds().has('p2')).toBe(true);
   });
 
   test('handleNodeDoubleClick enters edit mode', () => {
@@ -130,8 +130,8 @@ describe('useTreeEditor', () => {
       result.current.handleNodeDoubleClick('p1');
     });
 
-    expect(result.current.editingId).toBe('p1');
-    expect(result.current.selectedIds.has('p1')).toBe(true);
+    expect(result.current.store.getEditingId()).toBe('p1');
+    expect(result.current.store.getSelectedIds().has('p1')).toBe(true);
   });
 
   test('clearSelection clears all selection', () => {
@@ -146,14 +146,14 @@ describe('useTreeEditor', () => {
       result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(2);
+    expect(result.current.store.getSelectedIds().size).toBe(2);
 
     // Clear selection
     act(() => {
       result.current.clearSelection();
     });
 
-    expect(result.current.selectedIds.size).toBe(0);
+    expect(result.current.store.getSelectedIds().size).toBe(0);
   });
 
   test('setEditingId sets and clears edit mode', () => {
@@ -161,16 +161,16 @@ describe('useTreeEditor', () => {
     const { result } = renderHook(() => useTreeEditor(doc));
 
     act(() => {
-      result.current.setEditingId('p1');
+      result.current.store.setEditingId('p1');
     });
 
-    expect(result.current.editingId).toBe('p1');
+    expect(result.current.store.getEditingId()).toBe('p1');
 
     act(() => {
-      result.current.setEditingId(null);
+      result.current.store.setEditingId(null);
     });
 
-    expect(result.current.editingId).toBeNull();
+    expect(result.current.store.getEditingId()).toBeNull();
   });
 
   test('integrates operations with history', () => {
@@ -244,16 +244,16 @@ describe('useTreeEditor', () => {
     act(() => {
       result.current.handleNodeDoubleClick('p1');
     });
-    expect(result.current.editingId).toBe('p1');
+    expect(result.current.store.getEditingId()).toBe('p1');
 
     // Now double-click a number
     act(() => {
       result.current.handleNumberDoubleClick('h1');
     });
 
-    expect(result.current.editingNumberId).toBe('h1');
-    expect(result.current.editingId).toBeNull();
-    expect(result.current.selectedIds.has('h1')).toBe(true);
+    expect(result.current.store.getEditingNumberId()).toBe('h1');
+    expect(result.current.store.getEditingId()).toBeNull();
+    expect(result.current.store.getSelectedIds().has('h1')).toBe(true);
   });
 
   test('handleNodeDoubleClick clears editingNumberId', () => {
@@ -264,15 +264,15 @@ describe('useTreeEditor', () => {
     act(() => {
       result.current.handleNumberDoubleClick('h1');
     });
-    expect(result.current.editingNumberId).toBe('h1');
+    expect(result.current.store.getEditingNumberId()).toBe('h1');
 
     // Now double-click content
     act(() => {
       result.current.handleNodeDoubleClick('p1');
     });
 
-    expect(result.current.editingNumberId).toBeNull();
-    expect(result.current.editingId).toBe('p1');
+    expect(result.current.store.getEditingNumberId()).toBeNull();
+    expect(result.current.store.getEditingId()).toBe('p1');
   });
 
   test('clearSelection clears editingNumberId', () => {
@@ -282,13 +282,13 @@ describe('useTreeEditor', () => {
     act(() => {
       result.current.handleNumberDoubleClick('h1');
     });
-    expect(result.current.editingNumberId).toBe('h1');
+    expect(result.current.store.getEditingNumberId()).toBe('h1');
 
     act(() => {
       result.current.clearSelection();
     });
 
-    expect(result.current.editingNumberId).toBeNull();
+    expect(result.current.store.getEditingNumberId()).toBeNull();
   });
 
   test('exposes getReceivingParentId', () => {
@@ -345,7 +345,7 @@ describe('useTreeEditor', () => {
       result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(2);
+    expect(result.current.store.getSelectedIds().size).toBe(2);
 
     // Indent selected
     act(() => {
@@ -373,7 +373,7 @@ describe('useTreeEditor', () => {
       result.current.handleNodeClick('p2', { shiftKey: false, ctrlKey: true, metaKey: false });
     });
 
-    expect(result.current.selectedIds.size).toBe(2);
+    expect(result.current.store.getSelectedIds().size).toBe(2);
 
     // Outdent selected
     act(() => {
