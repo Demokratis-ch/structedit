@@ -5,7 +5,7 @@
  */
 export const LEGAL_PATTERNS = {
   /** Art. 1 or § 1 patterns (case-insensitive) */
-  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?(\s+[a-z]\))?/i,
+  article: /^(Art\.|§)\s*\d+[a-z]?(\s+Abs\.\s*\d+)?(\s+Bst\.\s*[a-z])?(\s+[a-z]\))?/i,
 
   /** Section headers I. II. III. IV. V. VI. VII. VIII. IX. X. etc. */
   romanSection: /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})\.(\s|$)/,
@@ -15,6 +15,9 @@ export const LEGAL_PATTERNS = {
 
   /** 1 Text..., 2 Text... (numbered paragraph at start) */
   numberedPara: /^\d+\s+[A-ZÄÖÜ]/,
+
+  /** A. text, B. text - uppercase letter section headers */
+  uppercaseLetterSection: /^([A-Z])\.(\s|$)/,
 
   /** a. text, b. text, c. text - lettered list items */
   letteredItem: /^([a-z])\.\s+(.*)$/,
@@ -60,6 +63,19 @@ export function matchArticle(text: string): PatternMatchResult {
   return {
     matched: true,
     number: match[0],
+    rest: text.slice(match[0].length).trim(),
+  };
+}
+
+/**
+ * Check if text matches an uppercase letter section pattern (A., B., etc.)
+ */
+export function matchUppercaseLetterSection(text: string): PatternMatchResult {
+  const match = text.match(LEGAL_PATTERNS.uppercaseLetterSection);
+  if (!match) return { matched: false };
+  return {
+    matched: true,
+    number: `${match[1]}.`,
     rest: text.slice(match[0].length).trim(),
   };
 }
