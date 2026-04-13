@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { extractCleanText, matchArticle, matchLetteredItem, matchRomanSection } from './patterns';
+import {
+  extractCleanText,
+  matchArticle,
+  matchLetteredItem,
+  matchRomanSection,
+  matchUppercaseLetterSection,
+} from './patterns';
 
 describe('patterns', () => {
   describe('matchRomanSection', () => {
@@ -92,6 +98,16 @@ describe('patterns', () => {
     });
 
     it.each([
+      ['§ 29 Abs. 1 Bst. f', '§ 29 Abs. 1 Bst. f', ''],
+      ['Art. 5 Abs. 2 Bst. a Some title', 'Art. 5 Abs. 2 Bst. a', 'Some title'],
+    ])('extracts Bst. from %s → number=%s, rest=%s', (input, expectedNumber, expectedRest) => {
+      const result = matchArticle(input);
+      expect(result.matched).toBe(true);
+      expect(result.number).toBe(expectedNumber);
+      expect(result.rest).toBe(expectedRest);
+    });
+
+    it.each([
       ['Article 1 Some title', 'Article spelled out'],
       ['Art 1 No period', 'Art without period'],
       ['See Art. 5 for details', 'Art. in middle of text'],
@@ -121,6 +137,34 @@ describe('patterns', () => {
       ['See item a. here', 'letter in middle of text'],
     ])('does not match: %s (%s)', (input) => {
       expect(matchLetteredItem(input).matched).toBe(false);
+    });
+  });
+
+  describe('matchUppercaseLetterSection', () => {
+    it.each([
+      ['A. Allgemeines', 'A.', 'Allgemeines'],
+      ['B. Übergangsrecht', 'B.', 'Übergangsrecht'],
+      ['Z. Last section', 'Z.', 'Last section'],
+    ])('extracts number from %s → number=%s, rest=%s', (input, expectedNumber, expectedRest) => {
+      const result = matchUppercaseLetterSection(input);
+      expect(result.matched).toBe(true);
+      expect(result.number).toBe(expectedNumber);
+      expect(result.rest).toBe(expectedRest);
+    });
+
+    it('returns undefined number/rest for non-match', () => {
+      const result = matchUppercaseLetterSection('Not a letter section');
+      expect(result.number).toBeUndefined();
+      expect(result.rest).toBeUndefined();
+    });
+
+    it.each([
+      ['a. lowercase', 'lowercase letter'],
+      ['AB. Double letter', 'multiple letters'],
+      ['A No period', 'missing period'],
+      ['Middle A. text', 'letter in middle of text'],
+    ])('does not match: %s (%s)', (input) => {
+      expect(matchUppercaseLetterSection(input).matched).toBe(false);
     });
   });
 

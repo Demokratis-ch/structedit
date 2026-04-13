@@ -1,11 +1,13 @@
 import type { ContainerDocumentNode, Language } from '../../types/document';
 import { articleTransform } from './article';
+import { headingNumberExtractTransform } from './heading-number-extract';
 import { letteredItemsTransform } from './lettered-items';
 import { listNumberDedupTransform } from './list-number-dedup';
 import { romanSectionTransform } from './roman-section';
 import type { TreeTransform } from './types';
 
 export { articleTransform } from './article';
+export { headingNumberExtractTransform } from './heading-number-extract';
 export { letteredItemsTransform } from './lettered-items';
 export { listNumberDedupTransform } from './list-number-dedup';
 export { LEGAL_PATTERNS } from './patterns';
@@ -17,6 +19,8 @@ export type { TreeTransform } from './types';
  * Configuration for the legal transform pipeline
  */
 export interface LegalTransformConfig {
+  /** Enable heading number extraction from existing headings. Default: true */
+  headingNumberExtract?: boolean;
   /** Enable roman numeral section detection (I., II., etc.). Default: true */
   romanSections?: boolean;
   /** Enable article pattern detection (Art. X, § X). Default: true */
@@ -40,10 +44,11 @@ export function composeTransforms(...transforms: TreeTransform[]): TreeTransform
  * Apply Swiss legal document transforms to a tree.
  *
  * Transform order matters:
- * 1. List number dedup first - Fixes duplicate numbering from Mammoth's ol/sup output
- * 2. Roman sections - Creates top-level structure (I., II., III.)
- * 3. Articles - Creates nested structure within sections (Art. 1, Art. 2)
- * 4. Lettered items last - Groups items within articles (a., b., c.)
+ * 1. Heading number extract - Populates number field on existing headings
+ * 2. List number dedup - Fixes duplicate numbering from Mammoth's ol/sup output
+ * 3. Roman sections - Creates top-level structure (I., II., III.)
+ * 4. Articles - Creates nested structure within sections (Art. 1, Art. 2)
+ * 5. Lettered items last - Groups items within articles (a., b., c.)
  *
  * @param root - The document tree to transform
  * @param language - The language of the document content
@@ -56,6 +61,7 @@ export function applySwissLegalTransforms(
   config: LegalTransformConfig = {}
 ): ContainerDocumentNode {
   const {
+    headingNumberExtract = true,
     romanSections = true,
     articles = true,
     letteredItems = true,
@@ -64,6 +70,9 @@ export function applySwissLegalTransforms(
 
   const transforms: TreeTransform[] = [];
 
+  if (headingNumberExtract) {
+    transforms.push(headingNumberExtractTransform);
+  }
   if (listNumberDedup) {
     transforms.push(listNumberDedupTransform);
   }
