@@ -24,7 +24,7 @@ describe('LoadDocument', () => {
 
       // Drop overlay should be visible and mention HTML
       expect(screen.getByText(/drop your document here/i)).toBeInTheDocument();
-      expect(screen.getByText(/PDF.*DOCX.*HTML.*supported/i)).toBeInTheDocument();
+      expect(screen.getByText(/DOCX.*HTML.*supported/i)).toBeInTheDocument();
     });
 
     it('hides drop overlay when drag leaves the page', () => {

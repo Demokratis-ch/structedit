@@ -252,7 +252,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
           <div className="text-center">
             <Upload className="w-16 h-16 mx-auto mb-4 text-green-mid" />
             <p className="text-xl font-medium text-gray-700">Drop your document here</p>
-            <p className="text-gray-500">PDF, DOCX, or HTML files supported</p>
+            <p className="text-gray-500">DOCX or HTML files supported</p>
           </div>
         </div>
       )}
@@ -270,7 +270,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".pdf,.docx,.doc,.html,.htm"
+                accept=".docx,.doc,.html,.htm"
                 onChange={handleFileInputChange}
               />
               <Button
@@ -284,7 +284,7 @@ export function LoadDocument({ onConvert }: LoadDocumentProps) {
                 ) : (
                   <Upload className="w-5 h-5 mr-2" />
                 )}
-                Upload File
+                Upload File (DOCX or HTML)
               </Button>
             </div>
 
