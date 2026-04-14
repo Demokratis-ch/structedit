@@ -1,24 +1,134 @@
+import { useMemo } from 'react';
 import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
+import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
 
 interface DocumentPreviewProps {
   document: ContainerDocumentNode;
   language: Language;
+  onHeadingClick?: (nodeId: string) => void;
 }
 
-export function DocumentPreview({ document, language }: DocumentPreviewProps) {
+export function DocumentPreview({ document, language, onHeadingClick }: DocumentPreviewProps) {
   const footnotes = document.children.filter((c) => c.type === 'footnote');
   const otherChildren = document.children.filter((c) => c.type !== 'footnote');
+  const outline = useMemo(() => getDocumentOutline(document, language), [document, language]);
+
+  const handleTocClick = (nodeId: string) => {
+    onHeadingClick?.(nodeId);
+    const el = globalThis.document.getElementById(nodeId);
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <div
-      className="p-6 overflow-y-auto h-full max-w-3xl mx-auto"
-      style={{ fontFamily: "'Source Serif 4', serif" }}
-    >
-      {otherChildren.map((child) => (
-        <PreviewNode key={child.id} node={child} language={language} headingDepth={1} />
-      ))}
-      {footnotes.length > 0 && <FootnoteSection footnotes={footnotes} language={language} />}
+    <div className="flex h-full">
+      {outline.length > 0 && <PreviewToc entries={outline} onEntryClick={handleTocClick} />}
+      <div
+        className="p-6 overflow-y-auto flex-1 min-w-0"
+        style={{ fontFamily: "'Source Serif 4', serif" }}
+      >
+        <div className="max-w-3xl mx-auto">
+          {otherChildren.map((child) => (
+            <PreviewNode key={child.id} node={child} language={language} headingDepth={1} />
+          ))}
+          {footnotes.length > 0 && <FootnoteSection footnotes={footnotes} language={language} />}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function PreviewToc({
+  entries,
+  onEntryClick,
+}: {
+  entries: OutlineEntry[];
+  onEntryClick: (nodeId: string) => void;
+}) {
+  // Build a tree structure from the flat entries for nested <ul> rendering
+  const tree = useMemo(() => buildTocTree(entries), [entries]);
+
+  return (
+    <nav
+      aria-label="Inhaltsverzeichnis"
+      className="w-[32rem] shrink-0 sticky top-0 self-start overflow-y-auto max-h-full p-4 text-sm text-gray-500"
+    >
+      <h3 className="font-medium mb-2 text-gray-700">Inhaltsverzeichnis</h3>
+      <TocList nodes={tree} onEntryClick={onEntryClick} />
+    </nav>
+  );
+}
+
+interface TocTreeNode {
+  entry: OutlineEntry;
+  children: TocTreeNode[];
+}
+
+function buildTocTree(entries: OutlineEntry[]): TocTreeNode[] {
+  const root: TocTreeNode[] = [];
+  const stack: { node: TocTreeNode; depth: number }[] = [];
+
+  for (const entry of entries) {
+    const treeNode: TocTreeNode = { entry, children: [] };
+
+    // Pop stack until we find a parent at a shallower depth
+    while (stack.length > 0 && stack[stack.length - 1].depth >= entry.depth) {
+      stack.pop();
+    }
+
+    if (stack.length === 0) {
+      root.push(treeNode);
+    } else {
+      stack[stack.length - 1].node.children.push(treeNode);
+    }
+
+    stack.push({ node: treeNode, depth: entry.depth });
+  }
+
+  return root;
+}
+
+function TocList({
+  nodes,
+  onEntryClick,
+}: {
+  nodes: TocTreeNode[];
+  onEntryClick: (nodeId: string) => void;
+}) {
+  return (
+    <ul className="py-1">
+      {nodes.map((node) => (
+        <TocListItem key={node.entry.id} node={node} onEntryClick={onEntryClick} />
+      ))}
+    </ul>
+  );
+}
+
+function TocListItem({
+  node,
+  onEntryClick,
+}: {
+  node: TocTreeNode;
+  onEntryClick: (nodeId: string) => void;
+}) {
+  const { entry, children } = node;
+  return (
+    <li>
+      <button
+        type="button"
+        className="block w-full text-left py-1 -my-1 px-2 rounded text-nowrap text-ellipsis overflow-hidden hover:bg-gray-200 cursor-pointer"
+        onClick={() => onEntryClick(entry.id)}
+      >
+        {entry.number && <strong className="mr-1">{entry.number}</strong>}
+        {entry.text}
+      </button>
+      {children.length > 0 && (
+        <ul className="ml-4">
+          {children.map((child) => (
+            <TocListItem key={child.entry.id} node={child} onEntryClick={onEntryClick} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
@@ -72,7 +182,7 @@ function HeadingNode({
   const otherChildren = node.children.filter((c) => c.type !== 'footnote');
 
   return (
-    <section className="mb-2">
+    <section id={node.id} className="mb-2">
       <Tag className={className}>
         {node.number && <span className="mr-2">{node.number}</span>}
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}

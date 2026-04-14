@@ -686,9 +686,9 @@ describe('document outline', () => {
     Element.prototype.scrollIntoView = vi.fn();
     renderTreeEditor();
 
-    // The outline tab should be visible (no pdfUrl, so outline is the default tab)
-    const outlineNav = screen.getByRole('navigation', { name: /document outline/i });
-    const outlineButton = within(outlineNav).getByText('First Heading');
+    // The preview tab with TOC is visible (no pdfUrl, so preview is the default tab)
+    const tocNav = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    const outlineButton = within(tocNav).getByText('First Heading');
 
     await act(async () => {
       fireEvent.click(outlineButton);

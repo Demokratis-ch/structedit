@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
 import { DocumentPreview } from './DocumentPreview';
 
@@ -419,5 +420,92 @@ describe('DocumentPreview', () => {
     const bullet = screen.getByText('•');
     const content = screen.getByText('Bullet item text.');
     expect(bullet.parentElement).toBe(content.parentElement);
+  });
+
+  test('renders a TOC with heading numbers, text, and nested indentation', () => {
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'Allgemeine Bestimmungen' },
+      children: [
+        {
+          id: 'h2',
+          number: 'Art. 1',
+          type: 'heading',
+          contents: { de: 'Gegenstand' },
+          children: [],
+        },
+        {
+          id: 'h3',
+          number: 'Art. 2',
+          type: 'heading',
+          contents: { de: 'Geltungsbereich' },
+          children: [],
+        },
+      ],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+
+    // Top-level entry
+    expect(within(toc).getByText('I.')).toBeInTheDocument();
+    expect(within(toc).getByText('Allgemeine Bestimmungen')).toBeInTheDocument();
+
+    // Nested entries
+    expect(within(toc).getByText('Art. 1')).toBeInTheDocument();
+    expect(within(toc).getByText('Gegenstand')).toBeInTheDocument();
+    expect(within(toc).getByText('Art. 2')).toBeInTheDocument();
+
+    // Nested entries should be in a nested ul with ml-4
+    const nestedList = within(toc).getByText('Art. 1').closest('ul');
+    expect(nestedList?.className).toContain('ml-4');
+  });
+
+  test('TOC click calls onHeadingClick with node ID', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={onClick} />);
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    await user.click(within(toc).getByText('First Heading'));
+
+    expect(onClick).toHaveBeenCalledWith('h1');
+  });
+
+  test('TOC click scrolls the heading section into view in the preview', async () => {
+    const user = userEvent.setup();
+    const doc = makeDoc({
+      id: 'h1',
+      number: null,
+      type: 'heading',
+      contents: { de: 'Target Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+
+    // The heading section should have an id matching the node
+    const section = document.getElementById('h1');
+    expect(section).not.toBeNull();
+
+    // Mock scrollIntoView on the section
+    const scrollMock = vi.fn();
+    section!.scrollIntoView = scrollMock;
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    await user.click(within(toc).getByText('Target Heading'));
+
+    expect(scrollMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
   });
 });

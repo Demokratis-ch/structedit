@@ -31,7 +31,7 @@ describe('LeftPane', () => {
     );
 
     expect(screen.getByRole('tab', { name: /original/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /outline/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
   });
 
   test('shows Original tab content by default when pdfUrl exists', () => {
@@ -44,39 +44,17 @@ describe('LeftPane', () => {
       />
     );
 
-    // The Original tab should be selected
     expect(screen.getByRole('tab', { name: /original/i })).toHaveAttribute('aria-selected', 'true');
-    // Should show the processing warning
     expect(screen.getByText(/may not correspond/i)).toBeInTheDocument();
   });
 
-  test('switches to Outline tab on click', async () => {
-    const user = userEvent.setup();
-    render(
-      <LeftPane
-        pdfUrl="http://example.com/doc.html"
-        document={docWithHeading}
-        language="de"
-        onHeadingClick={() => {}}
-      />
-    );
-
-    await user.click(screen.getByRole('tab', { name: /outline/i }));
-
-    expect(screen.getByRole('tab', { name: /outline/i })).toHaveAttribute('aria-selected', 'true');
-    // Outline content should be visible
-    expect(screen.getByText('Heading One')).toBeInTheDocument();
-  });
-
-  test('only shows Outline tab when pdfUrl is null', () => {
+  test('shows Preview tab by default when pdfUrl is null', () => {
     render(
       <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
     );
 
     expect(screen.queryByRole('tab', { name: /original/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /outline/i })).toBeInTheDocument();
-    // Outline content should be visible by default
-    expect(screen.getByText('Heading One')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /preview/i })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('shows processing warning in Original tab', () => {
@@ -92,34 +70,33 @@ describe('LeftPane', () => {
     expect(screen.getByText(/may not correspond/i)).toBeInTheDocument();
   });
 
-  test('passes onHeadingClick through to DocumentOutline', async () => {
-    const user = userEvent.setup();
-    const onClick = vi.fn();
-    render(
-      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={onClick} />
-    );
-
-    await user.click(screen.getByText('Heading One'));
-    expect(onClick).toHaveBeenCalledWith('h1');
-  });
-
-  test('renders Preview tab always, even without pdfUrl', () => {
-    render(
-      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
-    );
-
-    expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
-  });
-
   test('Preview tab shows rendered document content', async () => {
     const user = userEvent.setup();
     render(
-      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
+      <LeftPane
+        pdfUrl="http://example.com/doc.html"
+        document={docWithHeading}
+        language="de"
+        onHeadingClick={() => {}}
+      />
     );
 
     await user.click(screen.getByRole('tab', { name: /preview/i }));
 
     expect(screen.getByRole('tab', { name: /preview/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('heading', { level: 1, name: /heading one/i })).toBeInTheDocument();
+  });
+
+  test('passes onHeadingClick through to DocumentPreview TOC', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={onClick} />
+    );
+
+    // Click the heading in the TOC
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    await user.click(toc.querySelector('button')!);
+    expect(onClick).toHaveBeenCalledWith('h1');
   });
 });
