@@ -107,6 +107,7 @@ function TocListItem({
   node,
   onEntryClick,
 }: {
+  key?: string;
   node: TocTreeNode;
   onEntryClick: (nodeId: string) => void;
 }) {
@@ -133,6 +134,7 @@ function TocListItem({
 }
 
 interface PreviewNodeProps {
+  key?: string;
   node: DocumentNode;
   language: Language;
   headingDepth: number;
@@ -223,7 +225,7 @@ function ListNode({
   language,
   headingDepth,
 }: {
-  node: Extract<DocumentNode, { type: 'list' }>;
+  node: ContainerDocumentNode;
   language: Language;
   headingDepth: number;
 }) {
@@ -241,7 +243,7 @@ function ListItemNode({
   language,
   headingDepth,
 }: {
-  node: Extract<DocumentNode, { type: 'list_item' }>;
+  node: ContainerDocumentNode;
   language: Language;
   headingDepth: number;
 }) {
