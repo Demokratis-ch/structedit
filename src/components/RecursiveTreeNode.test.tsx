@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
   ContainerDocumentNode,
+  ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
@@ -204,6 +205,74 @@ describe('RecursiveTreeNode', () => {
 
       const placeholder = container.querySelector('.border-dashed');
       expect(placeholder).not.toBeNull();
+    });
+
+    test('content node with null number renders a dashed placeholder badge', () => {
+      const node: ContentDocumentNode = {
+        id: 'c-no-num',
+        number: null,
+        type: 'content',
+        contents: { de: 'Some paragraph' },
+        children: [],
+      };
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+
+      const placeholder = container.querySelector('.border-dashed');
+      expect(placeholder).not.toBeNull();
+    });
+
+    test('content node with a number renders a solid badge', () => {
+      const onNumberDoubleClick = vi.fn();
+      const node: ContentDocumentNode = {
+        id: 'c-with-num',
+        number: '2.',
+        type: 'content',
+        contents: { de: 'Numbered paragraph' },
+        children: [],
+      };
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        callbacks: { onNumberDoubleClick },
+      });
+
+      const badge = container.querySelector('.border-gray-300');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('2.');
+      expect(badge?.classList.contains('border-dashed')).toBe(false);
+      fireEvent.doubleClick(badge!);
+      expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'c-with-num');
+    });
+
+    test('list node with null number renders a dashed placeholder badge', () => {
+      const node: ContainerDocumentNode = {
+        id: 'list-no-num',
+        number: null,
+        type: 'list',
+        children: [],
+      };
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+
+      const placeholder = container.querySelector('.border-dashed');
+      expect(placeholder).not.toBeNull();
+    });
+
+    test('list node with a number renders a solid badge', () => {
+      const onNumberDoubleClick = vi.fn();
+      const node: ContainerDocumentNode = {
+        id: 'list-with-num',
+        number: 'A.',
+        type: 'list',
+        children: [],
+      };
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        callbacks: { onNumberDoubleClick },
+      });
+
+      const badge = container.querySelector('.border-gray-300');
+      expect(badge).not.toBeNull();
+      expect(badge?.textContent).toBe('A.');
+      expect(badge?.classList.contains('border-dashed')).toBe(false);
+      fireEvent.doubleClick(badge!);
+      expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'list-with-num');
     });
 
     test('footnote with a number renders a solid badge that is double-clickable', () => {

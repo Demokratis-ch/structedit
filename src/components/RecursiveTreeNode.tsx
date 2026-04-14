@@ -214,7 +214,12 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       }
 
       if (node.type === 'list') {
-        return <span className="text-gray-400 select-none text-sm">(list)</span>;
+        return (
+          <div className="flex items-baseline flex-1">
+            {renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50')}{' '}
+            <span className="text-gray-400 select-none text-sm">(list)</span>
+          </div>
+        );
       }
 
       // list_item is a container - render just the marker, children will be nested
@@ -234,7 +239,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
-          {/* Show number badge for headings and footnotes (dashed placeholder when no number) */}
+          {/* Show number badge for headings, footnotes, and content (dashed placeholder when no number) */}
           {node.type === 'heading' &&
             renderNumberBadge(
               node.number,
@@ -245,6 +250,8 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
               node.number,
               'font-medium text-amber-600 border-amber-200 bg-amber-50'
             )}
+          {node.type === 'content' &&
+            renderNumberBadge(node.number, 'font-medium text-gray-600 border-gray-300 bg-gray-50')}
 
           {'contents' in node && (
             <ContentBlock
