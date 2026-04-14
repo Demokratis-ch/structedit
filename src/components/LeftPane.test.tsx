@@ -102,4 +102,24 @@ describe('LeftPane', () => {
     await user.click(screen.getByText('Heading One'));
     expect(onClick).toHaveBeenCalledWith('h1');
   });
+
+  test('renders Preview tab always, even without pdfUrl', () => {
+    render(
+      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
+    );
+
+    expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
+  });
+
+  test('Preview tab shows rendered document content', async () => {
+    const user = userEvent.setup();
+    render(
+      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /preview/i }));
+
+    expect(screen.getByRole('tab', { name: /preview/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { level: 1, name: /heading one/i })).toBeInTheDocument();
+  });
 });

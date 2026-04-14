@@ -1,6 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { DocumentOutline } from './DocumentOutline';
+import { DocumentPreview } from './DocumentPreview';
 import { SourcePreview } from './SourcePreview';
 
 interface LeftPaneProps {
@@ -26,6 +27,9 @@ export function LeftPane({ pdfUrl, document, language, onHeadingClick }: LeftPan
           <Tabs.Trigger value="outline" className={tabTriggerClass}>
             Outline
           </Tabs.Trigger>
+          <Tabs.Trigger value="preview" className={tabTriggerClass}>
+            Preview
+          </Tabs.Trigger>
         </Tabs.List>
         {pdfUrl && (
           <Tabs.Content value="original" className="flex-1 overflow-hidden flex flex-col">
@@ -44,6 +48,9 @@ export function LeftPane({ pdfUrl, document, language, onHeadingClick }: LeftPan
             language={language}
             onHeadingClick={onHeadingClick}
           />
+        </Tabs.Content>
+        <Tabs.Content value="preview" className="flex-1 overflow-hidden">
+          <DocumentPreview document={document} language={language} />
         </Tabs.Content>
       </Tabs.Root>
     </div>
