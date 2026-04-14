@@ -1,6 +1,6 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import type { ContainerDocumentNode, Language } from '../types/document';
-import { DocumentOutline } from './DocumentOutline';
+import { DocumentPreview } from './DocumentPreview';
 import { SourcePreview } from './SourcePreview';
 
 interface LeftPaneProps {
@@ -16,15 +16,15 @@ const tabTriggerClass =
 export function LeftPane({ pdfUrl, document, language, onHeadingClick }: LeftPaneProps) {
   return (
     <div className="flex-1 border-r border-gray-200 bg-gray-50 flex flex-col min-w-0 w-1/2">
-      <Tabs.Root defaultValue={pdfUrl ? 'original' : 'outline'} className="flex flex-col h-full">
+      <Tabs.Root defaultValue={pdfUrl ? 'original' : 'preview'} className="flex flex-col h-full">
         <Tabs.List className="flex border-b border-gray-200 bg-white px-2 shrink-0">
           {pdfUrl && (
             <Tabs.Trigger value="original" className={tabTriggerClass}>
               Original
             </Tabs.Trigger>
           )}
-          <Tabs.Trigger value="outline" className={tabTriggerClass}>
-            Outline
+          <Tabs.Trigger value="preview" className={tabTriggerClass}>
+            Preview
           </Tabs.Trigger>
         </Tabs.List>
         {pdfUrl && (
@@ -38,8 +38,8 @@ export function LeftPane({ pdfUrl, document, language, onHeadingClick }: LeftPan
             </div>
           </Tabs.Content>
         )}
-        <Tabs.Content value="outline" className="flex-1 overflow-hidden">
-          <DocumentOutline
+        <Tabs.Content value="preview" className="flex-1 overflow-hidden">
+          <DocumentPreview
             document={document}
             language={language}
             onHeadingClick={onHeadingClick}

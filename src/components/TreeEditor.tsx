@@ -100,7 +100,7 @@ export function TreeEditor({
       store.setSelection(new Set([nodeId]));
       // Scroll the node into view after React renders the selection change
       requestAnimationFrame(() => {
-        blockRefs.current[nodeId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        blockRefs.current[nodeId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     },
     [store]
