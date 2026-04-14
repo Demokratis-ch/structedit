@@ -1,27 +1,4 @@
 @import "tailwindcss";
-@plugin "daisyui" {
-  themes: light --default, dark;
-}
-
-/* Democratis Theme */
-[data-theme="light"], :root {
-  --p: 119 18% 47%;        /* Primary: #638F62 (Green) */
-  --pf: 119 18% 40%;       /* Primary focus */
-  --pc: 0 0% 100%;         /* Primary content */
-  --s: 144 14% 37%;        /* Secondary: #506F54 */
-  --sf: 144 14% 30%;
-  --sc: 0 0% 100%;
-  --a: 100 43% 84%;        /* Accent: #D4E7C7 */
-  --af: 100 43% 76%;
-  --ac: 142 35% 25%;
-  --n: 220 10% 20%;        /* Neutral */
-  --nf: 220 10% 15%;
-  --nc: 0 0% 100%;
-  --b1: 40 33% 97%;        /* Base: #F8F7F4 */
-  --b2: 40 20% 94%;
-  --b3: 40 15% 90%;
-  --bc: 220 10% 15%;       /* Base content */
-}
 
 @theme {
   --font-sans: "Inter", sans-serif;
