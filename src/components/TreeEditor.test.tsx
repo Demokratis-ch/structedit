@@ -666,3 +666,71 @@ describe('empty document', () => {
     expect(screen.getByText('Document is empty')).toBeInTheDocument();
   });
 });
+
+describe('FloatingToolbar button clicks', () => {
+  test('clicking a type button changes the selected node type', () => {
+    renderTreeEditor();
+    selectFirstNode();
+
+    // The first heading renders as an H1
+    const headingEl = getTreePane().getByText('First Heading');
+    expect(headingEl.tagName).toMatch(/^H\d$/);
+
+    // Click "Content (C)" in the floating toolbar to change type
+    fireEvent.click(screen.getByTitle('Content (C)'));
+
+    // After type change, content nodes render as DIV instead of H-tag
+    const contentEl = getTreePane().getByText('First Heading');
+    expect(contentEl.tagName).toBe('DIV');
+  });
+
+  test('clicking delete removes the selected node', () => {
+    renderTreeEditor();
+    selectFirstNode();
+
+    fireEvent.click(screen.getByTitle('Delete Selected'));
+
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
+  });
+
+  test('clicking a type button applies to all selected nodes', () => {
+    renderTreeEditor();
+
+    // Multi-select both headings
+    selectFirstNode();
+    fireEvent.click(getTreePane().getByText('Second Heading'), { ctrlKey: true });
+    expectNodeSelected('First Heading');
+    expectNodeSelected('Second Heading');
+
+    // Change both to content via toolbar
+    fireEvent.click(screen.getByTitle('Content (C)'));
+
+    // Both should now render as DIV (content) instead of H-tags
+    expect(getTreePane().getByText('First Heading').tagName).toBe('DIV');
+    expect(getTreePane().getByText('Second Heading').tagName).toBe('DIV');
+  });
+
+  test('clicking delete removes all selected nodes', () => {
+    renderTreeEditor();
+
+    // Multi-select both headings
+    selectFirstNode();
+    fireEvent.click(getTreePane().getByText('Second Heading'), { ctrlKey: true });
+
+    fireEvent.click(screen.getByTitle('Delete Selected'));
+
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('Second Heading')).not.toBeInTheDocument();
+  });
+
+  test('clicking clear selection deselects all nodes', () => {
+    renderTreeEditor();
+    selectFirstNode();
+    expectNodeSelected('First Heading');
+
+    fireEvent.click(screen.getByTitle('Clear Selection'));
+
+    expectNodeNotSelected('First Heading');
+  });
+});
