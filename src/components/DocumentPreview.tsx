@@ -57,6 +57,7 @@ function PreviewToc({
         <button
           type="button"
           aria-label="Expand table of contents"
+          title="Expand table of contents"
           className="p-1 rounded hover:bg-gray-200 cursor-pointer"
           onClick={() => setCollapsed(false)}
         >
@@ -69,6 +70,7 @@ function PreviewToc({
             <button
               type="button"
               aria-label="Collapse table of contents"
+              title="Collapse table of contents"
               className="p-1 rounded hover:bg-gray-200 cursor-pointer"
               onClick={() => setCollapsed(true)}
             >
