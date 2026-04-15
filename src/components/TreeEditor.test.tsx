@@ -395,6 +395,29 @@ describe('node operations via keyboard', () => {
     expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
   });
 
+  test('Enter key in selection mode creates a new node after the selected one', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+
+    // Press Enter while in selection mode (not editing)
+    fireEvent.keyDown(container, { key: 'Enter' });
+
+    // A new empty node should appear between the two headings
+    const allDraggables = container.querySelectorAll('[draggable]');
+    expect(allDraggables.length).toBe(3);
+
+    // The new node sits between First Heading and Second Heading
+    expect(allDraggables[0].textContent).toContain('First Heading');
+    expect(allDraggables[2].textContent).toContain('Second Heading');
+
+    // The new node is an empty content node with an editable area
+    const newNodeEditable = allDraggables[1].querySelector('[contenteditable]');
+    expect(newNodeEditable).not.toBeNull();
+    expect(newNodeEditable!.textContent).toBe('');
+  });
+
   test('Tab indents selected node under previous sibling', () => {
     // Need heading followed by content at same level for indent to work
     const doc: ContainerDocumentNode = {
