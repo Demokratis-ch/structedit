@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
@@ -106,7 +106,7 @@ describe('LeftPane', () => {
 
     // Click the heading in the TOC
     const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
-    await user.click(toc.querySelector('button')!);
+    await user.click(within(toc).getByText('Heading One'));
     expect(onClick).toHaveBeenCalledWith('h1');
   });
 });

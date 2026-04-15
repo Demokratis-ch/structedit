@@ -508,4 +508,52 @@ describe('DocumentPreview', () => {
 
     expect(scrollMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
   });
+
+  test('TOC has a collapse button that hides the TOC list', async () => {
+    const user = userEvent.setup();
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    expect(within(toc).getByText('First Heading')).toBeInTheDocument();
+
+    // Click the collapse button
+    const collapseBtn = within(toc).getByRole('button', { name: /collapse/i });
+    await user.click(collapseBtn);
+
+    // TOC entries should be hidden
+    expect(within(toc).queryByText('First Heading')).not.toBeInTheDocument();
+    // The heading title should also be hidden
+    expect(within(toc).queryByText('Inhaltsverzeichnis')).not.toBeInTheDocument();
+  });
+
+  test('collapsed TOC can be expanded again', async () => {
+    const user = userEvent.setup();
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+
+    // Collapse
+    await user.click(within(toc).getByRole('button', { name: /collapse/i }));
+    expect(within(toc).queryByText('First Heading')).not.toBeInTheDocument();
+
+    // Expand
+    await user.click(within(toc).getByRole('button', { name: /expand/i }));
+    expect(within(toc).getByText('First Heading')).toBeInTheDocument();
+  });
 });
