@@ -37,13 +37,27 @@ export const detectLanguage = (text?: string): Language => {
 };
 
 /**
+ * Convert list-style-type CSS on <li> elements to a data-list-style-type attribute
+ * so that DOMPurify doesn't strip the information.
+ * The captured value is trimmed (e.g., 'a) ' becomes 'a)') for use as a numbering label.
+ */
+export const preserveListStyleType = (html: string): string => {
+  return html.replace(
+    /<li\b([^>]*?)\s*style\s*=\s*["']list-style-type:\s*['"]([^'"]+)['"]\s*;?\s*["'](.*?)>/gi,
+    (_match, before: string, value: string, after: string) =>
+      `<li${before} data-list-style-type="${value.trim()}"${after}>`
+  );
+};
+
+/**
  * Parse HTML to DocumentNode tree structure
  */
 export const parseHtmlToTree = (
   html: string,
   language: Language = detectLanguage(html)
 ): ContainerDocumentNode => {
-  const cleanHtml = DOMPurify.sanitize(html, {
+  const preprocessedHtml = preserveListStyleType(html);
+  const cleanHtml = DOMPurify.sanitize(preprocessedHtml, {
     ALLOWED_TAGS: [
       'b',
       'i',
@@ -70,7 +84,7 @@ export const parseHtmlToTree = (
       'br',
       'a',
     ],
-    ALLOWED_ATTR: ['href', 'target', 'type'],
+    ALLOWED_ATTR: ['href', 'target', 'type', 'data-list-style-type'],
   });
 
   const parser = new DOMParser();
@@ -133,9 +147,11 @@ export const parseHtmlToTree = (
     const items = Array.from(domNode.childNodes).filter((n) => n.nodeName.toLowerCase() === 'li');
 
     items.forEach((li, index) => {
+      const customStyle =
+        li instanceof HTMLElement ? li.getAttribute('data-list-style-type') : null;
       const listItem: ContainerDocumentNode = {
         id: generateId(),
-        number: tagName === 'ol' ? `${index + 1}.` : null,
+        number: customStyle || (tagName === 'ol' ? `${index + 1}.` : null),
         type: 'list_item',
         children: [],
       };
