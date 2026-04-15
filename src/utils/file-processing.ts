@@ -103,37 +103,38 @@ export async function processPdfFile(_file: File): Promise<ProcessedDocument> {
   // PDF Handling via Docling API (Fallback/Alternative)
   throw new Error('TODO: set up backend for PDF conversion');
 
-  // biome-ignore lint/correctness/noUnreachable: placeholder for future PDF conversion implementation
-  const apiEndpoint = 'https://example.com/v1/convert/file'; // TODO: read endpoint from config/env
-  const formData = new FormData();
-  formData.append('files', _file);
-  formData.append('to_formats', 'html');
+  // placeholder for future PDF conversion implementation:
+  //
+  // const apiEndpoint = 'https://example.com/v1/convert/file'; // TODO: read endpoint from config/env
+  // const formData = new FormData();
+  // formData.append('files', _file);
+  // formData.append('to_formats', 'html');
 
-  // 5s timeout per @safety-officer protocol
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased to 10s for PDF
+  // // 5s timeout per @safety-officer protocol
+  // const controller = new AbortController();
+  // const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased to 10s for PDF
 
-  const response = await fetch(apiEndpoint, {
-    method: 'POST',
-    body: formData,
-    signal: controller.signal,
-  });
+  // const response = await fetch(apiEndpoint, {
+  //   method: 'POST',
+  //   body: formData,
+  //   signal: controller.signal,
+  // });
 
-  clearTimeout(timeoutId);
+  // clearTimeout(timeoutId);
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Conversion failed: ${response.status} ${err}`);
-  }
+  // if (!response.ok) {
+  //   const err = await response.text();
+  //   throw new Error(`Conversion failed: ${response.status} ${err}`);
+  // }
 
-  const result = await response.json();
-  if (result?.document?.html_content) {
-    const htmlContent = result.document.html_content;
-    const pdfUrl = URL.createObjectURL(_file);
-    const doc = parseHtmlLegalToTree(htmlContent);
-    return { doc, sourceUrl: pdfUrl, html: htmlContent };
-  }
-  throw new Error('Invalid response format');
+  // const result = await response.json();
+  // if (result?.document?.html_content) {
+  //   const htmlContent = result.document.html_content;
+  //   const pdfUrl = URL.createObjectURL(_file);
+  //   const doc = parseHtmlLegalToTree(htmlContent);
+  //   return { doc, sourceUrl: pdfUrl, html: htmlContent };
+  // }
+  // throw new Error('Invalid response format');
 }
 
 export async function processFile(file: File): Promise<ProcessedDocument> {
