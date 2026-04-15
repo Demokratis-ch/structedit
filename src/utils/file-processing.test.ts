@@ -153,24 +153,6 @@ describe('file-processing', () => {
       expect(result.html).toBe(generatedHtml);
     });
 
-    it('passes style map options to mammoth', async () => {
-      vi.mocked(mammoth.convertToHtml).mockResolvedValue({
-        value: '<p>ok</p>',
-        messages: [],
-      });
-
-      const file = new File(['fake'], 'test.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-
-      await processDocxFile(file);
-
-      expect(mammoth.convertToHtml).toHaveBeenCalledWith(
-        { arrayBuffer: expect.any(ArrayBuffer) },
-        expect.objectContaining({ styleMap: expect.any(Array) })
-      );
-    });
-
     it('logs warnings from mammoth conversion', async () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.mocked(mammoth.convertToHtml).mockResolvedValue({

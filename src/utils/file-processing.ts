@@ -76,7 +76,17 @@ const MAMMOTH_STYLE_MAP = [
 
 export async function processDocxFile(file: File): Promise<ProcessedDocument> {
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.convertToHtml({ arrayBuffer }, { styleMap: MAMMOTH_STYLE_MAP });
+  // Browser mammoth uses `arrayBuffer`, Node mammoth uses `buffer` — pass both
+  const input: Record<string, unknown> = { arrayBuffer };
+  if (typeof Buffer !== 'undefined') {
+    input.buffer = Buffer.from(arrayBuffer);
+  }
+  const result = await mammoth.convertToHtml(
+    input as unknown as Parameters<typeof mammoth.convertToHtml>[0],
+    {
+      styleMap: MAMMOTH_STYLE_MAP,
+    }
+  );
   const html = result.value;
 
   if (result.messages.length > 0) {
