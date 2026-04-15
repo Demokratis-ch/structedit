@@ -31,7 +31,7 @@ const renderTreeEditor = () =>
   render(
     <EditorInterface
       initialDocument={createTestDocument()}
-      pdfUrl={null}
+      documentUrl={null}
       documentName="test.docx"
       language="de"
       onBack={() => {}}
@@ -422,7 +422,7 @@ describe('node operations via keyboard', () => {
     render(
       <EditorInterface
         initialDocument={doc}
-        pdfUrl={null}
+        documentUrl={null}
         documentName="test.docx"
         language="de"
         onBack={() => {}}
@@ -475,7 +475,7 @@ describe('node operations via keyboard', () => {
     render(
       <EditorInterface
         initialDocument={doc}
-        pdfUrl={null}
+        documentUrl={null}
         documentName="test.docx"
         language="de"
         onBack={() => {}}
@@ -585,7 +585,7 @@ describe('edit mode behaviors', () => {
     render(
       <EditorInterface
         initialDocument={doc}
-        pdfUrl={null}
+        documentUrl={null}
         documentName="test.docx"
         language="de"
         onBack={() => {}}
@@ -635,7 +635,7 @@ describe('empty document', () => {
     render(
       <EditorInterface
         initialDocument={createEmptyDocument()}
-        pdfUrl={null}
+        documentUrl={null}
         documentName="test.docx"
         language="de"
         onBack={() => {}}
@@ -650,7 +650,7 @@ describe('empty document', () => {
     render(
       <EditorInterface
         initialDocument={createEmptyDocument()}
-        pdfUrl={null}
+        documentUrl={null}
         documentName="test.docx"
         language="de"
         onBack={() => {}}

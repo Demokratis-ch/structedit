@@ -29,7 +29,7 @@ const renderEditorInterface = (props?: Partial<Parameters<typeof EditorInterface
   render(
     <EditorInterface
       initialDocument={createTestDocument()}
-      pdfUrl={null}
+      documentUrl={null}
       documentName="test.docx"
       language="de"
       onBack={() => {}}
@@ -102,7 +102,7 @@ describe('document outline', () => {
     Element.prototype.scrollIntoView = vi.fn();
     renderEditorInterface();
 
-    // The preview tab with TOC is visible (no pdfUrl, so preview is the default tab)
+    // The preview tab with TOC is visible (no documentUrl, so preview is the default tab)
     const tocNav = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
     const outlineButton = within(tocNav).getByText('First Heading');
 

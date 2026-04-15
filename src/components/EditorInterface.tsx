@@ -8,7 +8,7 @@ import { TreeEditor } from './TreeEditor';
 
 interface EditorInterfaceProps {
   initialDocument: ContainerDocumentNode;
-  pdfUrl: string | null;
+  documentUrl: string | null;
   documentName?: string | null;
   language?: Language;
   onBack: () => void;
@@ -16,7 +16,7 @@ interface EditorInterfaceProps {
 
 export function EditorInterface({
   initialDocument,
-  pdfUrl,
+  documentUrl,
   documentName,
   language = 'de',
   onBack,
@@ -61,7 +61,7 @@ export function EditorInterface({
       />
       <div className="flex-1 flex overflow-hidden">
         <LeftPane
-          pdfUrl={pdfUrl}
+          documentUrl={documentUrl}
           document={editor.document}
           language={language}
           onHeadingClick={handleOutlineHeadingClick}
