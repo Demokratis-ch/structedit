@@ -1,22 +1,16 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
-import { useTreeEditor } from '../hooks/useTreeEditor';
-import type { ContainerDocumentNode, Language } from '../types/document';
-import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import type { TreeEditorHandle } from '../hooks/useTreeEditor';
+import type { Language } from '../types/document';
 import { FloatingToolbar } from './FloatingToolbar';
-import { LeftPane } from './LeftPane';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
-import { Toolbar } from './Toolbar';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 
 interface TreeEditorProps {
-  initialDocument: ContainerDocumentNode;
-  pdfUrl: string | null;
-  documentName?: string | null;
-  language?: Language;
-  onBack: () => void;
-  onDownload?: () => void;
+  editor: TreeEditorHandle;
+  language: Language;
+  onScrollToNode?: (scrollFn: (nodeId: string) => void) => void;
 }
 
 const isCursorAtStart = (el: HTMLElement) => {
@@ -41,16 +35,22 @@ const isCursorAtEnd = (el: HTMLElement) => {
   return postRange.toString().trim().length === 0;
 };
 
-export function TreeEditor({
-  initialDocument,
-  pdfUrl,
-  documentName,
-  language = 'de',
-  onBack,
-  onDownload,
-}: TreeEditorProps) {
+export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+
+  // Expose scroll-to-node capability to parent via callback registration
+  const scrollToNodeFn = useCallback((nodeId: string) => {
+    blockRefs.current[nodeId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Register the scroll function with the parent on mount / when it changes
+  useEffect(() => {
+    onScrollToNode?.(scrollToNodeFn);
+  }, [onScrollToNode, scrollToNodeFn]);
+
   const {
-    document,
+    document: treeDocument,
     flattenedNodes,
     store,
     handleNodeClick,
@@ -70,13 +70,9 @@ export function TreeEditor({
     deleteSelected,
     undo,
     redo,
-    canUndo,
-    canRedo,
-    historyIndex,
-    historyLength,
     lastSelectedId,
     getReceivingParentId,
-  } = useTreeEditor(initialDocument, language);
+  } = editor;
 
   // Subscribe to aggregate store values needed at this level
   const selectedCount = useSyncExternalStore(
@@ -90,20 +86,6 @@ export function TreeEditor({
   const selectedIds = useSyncExternalStore(
     store.subscribe,
     useCallback(() => store.getSelectedIds(), [store])
-  );
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
-
-  const handleOutlineHeadingClick = useCallback(
-    (nodeId: string) => {
-      store.setSelection(new Set([nodeId]));
-      // Scroll the node into view after React renders the selection change
-      requestAnimationFrame(() => {
-        blockRefs.current[nodeId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    },
-    [store]
   );
 
   // Compute toolbar type for single selected node
@@ -234,7 +216,7 @@ export function TreeEditor({
           const el = blockRefs.current[prevId];
           if (el) {
             el.focus();
-            const r = document.createRange();
+            const r = window.document.createRange();
             r.selectNodeContents(el);
             r.collapse(false);
             window.getSelection()?.removeAllRanges();
@@ -251,6 +233,49 @@ export function TreeEditor({
         setTimeout(() => blockRefs.current[nextId]?.focus(), 0);
       }
     }
+  };
+
+  const handleBulkUpdateType = (toolbarType: string) => {
+    const currentSelectedIds = store.getSelectedIds();
+    if (currentSelectedIds.size === 0) return;
+
+    // Sort IDs by flat order for consistent processing
+    const ids = flattenedNodes
+      .filter((fn) => currentSelectedIds.has(fn.node.id))
+      .map((fn) => fn.node.id);
+
+    // Map toolbar type to target type and list style
+    type ListStyle = 'unordered' | 'numbered' | 'lettered';
+    let targetType: 'heading' | 'content' | 'list' | 'footnote';
+    let listStyle: ListStyle | undefined;
+
+    switch (toolbarType) {
+      case 'heading':
+        targetType = 'heading';
+        break;
+      case 'content':
+        targetType = 'content';
+        break;
+      case 'ul':
+        targetType = 'list';
+        listStyle = 'unordered';
+        break;
+      case 'ol':
+        targetType = 'list';
+        listStyle = 'numbered';
+        break;
+      case 'abc':
+        targetType = 'list';
+        listStyle = 'lettered';
+        break;
+      case 'footnote':
+        targetType = 'footnote';
+        break;
+      default:
+        return;
+    }
+
+    changeNodeTypes(ids, targetType, listStyle);
   };
 
   const handleGlobalKeyDown = (e: React.KeyboardEvent) => {
@@ -311,57 +336,6 @@ export function TreeEditor({
         handleBulkUpdateType(toolbarType);
       }
     }
-  };
-
-  const handleBulkUpdateType = (toolbarType: string) => {
-    const currentSelectedIds = store.getSelectedIds();
-    if (currentSelectedIds.size === 0) return;
-
-    // Sort IDs by flat order for consistent processing
-    const ids = flattenedNodes
-      .filter((fn) => currentSelectedIds.has(fn.node.id))
-      .map((fn) => fn.node.id);
-
-    // Map toolbar type to target type and list style
-    type ListStyle = 'unordered' | 'numbered' | 'lettered';
-    let targetType: 'heading' | 'content' | 'list' | 'footnote';
-    let listStyle: ListStyle | undefined;
-
-    switch (toolbarType) {
-      case 'heading':
-        targetType = 'heading';
-        break;
-      case 'content':
-        targetType = 'content';
-        break;
-      case 'ul':
-        targetType = 'list';
-        listStyle = 'unordered';
-        break;
-      case 'ol':
-        targetType = 'list';
-        listStyle = 'numbered';
-        break;
-      case 'abc':
-        targetType = 'list';
-        listStyle = 'lettered';
-        break;
-      case 'footnote':
-        targetType = 'footnote';
-        break;
-      default:
-        return;
-    }
-
-    changeNodeTypes(ids, targetType, listStyle);
-  };
-
-  const handleDownload = () => {
-    downloadFile(
-      JSON.stringify(document, null, 2),
-      deriveJsonFilename(documentName),
-      'application/json'
-    );
   };
 
   const handleClick = (e: React.MouseEvent, id: string) => {
@@ -450,88 +424,68 @@ export function TreeEditor({
   );
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col">
-      <Toolbar
-        onBack={onBack}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        historyIndex={historyIndex}
-        historyLength={historyLength}
-        onDownload={handleDownload}
-      />
-      <div className="flex-1 flex overflow-hidden">
-        <LeftPane
-          pdfUrl={pdfUrl}
-          document={document}
-          language={language}
-          onHeadingClick={handleOutlineHeadingClick}
-        />
-        <div
-          className="flex-1 overflow-y-auto bg-white relative outline-none"
-          data-testid="tree-editor-pane"
-          ref={containerRef}
-          tabIndex={0}
-          onKeyDown={handleGlobalKeyDown}
-          onClick={clearSelection}
-        >
-          <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48">
-            <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
-              <div>
-                <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
-                <p className="text-gray-500">
-                  Click to select. Shift+Click to select range. Double-click to edit. Enter to
-                  create a new node.
-                </p>
-              </div>
-              <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
-                <div>
-                  <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
-                    Tab
-                  </kbd>{' '}
-                  indent
-                </div>
-                <div>
-                  <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
-                    Shift+Tab
-                  </kbd>{' '}
-                  outdent
-                </div>
-              </div>
+    <div
+      className="flex-1 overflow-y-auto bg-white relative outline-none"
+      data-testid="tree-editor-pane"
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleGlobalKeyDown}
+      onClick={clearSelection}
+    >
+      <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48">
+        <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
+          <div>
+            <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
+            <p className="text-gray-500">
+              Click to select. Shift+Click to select range. Double-click to edit. Enter to create a
+              new node.
+            </p>
+          </div>
+          <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
+            <div>
+              <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
+                Tab
+              </kbd>{' '}
+              indent
             </div>
-            <div className="min-h-[300px] relative">
-              {document.children.length === 0 ? (
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addNodeAfter(document.id);
-                  }}
-                  className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 cursor-pointer hover:text-gray-500 transition-colors border-2 border-dashed border-gray-100 rounded-xl m-4"
-                >
-                  <Plus size={32} className="mb-2 opacity-50" />
-                  <p className="font-medium">Document is empty</p>
-                  <p className="text-sm">Click here to start writing</p>
-                </div>
-              ) : (
-                <TreeCallbacksContext.Provider value={callbacksCtx}>
-                  <TreeUIStoreContext.Provider value={store}>
-                    <RecursiveTreeNode node={document} depth={0} />
-                  </TreeUIStoreContext.Provider>
-                </TreeCallbacksContext.Provider>
-              )}
+            <div>
+              <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
+                Shift+Tab
+              </kbd>{' '}
+              outdent
             </div>
           </div>
-          <FloatingToolbar
-            selectedCount={selectedCount}
-            isEditing={!!editingId}
-            selectedNodeType={selectedNodeType}
-            onUpdateType={handleBulkUpdateType}
-            onDelete={deleteSelected}
-            onClearSelection={clearSelection}
-          />
+        </div>
+        <div className="min-h-[300px] relative">
+          {treeDocument.children.length === 0 ? (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                addNodeAfter(treeDocument.id);
+              }}
+              className="absolute inset-0 flex flex-col items-center justify-center text-gray-300 cursor-pointer hover:text-gray-500 transition-colors border-2 border-dashed border-gray-100 rounded-xl m-4"
+            >
+              <Plus size={32} className="mb-2 opacity-50" />
+              <p className="font-medium">Document is empty</p>
+              <p className="text-sm">Click here to start writing</p>
+            </div>
+          ) : (
+            <TreeCallbacksContext.Provider value={callbacksCtx}>
+              <TreeUIStoreContext.Provider value={store}>
+                <RecursiveTreeNode node={treeDocument} depth={0} />
+              </TreeUIStoreContext.Provider>
+            </TreeCallbacksContext.Provider>
+          )}
         </div>
       </div>
+      <FloatingToolbar
+        selectedCount={selectedCount}
+        isEditing={!!editingId}
+        selectedNodeType={selectedNodeType}
+        onUpdateType={handleBulkUpdateType}
+        onDelete={deleteSelected}
+        onClearSelection={clearSelection}
+      />
     </div>
   );
 }

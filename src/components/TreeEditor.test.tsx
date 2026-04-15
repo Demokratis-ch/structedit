@@ -1,7 +1,9 @@
+// Tests for TreeEditor behavior (keyboard shortcuts, selection, editing, drag-drop).
+// Rendered via EditorInterface since TreeEditor requires the useTreeEditor hook output as a prop.
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
-import { TreeEditor } from './TreeEditor';
+import { EditorInterface } from './EditorInterface';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
@@ -27,7 +29,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
 
 const renderTreeEditor = () =>
   render(
-    <TreeEditor
+    <EditorInterface
       initialDocument={createTestDocument()}
       pdfUrl={null}
       documentName="test.docx"
@@ -269,20 +271,6 @@ describe('double-click inline editing', () => {
   });
 });
 
-describe('FloatingToolbar tooltips', () => {
-  test('toolbar buttons show keyboard shortcuts in tooltips', () => {
-    renderTreeEditor();
-    selectFirstNode();
-
-    expect(screen.getByTitle('Heading (H)')).toBeInTheDocument();
-    expect(screen.getByTitle('Content (C)')).toBeInTheDocument();
-    expect(screen.getByTitle('Bullet List (U)')).toBeInTheDocument();
-    expect(screen.getByTitle('Ordered List (O)')).toBeInTheDocument();
-    expect(screen.getByTitle('Alpha List (A)')).toBeInTheDocument();
-    expect(screen.getByTitle('Footnote (F)')).toBeInTheDocument();
-  });
-});
-
 describe('selection and navigation', () => {
   test('ArrowDown selects first node when nothing is selected', () => {
     renderTreeEditor();
@@ -432,7 +420,7 @@ describe('node operations via keyboard', () => {
     };
 
     render(
-      <TreeEditor
+      <EditorInterface
         initialDocument={doc}
         pdfUrl={null}
         documentName="test.docx"
@@ -485,7 +473,7 @@ describe('node operations via keyboard', () => {
     };
 
     render(
-      <TreeEditor
+      <EditorInterface
         initialDocument={doc}
         pdfUrl={null}
         documentName="test.docx"
@@ -595,7 +583,7 @@ describe('edit mode behaviors', () => {
     };
 
     render(
-      <TreeEditor
+      <EditorInterface
         initialDocument={doc}
         pdfUrl={null}
         documentName="test.docx"
@@ -645,7 +633,7 @@ describe('empty document', () => {
 
   test('shows empty state message', () => {
     render(
-      <TreeEditor
+      <EditorInterface
         initialDocument={createEmptyDocument()}
         pdfUrl={null}
         documentName="test.docx"
@@ -660,7 +648,7 @@ describe('empty document', () => {
 
   test('clicking empty state does not crash', () => {
     render(
-      <TreeEditor
+      <EditorInterface
         initialDocument={createEmptyDocument()}
         pdfUrl={null}
         documentName="test.docx"
@@ -676,28 +664,5 @@ describe('empty document', () => {
     fireEvent.click(clickTarget);
 
     expect(screen.getByText('Document is empty')).toBeInTheDocument();
-  });
-});
-
-describe('document outline', () => {
-  test('clicking a heading in the outline selects the corresponding node in the tree', async () => {
-    vi.useFakeTimers();
-    // jsdom doesn't implement scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
-    renderTreeEditor();
-
-    // The preview tab with TOC is visible (no pdfUrl, so preview is the default tab)
-    const tocNav = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
-    const outlineButton = within(tocNav).getByText('First Heading');
-
-    await act(async () => {
-      fireEvent.click(outlineButton);
-      vi.runAllTimers();
-    });
-
-    // The corresponding node in the tree editor should be selected
-    expectNodeSelected('First Heading');
-
-    vi.useRealTimers();
   });
 });

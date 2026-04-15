@@ -324,3 +324,5 @@ export const useTreeEditor = (
     lastSelectedId,
   };
 };
+
+export type TreeEditorHandle = ReturnType<typeof useTreeEditor>;

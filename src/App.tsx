@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { EditorInterface } from './components/EditorInterface';
 import { Header } from './components/Header';
 import { LoadDocument } from './components/LoadDocument';
-import { TreeEditor } from './components/TreeEditor';
 import type { ContainerDocumentNode } from './types/document';
 
 function App() {
@@ -42,7 +42,7 @@ function App() {
               <LoadDocument onConvert={handleConvert} />
             </div>
           ) : document ? (
-            <TreeEditor
+            <EditorInterface
               initialDocument={document}
               pdfUrl={pdfUrl}
               documentName={fileName}
