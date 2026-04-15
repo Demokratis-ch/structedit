@@ -534,6 +534,37 @@ describe('DocumentPreview', () => {
     expect(within(toc).queryByText('Inhaltsverzeichnis')).not.toBeInTheDocument();
   });
 
+  test('renders a drag handle next to the TOC when expanded', () => {
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+    expect(screen.getByRole('separator')).toBeInTheDocument();
+  });
+
+  test('does not render drag handle when TOC is collapsed', async () => {
+    const user = userEvent.setup();
+    const doc = makeDoc({
+      id: 'h1',
+      number: 'I.',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    });
+
+    render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+
+    const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    await user.click(within(toc).getByRole('button', { name: /collapse/i }));
+
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+  });
+
   test('collapsed TOC can be expanded again', async () => {
     const user = userEvent.setup();
     const doc = makeDoc({

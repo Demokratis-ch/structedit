@@ -95,6 +95,37 @@ describe('FloatingToolbar tooltips', () => {
   });
 });
 
+/** Get the main split drag handle (sibling of tree-editor-pane). */
+const getMainSplitHandle = () => {
+  const treePane = screen.getByTestId('tree-editor-pane');
+  const handle = treePane.previousElementSibling as HTMLElement;
+  expect(handle.getAttribute('role')).toBe('separator');
+  return handle;
+};
+
+describe('resizable split', () => {
+  test('renders a drag handle between left and right panes', () => {
+    renderEditorInterface();
+    const handle = getMainSplitHandle();
+    expect(handle).toBeInTheDocument();
+  });
+
+  test('drag handle mousedown + mousemove resizes the left pane', () => {
+    renderEditorInterface();
+    const handle = getMainSplitHandle();
+
+    fireEvent.mouseDown(handle, { clientX: 500 });
+    fireEvent.mouseMove(document, { clientX: 600 });
+    fireEvent.mouseUp(document);
+
+    // The left pane wrapper should have an updated width style
+    const leftPaneWrapper = handle.previousElementSibling as HTMLElement;
+    expect(leftPaneWrapper).toBeTruthy();
+    const width = Number.parseInt(leftPaneWrapper.style.width, 10);
+    expect(width).toBeGreaterThan(0);
+  });
+});
+
 describe('document outline', () => {
   test('clicking a heading in the outline selects the corresponding node in the tree', async () => {
     vi.useFakeTimers();

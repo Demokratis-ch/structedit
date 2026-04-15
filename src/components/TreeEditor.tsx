@@ -422,14 +422,14 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
 
   return (
     <div
-      className="flex-1 overflow-y-auto bg-white relative outline-none"
+      className="flex-1 overflow-y-auto bg-white relative outline-none @container"
       data-testid="tree-editor-pane"
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleGlobalKeyDown}
       onClick={clearSelection}
     >
-      <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48">
+      <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48 @max-[640px]:max-w-none @max-[640px]:pl-4 @max-[640px]:pr-2">
         <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
           <div>
             <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>

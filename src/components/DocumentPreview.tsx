@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import type React from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useResizable } from '../hooks/useResizable';
 import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
 import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
+import { DragHandle } from './DragHandle';
 
 interface DocumentPreviewProps {
   document: ContainerDocumentNode;
@@ -12,6 +15,7 @@ export function DocumentPreview({ document, language, onHeadingClick }: Document
   const footnotes = document.children.filter((c) => c.type === 'footnote');
   const otherChildren = document.children.filter((c) => c.type !== 'footnote');
   const outline = useMemo(() => getDocumentOutline(document, language), [document, language]);
+  const resizable = useResizable({ defaultSize: 512, minSize: 200, maxSize: 800 });
 
   const handleTocClick = (nodeId: string) => {
     onHeadingClick?.(nodeId);
@@ -21,7 +25,16 @@ export function DocumentPreview({ document, language, onHeadingClick }: Document
 
   return (
     <div className="flex h-full">
-      {outline.length > 0 && <PreviewToc entries={outline} onEntryClick={handleTocClick} />}
+      {outline.length > 0 && (
+        <PreviewToc
+          entries={outline}
+          onEntryClick={handleTocClick}
+          tocWidth={resizable.size}
+          handleProps={resizable.handleProps}
+          isDragging={resizable.isDragging}
+          onWidthRestore={resizable.setSize}
+        />
+      )}
       <div
         className="p-6 overflow-y-auto flex-1 min-w-0"
         style={{ fontFamily: "'Source Serif 4', serif" }}
@@ -40,47 +53,76 @@ export function DocumentPreview({ document, language, onHeadingClick }: Document
 function PreviewToc({
   entries,
   onEntryClick,
+  tocWidth,
+  handleProps,
+  isDragging,
+  onWidthRestore,
 }: {
   entries: OutlineEntry[];
   onEntryClick: (nodeId: string) => void;
+  tocWidth: number;
+  handleProps: {
+    onMouseDown: (e: React.MouseEvent) => void;
+    role: 'separator';
+    'aria-orientation': 'vertical';
+  };
+  isDragging: boolean;
+  onWidthRestore: (size: number) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  // Build a tree structure from the flat entries for nested <ul> rendering
+  const lastExpandedWidth = useRef(tocWidth);
   const tree = useMemo(() => buildTocTree(entries), [entries]);
 
+  // Track the latest expanded width for restore on expand
+  useEffect(() => {
+    if (!collapsed) {
+      lastExpandedWidth.current = tocWidth;
+    }
+  }, [collapsed, tocWidth]);
+
+  const handleCollapse = () => setCollapsed(true);
+  const handleExpand = () => {
+    onWidthRestore(lastExpandedWidth.current);
+    setCollapsed(false);
+  };
+
   return (
-    <nav
-      aria-label="Inhaltsverzeichnis"
-      className={`${collapsed ? 'w-10 p-2' : 'w-[32rem] p-4'} shrink-0 sticky top-0 self-start overflow-y-auto max-h-full text-sm text-gray-500`}
-    >
-      {collapsed ? (
-        <button
-          type="button"
-          aria-label="Expand table of contents"
-          title="Expand table of contents"
-          className="p-1 rounded hover:bg-gray-200 cursor-pointer"
-          onClick={() => setCollapsed(false)}
-        >
-          ▶
-        </button>
-      ) : (
-        <>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-medium text-gray-700">Inhaltsverzeichnis</h3>
-            <button
-              type="button"
-              aria-label="Collapse table of contents"
-              title="Collapse table of contents"
-              className="p-1 rounded hover:bg-gray-200 cursor-pointer"
-              onClick={() => setCollapsed(true)}
-            >
-              ◀
-            </button>
-          </div>
-          <TocList nodes={tree} onEntryClick={onEntryClick} />
-        </>
-      )}
-    </nav>
+    <>
+      <nav
+        aria-label="Inhaltsverzeichnis"
+        style={collapsed ? undefined : { width: tocWidth, flexShrink: 0 }}
+        className={`${collapsed ? 'w-10 p-2' : 'p-4'} shrink-0 sticky top-0 self-start overflow-y-auto max-h-full text-sm text-gray-500`}
+      >
+        {collapsed ? (
+          <button
+            type="button"
+            aria-label="Expand table of contents"
+            title="Expand table of contents"
+            className="p-1 rounded hover:bg-gray-200 cursor-pointer"
+            onClick={handleExpand}
+          >
+            ▶
+          </button>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium text-gray-700">Inhaltsverzeichnis</h3>
+              <button
+                type="button"
+                aria-label="Collapse table of contents"
+                title="Collapse table of contents"
+                className="p-1 rounded hover:bg-gray-200 cursor-pointer"
+                onClick={handleCollapse}
+              >
+                ◀
+              </button>
+            </div>
+            <TocList nodes={tree} onEntryClick={onEntryClick} />
+          </>
+        )}
+      </nav>
+      {!collapsed && <DragHandle handleProps={handleProps} isDragging={isDragging} />}
+    </>
   );
 }
 
