@@ -13,27 +13,24 @@ interface TreeEditorProps {
   onScrollToNode?: (scrollFn: (nodeId: string) => void) => void;
 }
 
-const isCursorAtStart = (el: HTMLElement) => {
+/** Check whether the collapsed cursor is at the start or end of `el`. */
+const isCursorAtBoundary = (el: HTMLElement, boundary: 'start' | 'end') => {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return false;
   const range = sel.getRangeAt(0);
   if (!range.collapsed) return false;
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(el);
-  preRange.setEnd(range.endContainer, range.endOffset);
-  return preRange.toString().trim().length === 0;
+  const testRange = range.cloneRange();
+  testRange.selectNodeContents(el);
+  if (boundary === 'start') {
+    testRange.setEnd(range.endContainer, range.endOffset);
+  } else {
+    testRange.setStart(range.endContainer, range.endOffset);
+  }
+  return testRange.toString().trim().length === 0;
 };
 
-const isCursorAtEnd = (el: HTMLElement) => {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return false;
-  const range = sel.getRangeAt(0);
-  if (!range.collapsed) return false;
-  const postRange = range.cloneRange();
-  postRange.selectNodeContents(el);
-  postRange.setStart(range.endContainer, range.endOffset);
-  return postRange.toString().trim().length === 0;
-};
+const isCursorAtStart = (el: HTMLElement) => isCursorAtBoundary(el, 'start');
+const isCursorAtEnd = (el: HTMLElement) => isCursorAtBoundary(el, 'end');
 
 export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
