@@ -690,6 +690,124 @@ describe('empty document', () => {
   });
 });
 
+describe('drag and drop reordering', () => {
+  const createThreeNodeDocument = (): ContainerDocumentNode => ({
+    id: 'root',
+    number: null,
+    type: 'document',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'heading',
+        contents: { de: 'First' },
+        children: [],
+      },
+      {
+        id: 'h2',
+        number: '2',
+        type: 'heading',
+        contents: { de: 'Second' },
+        children: [],
+      },
+      {
+        id: 'h3',
+        number: '3',
+        type: 'heading',
+        contents: { de: 'Third' },
+        children: [],
+      },
+    ],
+  });
+
+  const renderThreeNodes = () =>
+    render(
+      <EditorInterface
+        initialDocument={createThreeNodeDocument()}
+        documentUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+  /** Get ordered text content of all draggable nodes in the tree pane. */
+  const getNodeOrder = () => {
+    const container = getContainer();
+    const draggables = container.querySelectorAll('[draggable]');
+    return Array.from(draggables).map(
+      (el) => el.querySelector('[contenteditable]')?.textContent?.trim() ?? ''
+    );
+  };
+
+  /**
+   * Simulate a full drag-and-drop sequence: drag sourceText's node and drop
+   * it after targetText's node.
+   *
+   * Note: jsdom has no layout engine, so getBoundingClientRect returns zeros
+   * and the top/bottom half detection in handleDragOver always resolves to
+   * 'bottom' (insert after target). This still exercises all four drag
+   * handlers (handleDragStart, handleDragOver, handleDrop, handleDragEnd).
+   */
+  const dragAndDropAfter = (sourceText: string, targetText: string) => {
+    const sourceWrapper = getNodeWrapper(sourceText);
+    const targetWrapper = getNodeWrapper(targetText);
+
+    fireEvent.dragStart(sourceWrapper, {
+      dataTransfer: { effectAllowed: 'move' },
+    });
+    fireEvent.dragOver(targetWrapper);
+    fireEvent.drop(targetWrapper);
+    fireEvent.dragEnd(sourceWrapper);
+  };
+
+  test('dragging a node forward moves it after the target', () => {
+    renderThreeNodes();
+
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+
+    // Drag "First" onto "Third" → First moves after Third
+    dragAndDropAfter('First', 'Third');
+
+    expect(getNodeOrder()).toEqual(['Second', 'Third', 'First']);
+  });
+
+  test('dragging a node backward moves it after the target', () => {
+    renderThreeNodes();
+
+    // Drag "Third" onto "First" → Third moves after First
+    dragAndDropAfter('Third', 'First');
+
+    expect(getNodeOrder()).toEqual(['First', 'Third', 'Second']);
+  });
+
+  test('dragging a node onto itself does not change the order', () => {
+    renderThreeNodes();
+
+    dragAndDropAfter('Second', 'Second');
+
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+  });
+
+  test('drag end without a valid drop resets state without reordering', () => {
+    renderThreeNodes();
+
+    const sourceWrapper = getNodeWrapper('First');
+
+    // Start dragging but cancel (dragEnd without drop)
+    fireEvent.dragStart(sourceWrapper, {
+      dataTransfer: { effectAllowed: 'move' },
+    });
+    fireEvent.dragEnd(sourceWrapper);
+
+    // Order should remain unchanged
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+
+    // Nodes should not have drag-in-progress styling (opacity-30)
+    expect(sourceWrapper.className).not.toContain('opacity-30');
+  });
+});
+
 describe('FloatingToolbar button clicks', () => {
   test('clicking a type button changes the selected node type', () => {
     renderTreeEditor();
