@@ -13,6 +13,7 @@ node_modules
 dist
 dist-ssr
 *.local
+coverage/*.json
 coverage/*.xml
 
 # Editor directories and files
