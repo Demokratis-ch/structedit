@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
@@ -11,6 +12,7 @@ import {
   generateId,
   parseHtmlLegalToTree,
   parseHtmlToTree,
+  preserveListStyleType,
 } from './document-utils';
 
 describe('deriveJsonFilename', () => {
@@ -46,6 +48,39 @@ describe('Document Utils', () => {
 
     it('returns de when given text', () => {
       expect(detectLanguage('some text')).toBe('de');
+    });
+  });
+
+  describe('preserveListStyleType', () => {
+    it('converts list-style-type CSS to data attribute', () => {
+      const html = `<li style="list-style-type: 'a) ';">First</li>`;
+      const result = preserveListStyleType(html);
+      expect(result).toContain('data-list-style-type="a)"');
+      expect(result).not.toContain('style=');
+    });
+
+    it('handles multiple list items with different styles', () => {
+      const html = `<ol>
+<li style="list-style-type: 'a) ';">First</li>
+<li style="list-style-type: 'b) ';">Second</li>
+<li style="list-style-type: 'c) ';">Third</li>
+</ol>`;
+      const result = preserveListStyleType(html);
+      expect(result).toContain('data-list-style-type="a)"');
+      expect(result).toContain('data-list-style-type="b)"');
+      expect(result).toContain('data-list-style-type="c)"');
+    });
+
+    it('leaves li elements without list-style-type unchanged', () => {
+      const html = '<li>No style</li>';
+      const result = preserveListStyleType(html);
+      expect(result).toBe('<li>No style</li>');
+    });
+
+    it('handles double-quoted CSS values', () => {
+      const html = `<li style='list-style-type: "1. ";'>First</li>`;
+      const result = preserveListStyleType(html);
+      expect(result).toContain('data-list-style-type="1."');
     });
   });
 
@@ -140,6 +175,23 @@ describe('Document Utils', () => {
       expect(item1Content.type).toBe('content');
       const item2 = list.children[1] as ContainerDocumentNode;
       expect(item2.number).toBe('2.');
+    });
+
+    it('uses list-style-type for numbering when present', () => {
+      const html = `<ol>
+<li style="list-style-type: 'a) ';">First item</li>
+<li style="list-style-type: 'b) ';">Second item</li>
+<li style="list-style-type: 'c) ';">Third item</li>
+</ol>`;
+      const doc = parseHtmlToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      const item1 = list.children[0] as ContainerDocumentNode;
+      expect(item1.number).toBe('a)');
+      const item2 = list.children[1] as ContainerDocumentNode;
+      expect(item2.number).toBe('b)');
+      const item3 = list.children[2] as ContainerDocumentNode;
+      expect(item3.number).toBe('c)');
     });
 
     it('converts nested ol lists into nested list structure', () => {
@@ -437,6 +489,26 @@ describe('Document Utils', () => {
       // Should contain headings, not just plain content
       const hasHeadings = doc.children.some((c) => c.type === 'heading');
       expect(hasHeadings).toBe(true);
+
+      // Find the ol list and verify list-style-type is preserved
+      const allLists: ContainerDocumentNode[] = [];
+      const collectLists = (node: DocumentNode) => {
+        if (node.type === 'list') allLists.push(node as ContainerDocumentNode);
+        if ('children' in node) {
+          for (const child of (node as ContainerDocumentNode).children) {
+            collectLists(child);
+          }
+        }
+      };
+      collectLists(doc);
+      // The second list should be the ol with a), b) items
+      const olList = allLists.find((l) =>
+        l.children.some((c) => (c as ContainerDocumentNode).number === 'a)')
+      );
+      expect(olList).toBeDefined();
+      const items = olList!.children as ContainerDocumentNode[];
+      expect(items[0].number).toBe('a)');
+      expect(items[1].number).toBe('b)');
     });
   });
 
