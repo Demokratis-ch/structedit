@@ -15,7 +15,7 @@ const tabTriggerClass =
 
 export function LeftPane({ documentUrl, document, language, onHeadingClick }: LeftPaneProps) {
   return (
-    <div className="flex-1 border-r border-gray-200 bg-gray-50 flex flex-col min-w-0 w-1/2">
+    <div className="h-full border-r border-gray-200 bg-gray-50 flex flex-col min-w-0">
       <Tabs.Root
         defaultValue={documentUrl ? 'original' : 'preview'}
         className="flex flex-col h-full"

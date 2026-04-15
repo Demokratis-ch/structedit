@@ -1,7 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useResizable } from '../hooks/useResizable';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
 import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
+import { DragHandle } from './DragHandle';
 import { LeftPane } from './LeftPane';
 import { Toolbar } from './Toolbar';
 import { TreeEditor } from './TreeEditor';
@@ -22,6 +24,16 @@ export function EditorInterface({
   onBack,
 }: EditorInterfaceProps) {
   const editor = useTreeEditor(initialDocument, language);
+  const resizable = useResizable({ defaultSize: 0, minSize: 300 });
+  const initializedRef = useRef(false);
+
+  // Set initial size to 50% of container on first layout
+  useLayoutEffect(() => {
+    if (!initializedRef.current && resizable.containerRef.current) {
+      initializedRef.current = true;
+      resizable.setSize(Math.floor(resizable.containerRef.current.clientWidth / 2));
+    }
+  });
 
   const scrollToNodeRef = useRef<((nodeId: string) => void) | null>(null);
 
@@ -59,13 +71,16 @@ export function EditorInterface({
         historyLength={editor.historyLength}
         onDownload={handleDownload}
       />
-      <div className="flex-1 flex overflow-hidden">
-        <LeftPane
-          documentUrl={documentUrl}
-          document={editor.document}
-          language={language}
-          onHeadingClick={handleOutlineHeadingClick}
-        />
+      <div className="flex-1 flex overflow-hidden" ref={resizable.containerRef}>
+        <div style={{ width: resizable.size, flexShrink: 0 }} className="min-w-0">
+          <LeftPane
+            documentUrl={documentUrl}
+            document={editor.document}
+            language={language}
+            onHeadingClick={handleOutlineHeadingClick}
+          />
+        </div>
+        <DragHandle handleProps={resizable.handleProps} isDragging={resizable.isDragging} />
         <TreeEditor
           editor={editor}
           language={language}
