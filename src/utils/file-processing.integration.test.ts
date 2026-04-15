@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ContentDocumentNode, HeadingDocumentNode } from '../types/document';
 import { processDocxFile } from './file-processing';
 
@@ -15,9 +15,11 @@ describe('file-processing integration', () => {
     let allNodes: Array<{ type: string; contents?: Partial<Record<string, string>> }>;
     let headings: typeof allNodes;
     let contentNodes: typeof allNodes;
+    let warnSpy: ReturnType<typeof vi.spyOn>;
 
     // Run processDocxFile once, share across assertions
     beforeAll(async () => {
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       URL.createObjectURL = vi.fn(() => 'blob:fake-url');
       // jsdom polyfill — File.arrayBuffer() not implemented
       if (!Blob.prototype.arrayBuffer) {
@@ -42,6 +44,14 @@ describe('file-processing integration', () => {
       allNodes = flattenTree(result.doc);
       headings = allNodes.filter((n) => n.type === 'heading');
       contentNodes = allNodes.filter((n) => n.type === 'content');
+    });
+
+    afterAll(() => {
+      // Ensure we only silenced the expected Mammoth warnings, not something unexpected
+      for (const call of warnSpy.mock.calls) {
+        expect(call[0]).toBe('Mammoth conversion warnings:');
+      }
+      warnSpy.mockRestore();
     });
 
     it('produces non-empty HTML containing the law title', () => {

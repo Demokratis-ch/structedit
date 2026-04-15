@@ -95,6 +95,7 @@ export function FloatingToolbar({
       <button
         onClick={onClearSelection}
         className="ml-2 p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+        title="Clear Selection"
       >
         <X size={16} />
       </button>

@@ -395,6 +395,29 @@ describe('node operations via keyboard', () => {
     expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
   });
 
+  test('Enter key in selection mode creates a new node after the selected one', () => {
+    renderTreeEditor();
+    const container = getContainer();
+
+    selectFirstNode();
+
+    // Press Enter while in selection mode (not editing)
+    fireEvent.keyDown(container, { key: 'Enter' });
+
+    // A new empty node should appear between the two headings
+    const allDraggables = container.querySelectorAll('[draggable]');
+    expect(allDraggables.length).toBe(3);
+
+    // The new node sits between First Heading and Second Heading
+    expect(allDraggables[0].textContent).toContain('First Heading');
+    expect(allDraggables[2].textContent).toContain('Second Heading');
+
+    // The new node is an empty content node with an editable area
+    const newNodeEditable = allDraggables[1].querySelector('[contenteditable]');
+    expect(newNodeEditable).not.toBeNull();
+    expect(newNodeEditable!.textContent).toBe('');
+  });
+
   test('Tab indents selected node under previous sibling', () => {
     // Need heading followed by content at same level for indent to work
     const doc: ContainerDocumentNode = {
@@ -664,5 +687,191 @@ describe('empty document', () => {
     fireEvent.click(clickTarget);
 
     expect(screen.getByText('Document is empty')).toBeInTheDocument();
+  });
+});
+
+describe('drag and drop reordering', () => {
+  const createThreeNodeDocument = (): ContainerDocumentNode => ({
+    id: 'root',
+    number: null,
+    type: 'document',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'heading',
+        contents: { de: 'First' },
+        children: [],
+      },
+      {
+        id: 'h2',
+        number: '2',
+        type: 'heading',
+        contents: { de: 'Second' },
+        children: [],
+      },
+      {
+        id: 'h3',
+        number: '3',
+        type: 'heading',
+        contents: { de: 'Third' },
+        children: [],
+      },
+    ],
+  });
+
+  const renderThreeNodes = () =>
+    render(
+      <EditorInterface
+        initialDocument={createThreeNodeDocument()}
+        documentUrl={null}
+        documentName="test.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+  /** Get ordered text content of all draggable nodes in the tree pane. */
+  const getNodeOrder = () => {
+    const container = getContainer();
+    const draggables = container.querySelectorAll('[draggable]');
+    return Array.from(draggables).map(
+      (el) => el.querySelector('[contenteditable]')?.textContent?.trim() ?? ''
+    );
+  };
+
+  /**
+   * Simulate a full drag-and-drop sequence: drag sourceText's node and drop
+   * it after targetText's node.
+   *
+   * Note: jsdom has no layout engine, so getBoundingClientRect returns zeros
+   * and the top/bottom half detection in handleDragOver always resolves to
+   * 'bottom' (insert after target). This still exercises all four drag
+   * handlers (handleDragStart, handleDragOver, handleDrop, handleDragEnd).
+   */
+  const dragAndDropAfter = (sourceText: string, targetText: string) => {
+    const sourceWrapper = getNodeWrapper(sourceText);
+    const targetWrapper = getNodeWrapper(targetText);
+
+    fireEvent.dragStart(sourceWrapper, {
+      dataTransfer: { effectAllowed: 'move' },
+    });
+    fireEvent.dragOver(targetWrapper);
+    fireEvent.drop(targetWrapper);
+    fireEvent.dragEnd(sourceWrapper);
+  };
+
+  test('dragging a node forward moves it after the target', () => {
+    renderThreeNodes();
+
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+
+    // Drag "First" onto "Third" → First moves after Third
+    dragAndDropAfter('First', 'Third');
+
+    expect(getNodeOrder()).toEqual(['Second', 'Third', 'First']);
+  });
+
+  test('dragging a node backward moves it after the target', () => {
+    renderThreeNodes();
+
+    // Drag "Third" onto "First" → Third moves after First
+    dragAndDropAfter('Third', 'First');
+
+    expect(getNodeOrder()).toEqual(['First', 'Third', 'Second']);
+  });
+
+  test('dragging a node onto itself does not change the order', () => {
+    renderThreeNodes();
+
+    dragAndDropAfter('Second', 'Second');
+
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+  });
+
+  test('drag end without a valid drop resets state without reordering', () => {
+    renderThreeNodes();
+
+    const sourceWrapper = getNodeWrapper('First');
+
+    // Start dragging but cancel (dragEnd without drop)
+    fireEvent.dragStart(sourceWrapper, {
+      dataTransfer: { effectAllowed: 'move' },
+    });
+    fireEvent.dragEnd(sourceWrapper);
+
+    // Order should remain unchanged
+    expect(getNodeOrder()).toEqual(['First', 'Second', 'Third']);
+
+    // Nodes should not have drag-in-progress styling (opacity-30)
+    expect(sourceWrapper.className).not.toContain('opacity-30');
+  });
+});
+
+describe('FloatingToolbar button clicks', () => {
+  test('clicking a type button changes the selected node type', () => {
+    renderTreeEditor();
+    selectFirstNode();
+
+    // The first heading renders as an H1
+    const headingEl = getTreePane().getByText('First Heading');
+    expect(headingEl.tagName).toMatch(/^H\d$/);
+
+    // Click "Content (C)" in the floating toolbar to change type
+    fireEvent.click(screen.getByTitle('Content (C)'));
+
+    // After type change, content nodes render as DIV instead of H-tag
+    const contentEl = getTreePane().getByText('First Heading');
+    expect(contentEl.tagName).toBe('DIV');
+  });
+
+  test('clicking delete removes the selected node', () => {
+    renderTreeEditor();
+    selectFirstNode();
+
+    fireEvent.click(screen.getByTitle('Delete Selected'));
+
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
+  });
+
+  test('clicking a type button applies to all selected nodes', () => {
+    renderTreeEditor();
+
+    // Multi-select both headings
+    selectFirstNode();
+    fireEvent.click(getTreePane().getByText('Second Heading'), { ctrlKey: true });
+    expectNodeSelected('First Heading');
+    expectNodeSelected('Second Heading');
+
+    // Change both to content via toolbar
+    fireEvent.click(screen.getByTitle('Content (C)'));
+
+    // Both should now render as DIV (content) instead of H-tags
+    expect(getTreePane().getByText('First Heading').tagName).toBe('DIV');
+    expect(getTreePane().getByText('Second Heading').tagName).toBe('DIV');
+  });
+
+  test('clicking delete removes all selected nodes', () => {
+    renderTreeEditor();
+
+    // Multi-select both headings
+    selectFirstNode();
+    fireEvent.click(getTreePane().getByText('Second Heading'), { ctrlKey: true });
+
+    fireEvent.click(screen.getByTitle('Delete Selected'));
+
+    expect(getTreePane().queryByText('First Heading')).not.toBeInTheDocument();
+    expect(getTreePane().queryByText('Second Heading')).not.toBeInTheDocument();
+  });
+
+  test('clicking clear selection deselects all nodes', () => {
+    renderTreeEditor();
+    selectFirstNode();
+    expectNodeSelected('First Heading');
+
+    fireEvent.click(screen.getByTitle('Clear Selection'));
+
+    expectNodeNotSelected('First Heading');
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoadDocument } from './LoadDocument';
 
@@ -44,6 +44,8 @@ describe('LoadDocument', () => {
     });
 
     it('hides drop overlay after file is dropped', async () => {
+      // Suppress expected error from mock File lacking arrayBuffer()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(<LoadDocument onConvert={mockOnConvert} />);
 
       const container = screen.getByTestId('drop-zone');
@@ -59,16 +61,19 @@ describe('LoadDocument', () => {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      // Drop the file
-      fireEvent.drop(container, {
-        dataTransfer: {
-          files: [file],
-          types: ['Files'],
-        },
+      // Drop the file — handleFile is async, so wrap in act to flush state updates
+      await act(async () => {
+        fireEvent.drop(container, {
+          dataTransfer: {
+            files: [file],
+            types: ['Files'],
+          },
+        });
       });
 
       // Overlay should be hidden
       expect(screen.queryByText(/drop your document here/i)).not.toBeInTheDocument();
+      errorSpy.mockRestore();
     });
 
     it('prevents default browser behavior on drag over', () => {
@@ -84,7 +89,7 @@ describe('LoadDocument', () => {
       expect(preventDefaultSpy).toHaveBeenCalled();
     });
 
-    it('prevents default browser behavior on drop', () => {
+    it('prevents default browser behavior on drop', async () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
 
       const container = screen.getByTestId('drop-zone');
@@ -100,7 +105,9 @@ describe('LoadDocument', () => {
       });
       const preventDefaultSpy = vi.spyOn(dropEvent, 'preventDefault');
 
-      container.dispatchEvent(dropEvent);
+      await act(async () => {
+        container.dispatchEvent(dropEvent);
+      });
 
       expect(preventDefaultSpy).toHaveBeenCalled();
     });
@@ -143,10 +150,11 @@ describe('LoadDocument', () => {
         value: [file],
         configurable: true,
       });
-      fireEvent.change(fileInput);
-
-      await vi.waitFor(() => {
-        expect(mockOnConvert).toHaveBeenCalled();
+      await act(async () => {
+        fireEvent.change(fileInput);
+        await vi.waitFor(() => {
+          expect(mockOnConvert).toHaveBeenCalled();
+        });
       });
 
       const [doc, sourceUrl, html, filename] = mockOnConvert.mock.calls[0];

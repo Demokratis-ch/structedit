@@ -41,7 +41,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file-coverage-mode: changes
-          threshold-icons: "{0: '🔴', 75: '🟠', 90: '🟢'}"
+          threshold-icons: "{0: '🔴', 80: '🟠', 90: '🟢'}"
 
   deploy:
     name: Deploy to GitHub Pages
