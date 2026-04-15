@@ -1,0 +1,119 @@
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
+import type { ContainerDocumentNode } from '../types/document';
+import { EditorInterface } from './EditorInterface';
+
+const createTestDocument = (): ContainerDocumentNode => ({
+  id: 'root',
+  number: null,
+  type: 'document',
+  children: [
+    {
+      id: 'h1',
+      number: '1',
+      type: 'heading',
+      contents: { de: 'First Heading' },
+      children: [],
+    },
+    {
+      id: 'h2',
+      number: '2',
+      type: 'heading',
+      contents: { de: 'Second Heading' },
+      children: [],
+    },
+  ],
+});
+
+const renderEditorInterface = (props?: Partial<Parameters<typeof EditorInterface>[0]>) =>
+  render(
+    <EditorInterface
+      initialDocument={createTestDocument()}
+      documentUrl={null}
+      documentName="test.docx"
+      language="de"
+      onBack={() => {}}
+      {...props}
+    />
+  );
+
+describe('EditorInterface layout', () => {
+  test('renders Toolbar with Close Editor button', () => {
+    renderEditorInterface();
+    expect(screen.getByText('Close Editor')).toBeInTheDocument();
+  });
+
+  test('renders Toolbar undo/redo buttons', () => {
+    renderEditorInterface();
+    // History counter shows "1 / 1" for initial state
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
+  });
+
+  test('renders the tree editor pane', () => {
+    renderEditorInterface();
+    expect(screen.getByTestId('tree-editor-pane')).toBeInTheDocument();
+  });
+
+  test('calls onBack when Close Editor is clicked', () => {
+    const onBack = vi.fn();
+    renderEditorInterface({ onBack });
+
+    fireEvent.click(screen.getByText('Close Editor'));
+    expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  test('renders Download JSON button', () => {
+    renderEditorInterface();
+    expect(screen.getByText('Download JSON')).toBeInTheDocument();
+  });
+});
+
+/** Get a within-scoped query object for the tree editor (right pane). */
+const getTreePane = () => within(screen.getByTestId('tree-editor-pane'));
+
+/** Assert that a node (found by text content) has selected styling. */
+const expectNodeSelected = (text: string) => {
+  const el = getTreePane().getByText(text);
+  const wrapper = el.closest('[draggable]') as HTMLElement;
+  expect(wrapper.className).toContain('bg-blue');
+};
+
+describe('FloatingToolbar tooltips', () => {
+  test('toolbar buttons show keyboard shortcuts in tooltips', () => {
+    renderEditorInterface();
+
+    // Click the first heading node to select it
+    const firstHeading = getTreePane().getByText('First Heading');
+    fireEvent.click(firstHeading);
+
+    expect(screen.getByTitle('Heading (H)')).toBeInTheDocument();
+    expect(screen.getByTitle('Content (C)')).toBeInTheDocument();
+    expect(screen.getByTitle('Bullet List (U)')).toBeInTheDocument();
+    expect(screen.getByTitle('Ordered List (O)')).toBeInTheDocument();
+    expect(screen.getByTitle('Alpha List (A)')).toBeInTheDocument();
+    expect(screen.getByTitle('Footnote (F)')).toBeInTheDocument();
+  });
+});
+
+describe('document outline', () => {
+  test('clicking a heading in the outline selects the corresponding node in the tree', async () => {
+    vi.useFakeTimers();
+    // jsdom doesn't implement scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+    renderEditorInterface();
+
+    // The preview tab with TOC is visible (no documentUrl, so preview is the default tab)
+    const tocNav = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+    const outlineButton = within(tocNav).getByText('First Heading');
+
+    await act(async () => {
+      fireEvent.click(outlineButton);
+      vi.runAllTimers();
+    });
+
+    // The corresponding node in the tree editor should be selected
+    expectNodeSelected('First Heading');
+
+    vi.useRealTimers();
+  });
+});

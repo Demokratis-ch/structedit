@@ -20,10 +20,10 @@ const docWithHeading = makeDoc({
 });
 
 describe('LeftPane', () => {
-  test('renders both tabs when pdfUrl is provided', () => {
+  test('renders both tabs when documentUrl is provided', () => {
     render(
       <LeftPane
-        pdfUrl="http://example.com/doc.html"
+        documentUrl="http://example.com/doc.html"
         document={docWithHeading}
         language="de"
         onHeadingClick={() => {}}
@@ -34,10 +34,10 @@ describe('LeftPane', () => {
     expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
   });
 
-  test('shows Original tab content by default when pdfUrl exists', () => {
+  test('shows Original tab content by default when documentUrl exists', () => {
     render(
       <LeftPane
-        pdfUrl="http://example.com/doc.html"
+        documentUrl="http://example.com/doc.html"
         document={docWithHeading}
         language="de"
         onHeadingClick={() => {}}
@@ -48,9 +48,14 @@ describe('LeftPane', () => {
     expect(screen.getByText(/may not correspond/i)).toBeInTheDocument();
   });
 
-  test('shows Preview tab by default when pdfUrl is null', () => {
+  test('shows Preview tab by default when documentUrl is null', () => {
     render(
-      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={() => {}} />
+      <LeftPane
+        documentUrl={null}
+        document={docWithHeading}
+        language="de"
+        onHeadingClick={() => {}}
+      />
     );
 
     expect(screen.queryByRole('tab', { name: /original/i })).not.toBeInTheDocument();
@@ -60,7 +65,7 @@ describe('LeftPane', () => {
   test('shows processing warning in Original tab', () => {
     render(
       <LeftPane
-        pdfUrl="http://example.com/doc.html"
+        documentUrl="http://example.com/doc.html"
         document={docWithHeading}
         language="de"
         onHeadingClick={() => {}}
@@ -74,7 +79,7 @@ describe('LeftPane', () => {
     const user = userEvent.setup();
     render(
       <LeftPane
-        pdfUrl="http://example.com/doc.html"
+        documentUrl="http://example.com/doc.html"
         document={docWithHeading}
         language="de"
         onHeadingClick={() => {}}
@@ -91,7 +96,12 @@ describe('LeftPane', () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
     render(
-      <LeftPane pdfUrl={null} document={docWithHeading} language="de" onHeadingClick={onClick} />
+      <LeftPane
+        documentUrl={null}
+        document={docWithHeading}
+        language="de"
+        onHeadingClick={onClick}
+      />
     );
 
     // Click the heading in the TOC

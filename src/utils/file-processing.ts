@@ -130,9 +130,9 @@ export async function processPdfFile(_file: File): Promise<ProcessedDocument> {
   // const result = await response.json();
   // if (result?.document?.html_content) {
   //   const htmlContent = result.document.html_content;
-  //   const pdfUrl = URL.createObjectURL(_file);
+  //   const documentUrl = URL.createObjectURL(_file);
   //   const doc = parseHtmlLegalToTree(htmlContent);
-  //   return { doc, sourceUrl: pdfUrl, html: htmlContent };
+  //   return { doc, sourceUrl: documentUrl, html: htmlContent };
   // }
   // throw new Error('Invalid response format');
 }

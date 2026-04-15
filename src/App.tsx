@@ -1,12 +1,12 @@
 import { useState } from 'react';
+import { EditorInterface } from './components/EditorInterface';
 import { Header } from './components/Header';
 import { LoadDocument } from './components/LoadDocument';
-import { TreeEditor } from './components/TreeEditor';
 import type { ContainerDocumentNode } from './types/document';
 
 function App() {
   const [document, setDocument] = useState<ContainerDocumentNode | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [view, setView] = useState<'upload' | 'editor'>('upload');
 
@@ -17,7 +17,7 @@ function App() {
     filename?: string | null
   ) => {
     setDocument(doc);
-    setPdfUrl(url);
+    setDocumentUrl(url);
     setFileName(filename ?? null);
     setView('editor');
   };
@@ -26,7 +26,7 @@ function App() {
     if (window.confirm('Are you sure you want to go back? Unsaved changes will be lost.')) {
       setView('upload');
       setDocument(null);
-      setPdfUrl(null);
+      setDocumentUrl(null);
       setFileName(null);
     }
   };
@@ -42,9 +42,9 @@ function App() {
               <LoadDocument onConvert={handleConvert} />
             </div>
           ) : document ? (
-            <TreeEditor
+            <EditorInterface
               initialDocument={document}
-              pdfUrl={pdfUrl}
+              documentUrl={documentUrl}
               documentName={fileName}
               onBack={handleBack}
             />
