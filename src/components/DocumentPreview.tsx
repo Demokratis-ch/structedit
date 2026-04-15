@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
 import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
 
@@ -44,16 +44,40 @@ function PreviewToc({
   entries: OutlineEntry[];
   onEntryClick: (nodeId: string) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   // Build a tree structure from the flat entries for nested <ul> rendering
   const tree = useMemo(() => buildTocTree(entries), [entries]);
 
   return (
     <nav
       aria-label="Inhaltsverzeichnis"
-      className="w-[32rem] shrink-0 sticky top-0 self-start overflow-y-auto max-h-full p-4 text-sm text-gray-500"
+      className={`${collapsed ? 'w-10 p-2' : 'w-[32rem] p-4'} shrink-0 sticky top-0 self-start overflow-y-auto max-h-full text-sm text-gray-500`}
     >
-      <h3 className="font-medium mb-2 text-gray-700">Inhaltsverzeichnis</h3>
-      <TocList nodes={tree} onEntryClick={onEntryClick} />
+      {collapsed ? (
+        <button
+          type="button"
+          aria-label="Expand table of contents"
+          className="p-1 rounded hover:bg-gray-200 cursor-pointer"
+          onClick={() => setCollapsed(false)}
+        >
+          ▶
+        </button>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-medium text-gray-700">Inhaltsverzeichnis</h3>
+            <button
+              type="button"
+              aria-label="Collapse table of contents"
+              className="p-1 rounded hover:bg-gray-200 cursor-pointer"
+              onClick={() => setCollapsed(true)}
+            >
+              ◀
+            </button>
+          </div>
+          <TocList nodes={tree} onEntryClick={onEntryClick} />
+        </>
+      )}
     </nav>
   );
 }
