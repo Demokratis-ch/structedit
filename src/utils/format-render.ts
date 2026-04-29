@@ -191,27 +191,37 @@ export const htmlToMarkdown = (html: string, format: NodeFormat): string => {
 
 /**
  * Pure function: turn a stored source string into sanitized HTML according to its format.
- * Output is safe for `dangerouslySetInnerHTML`.
+ * Output is safe for `dangerouslySetInnerHTML`. Trailing whitespace is stripped — `marked`
+ * appends a `\n` after each block, and the editor's `white-space: pre-wrap` would render
+ * that as a visible blank line, which users perceive as the format change "adding a newline".
  */
 export const renderContent = (raw: string, format: NodeFormat): string => {
+  let html: string;
   switch (format) {
     case 'TEXT': {
       const collapsed = raw.replace(/\n+/g, ' ');
-      return sanitize(escapeHtml(collapsed), 'TEXT');
+      html = sanitize(escapeHtml(collapsed), 'TEXT');
+      break;
     }
     case 'NEWLINES': {
-      return sanitize(escapeHtml(raw).replace(/\n/g, '<br>'), 'NEWLINES');
+      html = sanitize(escapeHtml(raw).replace(/\n/g, '<br>'), 'NEWLINES');
+      break;
     }
     case 'MARKDOWN_MINIMAL': {
-      return sanitize(renderMarkdownMinimal(raw), 'MARKDOWN_MINIMAL');
+      html = sanitize(renderMarkdownMinimal(raw), 'MARKDOWN_MINIMAL');
+      break;
     }
     case 'MARKDOWN_INLINE': {
-      const html = marked.parseInline(protectSupSubMarks(raw), { async: false }) as string;
-      return sanitize(html, 'MARKDOWN_INLINE');
+      html = sanitize(
+        marked.parseInline(protectSupSubMarks(raw), { async: false }) as string,
+        'MARKDOWN_INLINE'
+      );
+      break;
     }
     case 'MARKDOWN': {
-      const html = marked.parse(raw, { async: false }) as string;
-      return sanitize(html, 'MARKDOWN');
+      html = sanitize(marked.parse(raw, { async: false }) as string, 'MARKDOWN');
+      break;
     }
   }
+  return html.replace(/\s+$/, '');
 };

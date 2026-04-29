@@ -203,6 +203,28 @@ describe('renderContent — MARKDOWN', () => {
   });
 });
 
+describe('renderContent — no spurious trailing whitespace', () => {
+  // The rendered output is set via dangerouslySetInnerHTML into a contentEditable with
+  // `white-space: pre-wrap`. A trailing newline (which marked appends after each block)
+  // would render as a visible blank line and look like the format change "added a
+  // newline to the contents". Output must be trimmed.
+  it('MARKDOWN output has no trailing newline', () => {
+    expect(renderContent('hello', 'MARKDOWN')).not.toMatch(/\n+$/);
+  });
+
+  it('MARKDOWN list output has no trailing newline', () => {
+    expect(renderContent('- a\n- b', 'MARKDOWN')).not.toMatch(/\n+$/);
+  });
+
+  it('MARKDOWN_INLINE output has no trailing newline', () => {
+    expect(renderContent('**bold**', 'MARKDOWN_INLINE')).not.toMatch(/\n+$/);
+  });
+
+  it('TEXT output has no trailing whitespace', () => {
+    expect(renderContent('hello\n', 'TEXT')).not.toMatch(/\s+$/);
+  });
+});
+
 describe('renderContent — purity', () => {
   it('returns identical output across two calls with the same input', () => {
     const out1 = renderContent('**hi**\n- x', 'MARKDOWN');
