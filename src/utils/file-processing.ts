@@ -20,6 +20,7 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
             id: generateId(),
             number: null,
             type: 'content' as const,
+            format: 'TEXT' as const,
             contents: { de: line.trim() },
             children: [],
           }))
@@ -28,6 +29,7 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
               id: generateId(),
               number: null,
               type: 'content' as const,
+              format: 'TEXT' as const,
               contents: { de: '' },
               children: [],
             },

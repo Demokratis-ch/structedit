@@ -89,6 +89,7 @@ describe('headingNumberExtractTransform', () => {
       id: 'test',
       number: 'existing',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'I. Allgemeine Bestimmungen' },
       children: [],
     };

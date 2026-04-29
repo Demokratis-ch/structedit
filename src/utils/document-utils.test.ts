@@ -233,11 +233,127 @@ describe('Document Utils', () => {
       expect(nestedItem1Content.contents.de).toContain('die öffentliche Volksschule');
     });
 
-    it('strips inline formatting from contents', () => {
-      const html = '<p><b>Bold</b> and <i>italic</i></p>';
+    it('strips inline formatting when chosen format is TEXT (no inline marks present)', () => {
+      const html = '<p>Plain words only</p>';
       const doc = parseHtmlToTree(html);
-      const content = doc.children[0] as LeafDocumentNode;
-      expect(content.contents.de).toBe('Bold and italic');
+      const content = doc.children[0] as ContentDocumentNode;
+      expect(content.format).toBe('TEXT');
+      expect(content.contents.de).toBe('Plain words only');
+    });
+
+    describe('format selection per spec D8 / importer scenarios', () => {
+      it('Plain heading imports as TEXT format', () => {
+        const doc = parseHtmlToTree('<h1>Intro</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.type).toBe('heading');
+        expect(heading.format).toBe('TEXT');
+        expect(heading.contents.de).toBe('Intro');
+      });
+
+      it('Heading with bold imports as MARKDOWN_MINIMAL', () => {
+        const doc = parseHtmlToTree('<h1>The <strong>big</strong> intro</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.contents.de).toBe('The **big** intro');
+      });
+
+      it('Paragraph with inline marks imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>see <em>this</em> and <s>that</s></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('see *this* and ~~that~~');
+      });
+
+      it('Plain paragraph keeps TEXT format', () => {
+        const doc = parseHtmlToTree('<p>just words</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('TEXT');
+        expect(content.contents.de).toBe('just words');
+      });
+
+      it('Heading with <em> imports as MARKDOWN_MINIMAL', () => {
+        const doc = parseHtmlToTree('<h1>An <em>emphatic</em> title</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.contents.de).toBe('An *emphatic* title');
+      });
+
+      it('Paragraph with <sup> imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>x<sup>2</sup> + y</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('x^2^ + y');
+      });
+
+      it('Paragraph with <sub> imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>H<sub>2</sub>O</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('H~2~O');
+      });
+
+      it('Strips inline formatting via Markdown conversion (b → bold)', () => {
+        const doc = parseHtmlToTree('<p><b>Bold</b> and <i>italic</i></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('**Bold** and *italic*');
+      });
+
+      it('Paragraph with <br> imports as MARKDOWN with a literal newline', () => {
+        const doc = parseHtmlToTree('<p>line one<br>line two</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('line one\nline two');
+      });
+
+      it('Paragraph with <a href> imports as MARKDOWN preserving the link', () => {
+        const doc = parseHtmlToTree('<p>see <a href="https://example.com">site</a></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('see [site](https://example.com)');
+      });
+
+      it('Plain paragraph without href ignores spurious <a> (no href) and stays TEXT', () => {
+        const doc = parseHtmlToTree('<p><a>just words</a></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('TEXT');
+        expect(content.contents.de).toBe('just words');
+      });
+
+      it('Heading with <br> imports as MARKDOWN_MINIMAL with newline preserved', () => {
+        const doc = parseHtmlToTree('<h1>top<br>bottom</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.contents.de).toBe('top\nbottom');
+      });
+
+      it('Heading with <a href> drops link syntax (MARKDOWN_MINIMAL has no link rule)', () => {
+        const doc = parseHtmlToTree('<h1>see <a href="https://example.com">site</a></h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        // Heading is MARKDOWN_MINIMAL because of the bold-eligible heuristic? An anchor
+        // alone shouldn't push a heading off TEXT (headings only get MARKDOWN_MINIMAL on
+        // inline marks), so this stays plain text — the link label survives.
+        expect(heading.format).toBe('TEXT');
+        expect(heading.contents.de).toBe('see site');
+      });
+
+      it('Heading with bold AND link emits the bold but keeps link as plain label', () => {
+        const doc = parseHtmlToTree(
+          '<h1><strong>big</strong> <a href="https://example.com">site</a></h1>'
+        );
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        // `[label](url)` would render as literal text under MARKDOWN_MINIMAL — the
+        // importer drops the link syntax to keep just the label.
+        expect(heading.contents.de).toBe('**big** site');
+      });
+
+      it('Paragraph with <code> imports as MARKDOWN preserving the code span', () => {
+        const doc = parseHtmlToTree('<p>run <code>npm test</code> please</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('run `npm test` please');
+      });
     });
 
     it('uses de language by default', () => {

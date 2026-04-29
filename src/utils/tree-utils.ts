@@ -1,4 +1,10 @@
-import type { ContainerDocumentNode, DocumentNode } from '../types/document';
+import {
+  type ContainerDocumentNode,
+  type ContentBearingNodeType,
+  canHaveFormat,
+  type DocumentNode,
+  type NodeFormat,
+} from '../types/document';
 import type { FlattenedNode, NodePath } from '../types/editor';
 
 /**
@@ -44,6 +50,25 @@ export function updateNodeAtPath(
   }
 
   return { ...root, children: newChildren };
+}
+
+const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
+
+/**
+ * Change a content-bearing node's format. No-op when the target node is a container
+ * (no format) or the chosen format isn't allowed for the node's type. Leaves
+ * contents untouched. Returns the same root reference if no change was applied.
+ */
+export function changeNodeFormat(
+  root: ContainerDocumentNode,
+  path: NodePath,
+  format: NodeFormat
+): ContainerDocumentNode {
+  const node = getNodeAtPath(root, path);
+  if (!node) return root;
+  if (!CONTENT_BEARING_TYPES.includes(node.type as ContentBearingNodeType)) return root;
+  if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return root;
+  return updateNodeAtPath(root, path, (n) => ({ ...n, format }) as DocumentNode);
 }
 
 /**

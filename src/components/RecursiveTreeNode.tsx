@@ -2,7 +2,7 @@ import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
 import { memo } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
-import type { DocumentNode } from '../types/document';
+import type { DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 
@@ -257,7 +257,8 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             <ContentBlock
               blockRefs={blockRefs}
               blockId={node.id}
-              html={content}
+              raw={content}
+              format={(node as { format: NodeFormat }).format}
               disabled={!isEditing}
               tagName={getTagName()}
               onChange={(val) => onUpdateContent(node.id, val)}

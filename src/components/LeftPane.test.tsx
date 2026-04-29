@@ -15,6 +15,7 @@ const docWithHeading = makeDoc({
   id: 'h1',
   number: '1',
   type: 'heading',
+  format: 'TEXT',
   contents: { de: 'Heading One' },
   children: [],
 });

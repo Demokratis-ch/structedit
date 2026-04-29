@@ -56,6 +56,7 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
         id: generateId(),
         number: articleMatch.number,
         type: 'heading',
+        format: 'TEXT',
         contents: { [language]: articleMatch.rest },
         children: [],
       };

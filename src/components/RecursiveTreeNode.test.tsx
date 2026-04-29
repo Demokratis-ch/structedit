@@ -19,6 +19,7 @@ const createTestNode = (): HeadingDocumentNode => ({
   id: 'h1',
   number: '1',
   type: 'heading',
+  format: 'TEXT',
   contents: { de: 'Test Heading' },
   children: [],
 });
@@ -138,6 +139,7 @@ describe('RecursiveTreeNode', () => {
         id: 'h-no-num',
         number: null,
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
@@ -153,6 +155,7 @@ describe('RecursiveTreeNode', () => {
         id: 'h-no-num',
         number: null,
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
       };
@@ -199,6 +202,7 @@ describe('RecursiveTreeNode', () => {
         id: 'fn-no-num',
         number: null,
         type: 'footnote',
+        format: 'TEXT',
         contents: { de: 'A footnote' },
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
@@ -212,6 +216,7 @@ describe('RecursiveTreeNode', () => {
         id: 'c-no-num',
         number: null,
         type: 'content',
+        format: 'TEXT',
         contents: { de: 'Some paragraph' },
         children: [],
       };
@@ -227,6 +232,7 @@ describe('RecursiveTreeNode', () => {
         id: 'c-with-num',
         number: '2.',
         type: 'content',
+        format: 'TEXT',
         contents: { de: 'Numbered paragraph' },
         children: [],
       };
@@ -281,6 +287,7 @@ describe('RecursiveTreeNode', () => {
         id: 'fn-with-num',
         number: 'i.',
         type: 'footnote',
+        format: 'TEXT',
         contents: { de: 'A footnote' },
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {

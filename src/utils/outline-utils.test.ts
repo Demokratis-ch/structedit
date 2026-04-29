@@ -15,6 +15,7 @@ describe('getDocumentOutline', () => {
       id: 'c1',
       number: null,
       type: 'content',
+      format: 'TEXT',
       contents: { de: 'Hello' },
       children: [],
     });
@@ -26,6 +27,7 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Einleitung' },
       children: [],
     });
@@ -39,18 +41,21 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Top' },
       children: [
         {
           id: 'h2',
           number: '1.1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Nested' },
           children: [
             {
               id: 'h3',
               number: '1.1.1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Deep' },
               children: [],
             },
@@ -70,6 +75,7 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'German', fr: 'French' },
       children: [],
     });
@@ -83,6 +89,7 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { en: 'English only' },
       children: [],
     });
@@ -96,6 +103,7 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: '<strong>Bold</strong> and <em>italic</em> text' },
       children: [],
     });
@@ -110,6 +118,7 @@ describe('getDocumentOutline', () => {
         id: 'h1',
         number: 'Art. 1',
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'With number' },
         children: [],
       },
@@ -117,6 +126,7 @@ describe('getDocumentOutline', () => {
         id: 'h2',
         number: null,
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Without number' },
         children: [],
       }
@@ -128,15 +138,30 @@ describe('getDocumentOutline', () => {
 
   test('ignores non-heading nodes (content, list, etc.)', () => {
     const doc = makeDoc(
-      { id: 'c1', number: null, type: 'content', contents: { de: 'Text' }, children: [] },
+      {
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'TEXT',
+        contents: { de: 'Text' },
+        children: [],
+      },
       { id: 'l1', number: null, type: 'list', children: [] },
       {
         id: 'h1',
         number: null,
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Only heading' },
         children: [
-          { id: 'c2', number: null, type: 'content', contents: { de: 'More text' }, children: [] },
+          {
+            id: 'c2',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'More text' },
+            children: [],
+          },
         ],
       }
     );
@@ -150,6 +175,7 @@ describe('getDocumentOutline', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: {},
       children: [],
     });

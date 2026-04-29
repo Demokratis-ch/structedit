@@ -23,12 +23,14 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Top Heading' },
       children: [
         {
           id: 'h2',
           number: null,
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Sub Heading' },
           children: [],
         },
@@ -45,6 +47,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'Art. 1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Gegenstand' },
       children: [],
     });
@@ -60,12 +63,14 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'First paragraph text.' },
           children: [],
         },
@@ -81,12 +86,14 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: '1',
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'Paragraph with number.' },
           children: [],
         },
@@ -103,6 +110,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -119,6 +127,7 @@ describe('DocumentPreview', () => {
                   id: 'c1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'First item text.' },
                   children: [],
                 },
@@ -133,6 +142,7 @@ describe('DocumentPreview', () => {
                   id: 'c2',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Second item text.' },
                   children: [],
                 },
@@ -158,18 +168,21 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'Some text.' },
           children: [
             {
               id: 'fn1',
               number: '1',
               type: 'footnote',
+              format: 'TEXT',
               contents: { de: 'Footnote text here.' },
             },
           ],
@@ -189,6 +202,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'German Title', fr: 'French Title' },
       children: [],
     });
@@ -205,30 +219,35 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Level 1' },
       children: [
         {
           id: 'h2',
           number: null,
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Level 2' },
           children: [
             {
               id: 'h3',
               number: null,
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Level 3' },
               children: [
                 {
                   id: 'h4',
                   number: null,
                   type: 'heading',
+                  format: 'TEXT',
                   contents: { de: 'Level 4' },
                   children: [
                     {
                       id: 'h5',
                       number: null,
                       type: 'heading',
+                      format: 'TEXT',
                       contents: { de: 'Level 5' },
                       children: [],
                     },
@@ -253,6 +272,7 @@ describe('DocumentPreview', () => {
         id: 'c1',
         number: null,
         type: 'content',
+        format: 'TEXT',
         contents: { de: 'Some text.' },
         children: [],
       },
@@ -260,6 +280,7 @@ describe('DocumentPreview', () => {
         id: 'fn1',
         number: '1',
         type: 'footnote',
+        format: 'TEXT',
         contents: { de: 'Root-level footnote.' },
       }
     );
@@ -273,6 +294,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -289,6 +311,7 @@ describe('DocumentPreview', () => {
                   id: 'c1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Item text.' },
                   children: [],
                 },
@@ -296,6 +319,7 @@ describe('DocumentPreview', () => {
                   id: 'fn1',
                   number: '1',
                   type: 'footnote',
+                  format: 'TEXT',
                   contents: { de: 'List item footnote.' },
                 },
               ],
@@ -314,6 +338,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -330,6 +355,7 @@ describe('DocumentPreview', () => {
                   id: 'c1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Unnumbered item.' },
                   children: [],
                 },
@@ -351,6 +377,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -367,6 +394,7 @@ describe('DocumentPreview', () => {
                   id: 'c1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Numbered item text.' },
                   children: [],
                 },
@@ -390,6 +418,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -406,6 +435,7 @@ describe('DocumentPreview', () => {
                   id: 'c1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Bullet item text.' },
                   children: [],
                 },
@@ -427,12 +457,14 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Allgemeine Bestimmungen' },
       children: [
         {
           id: 'h2',
           number: 'Art. 1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Gegenstand' },
           children: [],
         },
@@ -440,6 +472,7 @@ describe('DocumentPreview', () => {
           id: 'h3',
           number: 'Art. 2',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Geltungsbereich' },
           children: [],
         },
@@ -471,6 +504,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     });
@@ -489,6 +523,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: null,
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Target Heading' },
       children: [],
     });
@@ -515,6 +550,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     });
@@ -539,6 +575,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     });
@@ -553,6 +590,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     });
@@ -571,6 +609,7 @@ describe('DocumentPreview', () => {
       id: 'h1',
       number: 'I.',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     });

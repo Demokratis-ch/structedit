@@ -1,8 +1,11 @@
 import type React from 'react';
 import { memo, useEffect, useLayoutEffect, useRef } from 'react';
+import type { NodeFormat } from '../types/document';
+import { renderContent } from '../utils/format-render';
 
 interface ContentBlockProps {
-  html: string;
+  raw: string;
+  format: NodeFormat;
   tagName: string;
   className: string;
   onChange: (val: string) => void;
@@ -15,7 +18,8 @@ interface ContentBlockProps {
 
 export const ContentBlock = memo(
   ({
-    html,
+    raw,
+    format,
     tagName,
     className,
     onChange,
@@ -25,10 +29,10 @@ export const ContentBlock = memo(
     blockId,
     blockRefs,
   }: ContentBlockProps) => {
-    const contentEditableRef = useRef<HTMLElement>(null);
+    const elRef = useRef<HTMLElement>(null);
 
     useEffect(() => {
-      const el = contentEditableRef.current;
+      const el = elRef.current;
       if (el) {
         blockRefs.current[blockId] = el;
       }
@@ -39,21 +43,29 @@ export const ContentBlock = memo(
       };
     }, [blockId, blockRefs, tagName]);
 
+    // Editing path: write the raw source into the element as text (preserves \n via
+    // white-space: pre-wrap on the editable). Display path: write rendered HTML once.
     useLayoutEffect(() => {
-      if (contentEditableRef.current && contentEditableRef.current.innerHTML !== html) {
-        contentEditableRef.current.innerHTML = html;
+      const el = elRef.current;
+      if (!el) return;
+      if (disabled) {
+        const html = renderContent(raw, format);
+        if (el.innerHTML !== html) el.innerHTML = html;
+      } else {
+        if (el.textContent !== raw) el.textContent = raw;
       }
-    }, [html, tagName]);
+    }, [raw, format, disabled, tagName]);
 
     const handleInput = (e: React.FormEvent<HTMLElement>) => {
-      onChange(e.currentTarget.innerHTML);
+      // While editing we always feed back the raw text content (which preserves \n).
+      onChange(e.currentTarget.textContent ?? '');
     };
 
     const Tag = tagName as any;
 
     return (
       <Tag
-        ref={contentEditableRef}
+        ref={elRef}
         className={className}
         contentEditable={!disabled}
         onInput={handleInput}
@@ -61,11 +73,13 @@ export const ContentBlock = memo(
         onFocus={onFocus}
         suppressContentEditableWarning
         spellCheck={false}
+        style={{ whiteSpace: 'pre-wrap' }}
       />
     );
   },
   (prev, next) =>
-    prev.html === next.html &&
+    prev.raw === next.raw &&
+    prev.format === next.format &&
     prev.disabled === next.disabled &&
     prev.className === next.className &&
     prev.tagName === next.tagName &&

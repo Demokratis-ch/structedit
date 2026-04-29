@@ -14,6 +14,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
     },
@@ -21,6 +22,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h2',
       number: '2',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
     },
@@ -208,11 +210,14 @@ describe('double-click inline editing', () => {
     vi.useRealTimers();
   });
 
-  test('pressing Enter while editing creates a new node and focuses it', async () => {
+  test('pressing Enter while editing a TEXT-format node does NOT create a sibling', async () => {
     vi.useFakeTimers();
     renderTreeEditor();
 
     const firstHeading = getTreePane().getByText('First Heading');
+
+    // Snapshot the count of contenteditable nodes (one per heading/content/footnote).
+    const beforeEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
 
     // Enter edit mode via double-click
     await act(async () => {
@@ -220,23 +225,252 @@ describe('double-click inline editing', () => {
       vi.runAllTimers();
     });
 
-    // Press Enter to create a new sibling node
+    // Press Enter — for TEXT-format nodes this is a no-op (no sibling, no newline)
     const editingEl = document.activeElement as HTMLElement;
     await act(async () => {
       fireEvent.keyDown(editingEl, { key: 'Enter' });
     });
-    // Flush timers after React has re-rendered with the new node
     await act(async () => {
       vi.runAllTimers();
     });
 
-    // The new empty node should now have editing focus
-    const newActiveEl = document.activeElement as HTMLElement;
-    expect(newActiveEl).not.toBeNull();
-    expect(newActiveEl.getAttribute('contenteditable')).toBe('true');
-    expect(newActiveEl.textContent).toBe('');
-    expect(newActiveEl).not.toBe(editingEl);
+    // No new editable node was inserted into the tree.
+    const afterEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
+    expect(afterEditableCount).toBe(beforeEditableCount);
 
+    vi.useRealTimers();
+  });
+
+  test('pressing Enter on a selected (non-editing) node still creates a sibling', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = getTreePane().getByText('First Heading');
+    fireEvent.click(firstHeading);
+
+    const beforeEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
+    const container = getContainer();
+    await act(async () => {
+      fireEvent.keyDown(container, { key: 'Enter' });
+      vi.runAllTimers();
+    });
+
+    // A new content node should now be inserted into the tree (one more contenteditable)
+    const afterEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
+    expect(afterEditableCount).toBe(beforeEditableCount + 1);
+
+    vi.useRealTimers();
+  });
+
+  test('pressing Enter while editing a NEWLINES-format node inserts \\n via execCommand', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'p',
+          number: null,
+          type: 'content',
+          format: 'NEWLINES',
+          contents: { de: 'ab' },
+          children: [],
+        },
+      ],
+    };
+
+    const execCommandSpy = vi.fn(() => true);
+    const originalExec = (
+      window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+    ).execCommand;
+    (window.document as Document & { execCommand: (...args: unknown[]) => boolean }).execCommand =
+      execCommandSpy as unknown as Document['execCommand'];
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('ab');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter' });
+    });
+
+    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+
+    if (originalExec) {
+      (
+        window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+      ).execCommand = originalExec;
+    }
+
+    vi.useRealTimers();
+  });
+
+  test('pressing Enter while editing a MARKDOWN-format node inserts \\n via execCommand', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'p',
+          number: null,
+          type: 'content',
+          format: 'MARKDOWN',
+          contents: { de: 'xy' },
+          children: [],
+        },
+      ],
+    };
+
+    const execCommandSpy = vi.fn(() => true);
+    const originalExec = (
+      window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+    ).execCommand;
+    (window.document as Document & { execCommand: (...args: unknown[]) => boolean }).execCommand =
+      execCommandSpy as unknown as Document['execCommand'];
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('xy');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter' });
+    });
+
+    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+
+    if (originalExec) {
+      (
+        window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+      ).execCommand = originalExec;
+    }
+
+    vi.useRealTimers();
+  });
+
+  test('Shift+Enter behaves identically to Enter — no-op in TEXT-format edit mode', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = getTreePane().getByText('First Heading');
+    const beforeCount = getContainer().querySelectorAll('[contenteditable]').length;
+
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    const execCommandSpy = vi.fn(() => true);
+    const originalExec = (
+      window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+    ).execCommand;
+    (window.document as Document & { execCommand: (...args: unknown[]) => boolean }).execCommand =
+      execCommandSpy as unknown as Document['execCommand'];
+
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter', shiftKey: true });
+    });
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    // No newline inserted, no sibling created
+    expect(execCommandSpy).not.toHaveBeenCalled();
+    expect(getContainer().querySelectorAll('[contenteditable]').length).toBe(beforeCount);
+
+    if (originalExec) {
+      (
+        window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+      ).execCommand = originalExec;
+    }
+    vi.useRealTimers();
+  });
+
+  test('Shift+Enter inserts \\n in MARKDOWN-format edit mode (same as Enter)', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'p',
+          number: null,
+          type: 'content',
+          format: 'MARKDOWN',
+          contents: { de: 'xy' },
+          children: [],
+        },
+      ],
+    };
+
+    const execCommandSpy = vi.fn(() => true);
+    const originalExec = (
+      window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+    ).execCommand;
+    (window.document as Document & { execCommand: (...args: unknown[]) => boolean }).execCommand =
+      execCommandSpy as unknown as Document['execCommand'];
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('xy');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter', shiftKey: true });
+    });
+
+    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+
+    if (originalExec) {
+      (
+        window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+      ).execCommand = originalExec;
+    }
     vi.useRealTimers();
   });
 
@@ -429,6 +663,7 @@ describe('node operations via keyboard', () => {
           id: 'h1',
           number: '1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [],
         },
@@ -436,6 +671,7 @@ describe('node operations via keyboard', () => {
           id: 'c1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'Child Content' },
           children: [],
         },
@@ -481,12 +717,14 @@ describe('node operations via keyboard', () => {
           id: 'h1',
           number: '1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [
             {
               id: 'c1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Nested Content' },
               children: [],
             },
@@ -592,6 +830,7 @@ describe('edit mode behaviors', () => {
           id: 'h1',
           number: '1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'First Heading' },
           children: [],
         },
@@ -599,6 +838,7 @@ describe('edit mode behaviors', () => {
           id: 'empty',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: '' },
           children: [],
         },
@@ -700,6 +940,7 @@ describe('drag and drop reordering', () => {
         id: 'h1',
         number: '1',
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'First' },
         children: [],
       },
@@ -707,6 +948,7 @@ describe('drag and drop reordering', () => {
         id: 'h2',
         number: '2',
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Second' },
         children: [],
       },
@@ -714,6 +956,7 @@ describe('drag and drop reordering', () => {
         id: 'h3',
         number: '3',
         type: 'heading',
+        format: 'TEXT',
         contents: { de: 'Third' },
         children: [],
       },

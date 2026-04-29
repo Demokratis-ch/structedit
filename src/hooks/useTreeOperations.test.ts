@@ -20,12 +20,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
         },
@@ -33,12 +35,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
           id: 'h2',
           number: '1.1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Nested Heading' },
           children: [
             {
               id: 'p2',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Nested paragraph' },
               children: [],
             },
@@ -50,6 +54,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h1b',
       number: '2',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
     },
@@ -70,6 +75,7 @@ const createListItem = (
       id: `${id}-content`,
       number: null,
       type: 'content',
+      format: 'TEXT',
       contents: { de: content },
       children: [],
     } as ContentDocumentNode,
@@ -85,6 +91,7 @@ const createDocumentWithList = (): ContainerDocumentNode => ({
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
@@ -334,6 +341,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'German', en: 'English' },
             children: [],
           },
@@ -365,6 +373,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
           },
@@ -372,6 +381,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
           },
@@ -415,6 +425,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'First' },
             children: [],
           },
@@ -422,6 +433,7 @@ describe('useTreeOperations', () => {
             id: 'h2',
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
           },
@@ -470,6 +482,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
           },
@@ -477,6 +490,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'First' },
             children: [],
           },
@@ -484,6 +498,7 @@ describe('useTreeOperations', () => {
             id: 'p2',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
           },
@@ -519,6 +534,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'First' },
             children: [],
           },
@@ -526,6 +542,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
           },
@@ -664,6 +681,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: '1',
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Title' },
             children: [
               {
@@ -720,6 +738,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
           } as ContentDocumentNode,
@@ -727,6 +746,7 @@ describe('useTreeOperations', () => {
             id: 'fn1',
             number: 'i.',
             type: 'footnote',
+            format: 'TEXT',
             contents: { de: 'Footnote text' },
           } as LeafDocumentNode,
         ],
@@ -758,12 +778,14 @@ describe('useTreeOperations', () => {
             id: 'fn1',
             number: 'i.',
             type: 'footnote',
+            format: 'TEXT',
             contents: { de: 'First footnote' },
           } as LeafDocumentNode,
           {
             id: 'fn2',
             number: 'ii.',
             type: 'footnote',
+            format: 'TEXT',
             contents: { de: 'Second footnote' },
           } as LeafDocumentNode,
         ],
@@ -789,6 +811,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: '1',
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
           } as HeadingDocumentNode,
@@ -796,6 +819,7 @@ describe('useTreeOperations', () => {
             id: 'fn1',
             number: 'i.',
             type: 'footnote',
+            format: 'TEXT',
             contents: { de: 'Footnote text' },
           } as LeafDocumentNode,
         ],
@@ -829,12 +853,14 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [
               {
                 id: 'fn1',
                 number: 'i.',
                 type: 'footnote',
+                format: 'TEXT',
                 contents: { de: 'Footnote text' },
               } as LeafDocumentNode,
             ],
@@ -871,18 +897,21 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [
               {
                 id: 'fn1',
                 number: 'i.',
                 type: 'footnote',
+                format: 'TEXT',
                 contents: { de: 'First footnote' },
               } as LeafDocumentNode,
               {
                 id: 'fn2',
                 number: 'ii.',
                 type: 'footnote',
+                format: 'TEXT',
                 contents: { de: 'Second footnote' },
               } as LeafDocumentNode,
             ],
@@ -922,6 +951,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Some text' },
               children: [],
             },
@@ -953,6 +983,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: 'Art. 1',
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'German text', en: 'English text' },
               children: [],
             },
@@ -984,6 +1015,7 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: null,
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Already heading' },
               children: [],
             },
@@ -1011,6 +1043,7 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [],
             },
@@ -1044,12 +1077,14 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Heading' },
               children: [
                 {
                   id: 'p1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Child 1' },
                   children: [],
                 },
@@ -1057,6 +1092,7 @@ describe('useTreeOperations', () => {
                   id: 'p2',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Child 2' },
                   children: [],
                 },
@@ -1066,6 +1102,7 @@ describe('useTreeOperations', () => {
               id: 'h2',
               number: '2',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Second heading' },
               children: [],
             },
@@ -1099,6 +1136,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Already content' },
               children: [],
             },
@@ -1126,6 +1164,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Item text' },
               children: [],
             },
@@ -1166,6 +1205,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
             },
@@ -1194,6 +1234,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
             },
@@ -1222,6 +1263,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
             },
@@ -1252,12 +1294,14 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Heading' },
               children: [
                 {
                   id: 'p1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Child content' },
                   children: [],
                 },
@@ -1705,6 +1749,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
             },
@@ -1740,6 +1785,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
             },
@@ -1787,6 +1833,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
             },
@@ -1835,6 +1882,7 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Separator' },
               children: [],
             },
@@ -1842,6 +1890,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
             },
@@ -1875,6 +1924,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Note text' },
               children: [],
             } as ContentDocumentNode,
@@ -1908,6 +1958,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: 'i.',
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'German', en: 'English' },
               children: [],
             } as ContentDocumentNode,
@@ -1939,18 +1990,21 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Main text' },
               children: [
                 {
                   id: 'fn1',
                   number: 'i.',
                   type: 'footnote',
+                  format: 'TEXT',
                   contents: { de: 'First footnote' },
                 } as LeafDocumentNode,
                 {
                   id: 'fn2',
                   number: 'ii.',
                   type: 'footnote',
+                  format: 'TEXT',
                   contents: { de: 'Second footnote' },
                 } as LeafDocumentNode,
               ],
@@ -1959,6 +2013,7 @@ describe('useTreeOperations', () => {
               id: 'p2',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Next paragraph' },
               children: [],
             } as ContentDocumentNode,
@@ -1992,6 +2047,7 @@ describe('useTreeOperations', () => {
               id: 'fn1',
               number: 'i.',
               type: 'footnote',
+              format: 'TEXT',
               contents: { de: 'Already a footnote' },
             } as LeafDocumentNode,
           ],
@@ -2018,12 +2074,14 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [
                 {
                   id: 'p1',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Child content' },
                   children: [],
                 } as ContentDocumentNode,
@@ -2031,6 +2089,7 @@ describe('useTreeOperations', () => {
                   id: 'p2',
                   number: null,
                   type: 'content',
+                  format: 'TEXT',
                   contents: { de: 'Another child' },
                   children: [],
                 } as ContentDocumentNode,
@@ -2040,6 +2099,7 @@ describe('useTreeOperations', () => {
               id: 'h2',
               number: '2',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Next heading' },
               children: [],
             } as HeadingDocumentNode,
@@ -2074,6 +2134,7 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [],
             } as HeadingDocumentNode,
@@ -2108,6 +2169,7 @@ describe('useTreeOperations', () => {
               id: 'fn1',
               number: 'i.',
               type: 'footnote',
+              format: 'TEXT',
               contents: { de: 'Footnote text' },
             } as LeafDocumentNode,
           ],
@@ -2140,6 +2202,7 @@ describe('useTreeOperations', () => {
               id: 'fn1',
               number: null,
               type: 'footnote',
+              format: 'TEXT',
               contents: { de: 'German', en: 'English', fr: 'French' },
             } as LeafDocumentNode,
           ],
@@ -2222,6 +2285,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'First' },
             children: [],
           } as ContentDocumentNode,
@@ -2229,6 +2293,7 @@ describe('useTreeOperations', () => {
             id: 'p2',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
           } as ContentDocumentNode,
@@ -2236,6 +2301,7 @@ describe('useTreeOperations', () => {
             id: 'p3',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Third' },
             children: [],
           } as ContentDocumentNode,
@@ -2266,6 +2332,7 @@ describe('useTreeOperations', () => {
             id: 'h1',
             number: '1',
             type: 'heading',
+            format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
           } as HeadingDocumentNode,
@@ -2273,6 +2340,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
           } as ContentDocumentNode,
@@ -2423,6 +2491,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Para' },
               children: [],
             } as ContentDocumentNode,
@@ -2457,6 +2526,7 @@ describe('useTreeOperations', () => {
               id: 'h1',
               number: '1',
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Title' },
               children: [],
             } as HeadingDocumentNode,
@@ -2565,6 +2635,7 @@ describe('useTreeOperations', () => {
               id: 'p1',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Para' },
               children: [],
             } as ContentDocumentNode,
@@ -2630,6 +2701,7 @@ describe('useTreeOperations', () => {
               id: 'fn1',
               number: 'i.',
               type: 'footnote',
+              format: 'TEXT',
               contents: { de: 'Note' },
             } as LeafDocumentNode,
             {
@@ -2726,6 +2798,7 @@ describe('useTreeOperations', () => {
             id: 'p1',
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: { de: 'Para' },
             children: [],
           } as ContentDocumentNode,
@@ -2801,6 +2874,177 @@ describe('useTreeOperations', () => {
       // Moving li1 to list2 (next to li2)
       const parentId = result.current.getReceivingParentId('li1', 'li2');
       expect(parentId).toBe('list2');
+    });
+  });
+
+  describe('changeNodeFormat', () => {
+    test('updates a content node format and commits one history entry', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeNodeFormat('p1', 'MARKDOWN');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const p1 = h1.children[0] as ContentDocumentNode;
+      expect(p1.format).toBe('MARKDOWN');
+      expect(p1.contents).toEqual({ de: 'First paragraph' });
+    });
+
+    test('does nothing when format is not allowed for the node type', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        // heading does not allow MARKDOWN
+        result.current.changeNodeFormat('h1', 'MARKDOWN');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing for an unknown id', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeNodeFormat('does-not-exist', 'MARKDOWN');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addNodeAfter — default format', () => {
+    test('creates a content node with default format TEXT', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.addNodeAfter('p1');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const newNode = h1.children[1] as ContentDocumentNode;
+      expect(newNode.type).toBe('content');
+      expect(newNode.format).toBe('TEXT');
+    });
+
+    test('addNodeBefore creates a content node with default format TEXT', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.addNodeBefore('h2');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const newNode = h1.children[1] as ContentDocumentNode;
+      expect(newNode.format).toBe('TEXT');
+    });
+
+    test('list_item created via addNodeAfter has its inner content node with format TEXT', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.addNodeAfter('li1');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const list = h1.children[0] as ContainerDocumentNode;
+      const newItem = list.children[1] as ContainerDocumentNode;
+      const inner = newItem.children[0] as ContentDocumentNode;
+      expect(inner.format).toBe('TEXT');
+    });
+  });
+
+  describe('changeNodeTypes — format preservation/reset', () => {
+    test('preserves an allowed format when converting content → footnote (NEWLINES is allowed on both)', () => {
+      const docWithMarkdown: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p',
+            number: null,
+            type: 'content',
+            format: 'NEWLINES',
+            contents: { de: 'preserved' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+      const { result } = renderTreeOperations(docWithMarkdown);
+
+      act(() => {
+        result.current.changeNodeTypes(['p'], 'footnote');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const f = newDoc.children[0] as LeafDocumentNode;
+      expect(f.type).toBe('footnote');
+      expect(f.format).toBe('NEWLINES');
+    });
+
+    test('resets to TEXT when converting content (MARKDOWN) → heading (MARKDOWN not allowed)', () => {
+      const docWithMarkdown: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p',
+            number: null,
+            type: 'content',
+            format: 'MARKDOWN',
+            contents: { de: '**bold**' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+      const { result } = renderTreeOperations(docWithMarkdown);
+
+      act(() => {
+        result.current.changeNodeTypes(['p'], 'heading');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h = newDoc.children[0] as HeadingDocumentNode;
+      expect(h.type).toBe('heading');
+      expect(h.format).toBe('TEXT');
+      // contents preserved
+      expect(h.contents.de).toBe('**bold**');
+    });
+
+    test('preserves NEWLINES when converting heading → content (still allowed)', () => {
+      const docWithNewlines: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h',
+            number: '1',
+            type: 'heading',
+            format: 'NEWLINES',
+            contents: { de: 'a\nb' },
+            children: [],
+          } as HeadingDocumentNode,
+        ],
+      };
+      const { result } = renderTreeOperations(docWithNewlines);
+
+      act(() => {
+        result.current.changeNodeTypes(['h'], 'content');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const c = newDoc.children[0] as ContentDocumentNode;
+      expect(c.type).toBe('content');
+      expect(c.format).toBe('NEWLINES');
     });
   });
 });

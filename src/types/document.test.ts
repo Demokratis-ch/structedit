@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { canBeChildOf, exampleDocument, isValidDocument, isValidNode } from './document';
+import {
+  ALLOWED_FORMATS,
+  canBeChildOf,
+  canHaveFormat,
+  DEFAULT_FORMAT,
+  exampleDocument,
+  isValidDocument,
+  isValidNode,
+  type NodeFormat,
+} from './document';
 
 describe('Document validation', () => {
   it('validates the example document', () => {
@@ -14,6 +23,7 @@ describe('Document validation', () => {
         type: 'content',
         contents: { en: 'Hello' },
         children: [],
+        format: 'TEXT',
       })
     ).toBe(true);
   });
@@ -86,6 +96,7 @@ describe('Document validation', () => {
                     type: 'content',
                     contents: { en: 'Item' },
                     children: [],
+                    format: 'TEXT',
                   },
                 ],
               },
@@ -156,6 +167,7 @@ describe('Document validation', () => {
         number: 'i.',
         type: 'footnote',
         contents: { en: 'This is a footnote.' },
+        format: 'TEXT',
       })
     ).toBe(true);
   });
@@ -442,6 +454,7 @@ describe('Document validation - parent-child rules', () => {
                     type: 'content',
                     contents: { en: 'Item' },
                     children: [],
+                    format: 'TEXT',
                   },
                   {
                     id: '5',
@@ -459,6 +472,7 @@ describe('Document validation - parent-child rules', () => {
                             type: 'content',
                             contents: { en: 'Nested' },
                             children: [],
+                            format: 'TEXT',
                           },
                         ],
                       },
@@ -485,7 +499,16 @@ describe('Document validation - parent-child rules', () => {
             number: '1',
             type: 'heading',
             contents: { en: 'Title' },
-            children: [{ id: '3', number: 'i.', type: 'footnote', contents: { en: 'Note' } }],
+            format: 'TEXT',
+            children: [
+              {
+                id: '3',
+                number: 'i.',
+                type: 'footnote',
+                contents: { en: 'Note' },
+                format: 'TEXT',
+              },
+            ],
           },
         ],
       })
@@ -508,7 +531,15 @@ describe('Document validation - parent-child rules', () => {
                 id: '3',
                 number: '1.',
                 type: 'list_item',
-                children: [{ id: '4', number: null, type: 'image', contents: { en: 'image.png' } }],
+                children: [
+                  {
+                    id: '4',
+                    number: null,
+                    type: 'image',
+                    contents: { en: 'image.png' },
+                    format: 'TEXT',
+                  },
+                ],
               },
             ],
           },
@@ -527,6 +558,7 @@ describe('Content node as hybrid type (with footnote children)', () => {
         type: 'content',
         contents: { en: 'Hello' },
         children: [],
+        format: 'TEXT',
       })
     ).toBe(true);
   });
@@ -538,7 +570,16 @@ describe('Content node as hybrid type (with footnote children)', () => {
         number: null,
         type: 'content',
         contents: { en: 'Text with footnote' },
-        children: [{ id: '2', number: 'i.', type: 'footnote', contents: { en: 'Footnote text' } }],
+        format: 'TEXT',
+        children: [
+          {
+            id: '2',
+            number: 'i.',
+            type: 'footnote',
+            contents: { en: 'Footnote text' },
+            format: 'TEXT',
+          },
+        ],
       })
     ).toBe(true);
   });
@@ -550,9 +591,10 @@ describe('Content node as hybrid type (with footnote children)', () => {
         number: null,
         type: 'content',
         contents: { en: 'Text' },
+        format: 'TEXT',
         children: [
-          { id: '2', number: 'i.', type: 'footnote', contents: { en: 'First' } },
-          { id: '3', number: 'ii.', type: 'footnote', contents: { en: 'Second' } },
+          { id: '2', number: 'i.', type: 'footnote', contents: { en: 'First' }, format: 'TEXT' },
+          { id: '3', number: 'ii.', type: 'footnote', contents: { en: 'Second' }, format: 'TEXT' },
         ],
       })
     ).toBe(true);
@@ -669,5 +711,233 @@ describe('canBeChildOf - content parent', () => {
 
   it('rejects image as child of content', () => {
     expect(canBeChildOf('image', 'content')).toBe(false);
+  });
+});
+
+describe('NodeFormat — type and tables', () => {
+  it('NodeFormat union accepts the five spec values', () => {
+    const values: NodeFormat[] = [
+      'TEXT',
+      'NEWLINES',
+      'MARKDOWN_MINIMAL',
+      'MARKDOWN_INLINE',
+      'MARKDOWN',
+    ];
+    expect(values).toHaveLength(5);
+  });
+
+  it('ALLOWED_FORMATS exposes per-type allow-lists', () => {
+    expect(ALLOWED_FORMATS.heading).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL']);
+    expect(ALLOWED_FORMATS.content).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.footnote).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.image).toEqual(['TEXT', 'NEWLINES']);
+  });
+
+  it('DEFAULT_FORMAT is TEXT for every content-bearing type', () => {
+    expect(DEFAULT_FORMAT.heading).toBe('TEXT');
+    expect(DEFAULT_FORMAT.content).toBe('TEXT');
+    expect(DEFAULT_FORMAT.footnote).toBe('TEXT');
+    expect(DEFAULT_FORMAT.image).toBe('TEXT');
+  });
+});
+
+describe('canHaveFormat', () => {
+  it('returns true for an allowed (heading, MARKDOWN_MINIMAL) pair', () => {
+    expect(canHaveFormat('heading', 'MARKDOWN_MINIMAL')).toBe(true);
+  });
+
+  it('returns false for (heading, MARKDOWN)', () => {
+    expect(canHaveFormat('heading', 'MARKDOWN')).toBe(false);
+  });
+
+  it('returns true for (content, MARKDOWN)', () => {
+    expect(canHaveFormat('content', 'MARKDOWN')).toBe(true);
+  });
+
+  it('returns false for (content, MARKDOWN_MINIMAL)', () => {
+    expect(canHaveFormat('content', 'MARKDOWN_MINIMAL')).toBe(false);
+  });
+
+  it('returns true for (footnote, MARKDOWN)', () => {
+    expect(canHaveFormat('footnote', 'MARKDOWN')).toBe(true);
+  });
+
+  it('returns false for (image, MARKDOWN)', () => {
+    expect(canHaveFormat('image', 'MARKDOWN')).toBe(false);
+  });
+
+  it('returns true for (image, NEWLINES)', () => {
+    expect(canHaveFormat('image', 'NEWLINES')).toBe(true);
+  });
+
+  it('returns false for container types like document/list/list_item', () => {
+    // @ts-expect-error — container types are not allowed in canHaveFormat callers
+    expect(canHaveFormat('document', 'TEXT')).toBe(false);
+    // @ts-expect-error
+    expect(canHaveFormat('list', 'TEXT')).toBe(false);
+    // @ts-expect-error
+    expect(canHaveFormat('list_item', 'TEXT')).toBe(false);
+  });
+});
+
+describe('isValidNode — format field rules', () => {
+  it('rejects content node missing format field', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'content',
+        contents: { en: 'hello' },
+        children: [],
+      })
+    ).toBe(false);
+  });
+
+  it('rejects heading node missing format field', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'heading',
+        contents: { en: 'Title' },
+        children: [],
+      })
+    ).toBe(false);
+  });
+
+  it('rejects footnote node missing format field', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: 'i.',
+        type: 'footnote',
+        contents: { en: 'Note' },
+      })
+    ).toBe(false);
+  });
+
+  it('rejects image node missing format field', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'image',
+        contents: { en: 'img.png' },
+      })
+    ).toBe(false);
+  });
+
+  it('accepts heading with allowed format MARKDOWN_MINIMAL', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'heading',
+        contents: { en: 'Title' },
+        children: [],
+        format: 'MARKDOWN_MINIMAL',
+      })
+    ).toBe(true);
+  });
+
+  it('rejects heading with disallowed format MARKDOWN', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'heading',
+        contents: { en: 'Title' },
+        children: [],
+        format: 'MARKDOWN',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects content with disallowed format MARKDOWN_MINIMAL', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'content',
+        contents: { en: 'x' },
+        children: [],
+        format: 'MARKDOWN_MINIMAL',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects image with disallowed format MARKDOWN', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'image',
+        contents: { en: 'i.png' },
+        format: 'MARKDOWN',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects content node with format set to a totally unknown value', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'content',
+        contents: { en: 'x' },
+        children: [],
+        format: 'WHATEVER',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects container node (list) carrying a format field', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'list',
+        children: [],
+        format: 'TEXT',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects document node carrying a format field', () => {
+    expect(
+      isValidDocument({
+        id: '1',
+        number: null,
+        type: 'document',
+        children: [],
+        format: 'TEXT',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects list_item carrying a format field', () => {
+    expect(
+      isValidDocument({
+        id: '1',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: '2',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: '3',
+                number: '1.',
+                type: 'list_item',
+                children: [],
+                format: 'TEXT',
+              },
+            ],
+          },
+        ],
+      })
+    ).toBe(false);
   });
 });
