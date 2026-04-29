@@ -320,11 +320,21 @@ describe('Document Utils', () => {
         expect(content.contents.de).toBe('just words');
       });
 
-      it('Heading with <br> imports as MARKDOWN_MINIMAL with newline preserved', () => {
+      it('Heading with <br> only imports as NEWLINES (MARKDOWN_MINIMAL is single-line)', () => {
         const doc = parseHtmlToTree('<h1>top<br>bottom</h1>');
         const heading = doc.children[0] as HeadingDocumentNode;
-        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.format).toBe('NEWLINES');
         expect(heading.contents.de).toBe('top\nbottom');
+      });
+
+      it('Heading with marks AND <br> imports as MARKDOWN_MINIMAL with the break dropped', () => {
+        const doc = parseHtmlToTree('<h1><strong>big</strong> top<br>bottom</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        // No \n in the stored source — MARKDOWN_MINIMAL has no newline rule, so the
+        // importer drops the break (preferring to preserve the marks).
+        expect(heading.contents.de).not.toContain('\n');
+        expect(heading.contents.de).toBe('**big** top bottom');
       });
 
       it('Heading with <a href> drops link syntax (MARKDOWN_MINIMAL has no link rule)', () => {

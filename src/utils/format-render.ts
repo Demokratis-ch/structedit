@@ -12,6 +12,9 @@ const escapeHtml = (s: string): string =>
 
 /**
  * MARKDOWN_MINIMAL: support exactly five inline marks on top of HTML-escaped text.
+ * Per the Demokratis platform spec the format is single-line — newlines are NOT a
+ * supported feature, so we collapse any `\n` to a space (matching TEXT) before the
+ * inline-mark substitutions run.
  * Order matters: process longer / less-ambiguous markers first so they win over shorter ones.
  *   1. ~~strike~~  (must run before single ~)
  *   2. **bold**    (must run before *italic*)
@@ -23,14 +26,14 @@ const escapeHtml = (s: string): string =>
  * any oddly nested input cannot escape the allow-list.
  */
 const renderMarkdownMinimal = (raw: string): string => {
-  const escaped = escapeHtml(raw);
+  const collapsed = raw.replace(/\n+/g, ' ');
+  const escaped = escapeHtml(collapsed);
   let s = escaped;
   s = s.replace(/~~([^~]+)~~/g, '<s>$1</s>');
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   s = s.replace(/\^([^^]+)\^/g, '<sup>$1</sup>');
   s = s.replace(/~([^~]+)~/g, '<sub>$1</sub>');
-  s = s.replace(/\n/g, '<br>');
   return s;
 };
 
@@ -54,7 +57,7 @@ const SANITIZE_CONFIGS: Record<NodeFormat, SanitizeConfig> = {
   TEXT: { ALLOWED_TAGS: [], ALLOWED_ATTR: [] },
   NEWLINES: { ALLOWED_TAGS: ['br'], ALLOWED_ATTR: [] },
   MARKDOWN_MINIMAL: {
-    ALLOWED_TAGS: ['strong', 'em', 's', 'del', 'sup', 'sub', 'br'],
+    ALLOWED_TAGS: ['strong', 'em', 's', 'del', 'sup', 'sub'],
     ALLOWED_ATTR: [],
   },
   MARKDOWN_INLINE: {
@@ -116,6 +119,12 @@ export const hasInlineMarks = (innerHtml: string): boolean =>
 export const hasOnlyAnchorMarks = (innerHtml: string): boolean =>
   A_WITH_HREF.test(innerHtml) && !INLINE_MARK_TAGS.test(innerHtml) && !BR_TAG.test(innerHtml);
 
+/** True iff the fragment contains a `<br>` but no inline mark and no anchor. The
+ * heading heuristic uses this to demote to NEWLINES, since MARKDOWN_MINIMAL is
+ * single-line and can't carry the break. */
+export const hasOnlyBreakMarks = (innerHtml: string): boolean =>
+  BR_TAG.test(innerHtml) && !INLINE_MARK_TAGS.test(innerHtml) && !A_WITH_HREF.test(innerHtml);
+
 // Single private-use codepoint — invalid inside HTML text, so it can't appear in real
 // imports and is safe as a sentinel for the whitespace-collapse pass below.
 const BR_SENTINEL = '';
@@ -132,20 +141,32 @@ const BR_SENTINEL = '';
  * spans collapse to their inner text.
  */
 export const htmlToMarkdown = (html: string, format: NodeFormat): string => {
-  if (format === 'TEXT' || format === 'NEWLINES') {
+  if (format === 'TEXT') {
     return html
       .replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
+  // NEWLINES: keep <br> → \n but no other formatting.
+  if (format === 'NEWLINES') {
+    return html
+      .replace(/<br\b[^>]*\/?>/gi, BR_SENTINEL)
+      .replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '')
+      .replace(/[ \t\f\v]+/g, ' ')
+      .replaceAll(BR_SENTINEL, '\n')
+      .trim();
+  }
   let s = html;
-  s = s.replace(/<br\b[^>]*\/?>/gi, BR_SENTINEL);
   if (format === 'MARKDOWN_MINIMAL') {
-    // No link rule in MARKDOWN_MINIMAL — drop the anchor wrapper, keep the label.
+    // MARKDOWN_MINIMAL is single-line per spec — drop <br> entirely (becomes a space
+    // after collapse), and drop anchors / code wrappers since the format has no rules
+    // for them. Only the five inline marks survive.
+    s = s.replace(/<br\b[^>]*\/?>/gi, ' ');
     s = s.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, '$1');
-    // No code rule either — drop the wrapper, keep the inner text.
     s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, '$1');
   } else {
+    // MARKDOWN / MARKDOWN_INLINE: round-trip <br>, anchors, code spans.
+    s = s.replace(/<br\b[^>]*\/?>/gi, BR_SENTINEL);
     s = s.replace(
       /<a\b[^>]*\bhref\s*=\s*("([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi,
       (_m, _q, dq, sq, label) => `[${label}](${dq ?? sq ?? ''})`
@@ -162,7 +183,8 @@ export const htmlToMarkdown = (html: string, format: NodeFormat): string => {
   // Drop any remaining tags we don't have a Markdown equivalent for (span, u, etc.) —
   // their inner text is preserved.
   s = s.replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '');
-  // Collapse runs of horizontal whitespace, then restore real newlines.
+  // Collapse runs of horizontal whitespace, then restore real newlines (no-op for
+  // MARKDOWN_MINIMAL since the sentinel was never inserted).
   s = s.replace(/[ \t\f\v]+/g, ' ').replaceAll(BR_SENTINEL, '\n');
   return s.trim();
 };

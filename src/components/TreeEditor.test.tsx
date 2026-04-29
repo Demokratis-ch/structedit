@@ -320,6 +320,64 @@ describe('double-click inline editing', () => {
     vi.useRealTimers();
   });
 
+  test('pressing Enter while editing a MARKDOWN_MINIMAL-format heading is a no-op', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h',
+          number: '1',
+          type: 'heading',
+          format: 'MARKDOWN_MINIMAL',
+          contents: { de: '**hello**' },
+          children: [],
+        },
+      ],
+    };
+
+    const execCommandSpy = vi.fn(() => true);
+    const originalExec = (
+      window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+    ).execCommand;
+    (window.document as Document & { execCommand: (...args: unknown[]) => boolean }).execCommand =
+      execCommandSpy as unknown as Document['execCommand'];
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('hello');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Enter' });
+    });
+
+    // MARKDOWN_MINIMAL has no newline rule — Enter must NOT insert one.
+    expect(execCommandSpy).not.toHaveBeenCalled();
+
+    if (originalExec) {
+      (
+        window.document as Document & { execCommand?: (...args: unknown[]) => boolean }
+      ).execCommand = originalExec;
+    }
+    vi.useRealTimers();
+  });
+
   test('pressing Enter while editing a MARKDOWN-format node inserts \\n via execCommand', async () => {
     vi.useFakeTimers();
 

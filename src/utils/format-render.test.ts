@@ -70,11 +70,12 @@ describe('renderContent — MARKDOWN_MINIMAL', () => {
     expect(html).not.toContain('<a');
   });
 
-  it('preserves newlines as <br>', () => {
+  it('does NOT preserve newlines (MARKDOWN_MINIMAL is single-line per platform spec)', () => {
     const html = renderContent('first\nsecond', 'MARKDOWN_MINIMAL');
-    expect(html).toContain('<br>');
-    expect(html.indexOf('first')).toBeLessThan(html.indexOf('<br>'));
-    expect(html.indexOf('<br>')).toBeLessThan(html.indexOf('second'));
+    // The format has no newline rule — per the Demokratis platform spec it's purely
+    // inline marks on a single line of text. Renderer collapses to a single space.
+    expect(html).not.toContain('<br>');
+    expect(html).toBe('first second');
   });
 
   it('does not render block elements like # heading', () => {

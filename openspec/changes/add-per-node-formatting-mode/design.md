@@ -56,7 +56,7 @@ A new module [src/utils/format-render.ts] exposes `renderContent(raw: string, fo
 
 - `TEXT`: HTML-escape, then `replace(/\n+/g, ' ')`.
 - `NEWLINES`: HTML-escape, then `replace(/\n/g, '<br>')`.
-- `MARKDOWN_MINIMAL`: a small in-house regex pipeline supporting only `**bold**`, `*italic*`, `~~strike~~`, `^sup^`, `~sub~`. Run on escaped text. No links, no images, no code, no blocks. Newlines become `<br>` (mirrors the Demokratis spec: "via markdown" with no block formatting). This applies to every node type that uses `MARKDOWN_MINIMAL`, including headings — StructEdit headings can carry embedded newlines and must preserve them as line breaks on render.
+- `MARKDOWN_MINIMAL`: a small in-house regex pipeline supporting only `**bold**`, `*italic*`, `~~strike~~`, `^sup^`, `~sub~`. Run on escaped text. **Single-line per platform spec**: no links, no images, no code, no blocks, and *no* newline support — `\n` collapses to a space (matching `TEXT`'s newline handling). A heading that needs both inline marks and a line break must pick: the importer drops the break to preserve the marks; if a heading carries only a `<br>` and no marks, the importer demotes to `NEWLINES`.
 - `MARKDOWN_INLINE`: full CommonMark inline via [`marked`](https://github.com/markedjs/marked) parser run in inline mode (`marked.parseInline`), then post-process to add strike + sup/sub support, then `DOMPurify` with an inline-only allow-list.
 - `MARKDOWN`: `marked.parse` (block + inline), then `DOMPurify` with the existing block allow-list, plus `sub`/`sup`.
 
@@ -79,7 +79,8 @@ _Rejected: storing parsed AST or rich HTML_ — round-trip ambiguity and migrati
 In `handleBlockKeyDown` ([src/components/TreeEditor.tsx:175-183](src/components/TreeEditor.tsx#L175-L183)):
 
 - `format === 'TEXT'` → `e.preventDefault()`, do nothing.
-- All other formats → let the browser insert a `\n` into the editable. We rely on the editable being a `<div>` with `white-space: pre-wrap` so `\n` is visible. We do NOT call `addNodeAfter`.
+- `format === 'MARKDOWN_MINIMAL'` → `e.preventDefault()`, do nothing (single-line format).
+- All other formats (`NEWLINES`, `MARKDOWN_INLINE`, `MARKDOWN`) → insert a literal `\n` at the cursor (via `document.execCommand('insertText', false, '\n')`). The editable is a `<div>` with `white-space: pre-wrap` so `\n` is visible. We do NOT call `addNodeAfter`.
 
 Sibling creation via `Enter` is **kept** when the node is selected but not in edit mode (existing handler at [TreeEditor.tsx:304-306](src/components/TreeEditor.tsx#L304-L306)) — that's the explicit affordance.
 
@@ -103,8 +104,8 @@ _Rejected: auto-converting content on format switch_ — loses information and c
 
 `parseHtmlToTree` decides a per-node format on import:
 
-- `heading`: pick `MARKDOWN_MINIMAL` if the source heading contained `<strong>/<b>/<em>/<i>/<s>/<strike>/<sup>/<sub>`, else `TEXT`.
-- `content`: pick `MARKDOWN` if the source contained any of those marks OR a `<br>`/multi-paragraph structure, else `TEXT`.
+- `heading`: pick `MARKDOWN_MINIMAL` if the source contained an inline mark (`<strong>/<b>/<em>/<i>/<s>/<strike>/<sup>/<sub>/<code>`); pick `NEWLINES` if the source contained only a `<br>` (no marks, no anchor); pick `TEXT` if the source contained only an anchor (links can't render under MARKDOWN_MINIMAL); else `TEXT`. A `<br>` together with marks is dropped (MARKDOWN_MINIMAL is single-line — preserving marks beats preserving a break).
+- `content`: pick `MARKDOWN` if the source contained any inline mark, a `<br>`, or a real `<a href>`. Else `TEXT`.
 - `footnote`: same heuristic as `content`.
 - `image`: always `TEXT` for now.
 

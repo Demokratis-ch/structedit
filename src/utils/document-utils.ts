@@ -7,7 +7,12 @@ import type {
   Language,
   NodeFormat,
 } from '../types/document';
-import { hasInlineMarks, hasOnlyAnchorMarks, htmlToMarkdown } from './format-render';
+import {
+  hasInlineMarks,
+  hasOnlyAnchorMarks,
+  hasOnlyBreakMarks,
+  htmlToMarkdown,
+} from './format-render';
 import { applySwissLegalTransforms } from './legal-transforms';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -126,8 +131,11 @@ export const parseHtmlToTree = (
 
   /**
    * Pick the per-node default format (design D8):
-   *   heading → MARKDOWN_MINIMAL when bold/italic/strike/sup/sub/code or `<br>` is present.
-   *             Anchors alone do NOT elevate, since MARKDOWN_MINIMAL has no link rule.
+   *   heading → NEWLINES when only `<br>` is present (no inline marks, no anchor)
+   *             → TEXT when only an anchor is present (links can't render under MARKDOWN_MINIMAL)
+   *             → MARKDOWN_MINIMAL when an inline mark is present (any `<br>` is dropped:
+   *               MARKDOWN_MINIMAL is single-line per the platform spec)
+   *             → TEXT otherwise
    *   content/footnote → MARKDOWN when any inline mark, `<br>`, or anchor is present.
    *   image → always TEXT.
    */
@@ -138,8 +146,8 @@ export const parseHtmlToTree = (
     if (nodeType === 'image') return 'TEXT';
     if (!hasInlineMarks(rawHtml)) return 'TEXT';
     if (nodeType === 'heading') {
-      // Anchors-only heading: stay TEXT (link syntax wouldn't render under MARKDOWN_MINIMAL).
       if (hasOnlyAnchorMarks(rawHtml)) return 'TEXT';
+      if (hasOnlyBreakMarks(rawHtml)) return 'NEWLINES';
       return 'MARKDOWN_MINIMAL';
     }
     return 'MARKDOWN';

@@ -9,7 +9,7 @@ The system SHALL define exactly five formatting levels — `TEXT`, `NEWLINES`, `
 
 #### Scenario: Each level has a documented rendering contract
 - **WHEN** the renderer is asked to render a string under any level
-- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` supports only bold/italic/strike/sup/sub; `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements; `MARKDOWN` supports full CommonMark including blocks (paragraphs, lists, tables)
+- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` is single-line and supports only bold/italic/strike/sup/sub (newlines are collapsed to a space, never preserved as `<br>`); `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements; `MARKDOWN` supports full CommonMark including blocks (paragraphs, lists, tables)
 
 ### Requirement: Every content-bearing node carries a required format field
 The system SHALL require a `format: NodeFormat` field on every node whose type can hold `contents` (`heading`, `content`, `footnote`, `image`). Container-only nodes (`document`, `list`, `list_item`) SHALL NOT carry a format. `isValidNode` and `isValidDocument` SHALL reject any tree that violates these rules.
@@ -71,9 +71,9 @@ The system SHALL provide a pure function `renderContent(raw: string, format: Nod
 - **WHEN** `renderContent('**a** *b* ~~c~~ ^d^ ~e~ [link](x)', 'MARKDOWN_MINIMAL')` is called
 - **THEN** the output contains `<strong>a</strong>`, `<em>b</em>`, `<s>c</s>` (or `<del>`), `<sup>d</sup>`, `<sub>e</sub>` and the literal text `[link](x)` (no anchor tag)
 
-#### Scenario: MARKDOWN_MINIMAL preserves newlines as line breaks
-- **WHEN** `renderContent('first\nsecond', 'MARKDOWN_MINIMAL')` is called (e.g. for a heading whose stored content spans two lines)
-- **THEN** the output contains `<br>` between `first` and `second`
+#### Scenario: MARKDOWN_MINIMAL collapses newlines (single-line per platform spec)
+- **WHEN** `renderContent('first\nsecond', 'MARKDOWN_MINIMAL')` is called
+- **THEN** the output contains no `<br>` and equals `'first second'` (the newline is collapsed to a space, since MARKDOWN_MINIMAL is a single-line inline-only format)
 
 #### Scenario: MARKDOWN_INLINE forbids block elements
 - **WHEN** `renderContent('# heading\n\npara', 'MARKDOWN_INLINE')` is called
@@ -105,7 +105,8 @@ When a node's format is `TEXT`, `NEWLINES`, `MARKDOWN_MINIMAL`, `MARKDOWN_INLINE
 ### Requirement: Enter in edit mode never creates a sibling node
 The system SHALL NOT create a sibling node when the user presses `Enter` while editing the contents of a node. Behaviour SHALL depend on the edited node's format:
 - `TEXT` → `Enter` is intercepted and ignored (no newline inserted, no sibling created)
-- `NEWLINES`, `MARKDOWN_MINIMAL`, `MARKDOWN_INLINE`, `MARKDOWN` → `Enter` inserts a literal `\n` into the source at the cursor position
+- `MARKDOWN_MINIMAL` → `Enter` is intercepted and ignored (single-line format)
+- `NEWLINES`, `MARKDOWN_INLINE`, `MARKDOWN` → `Enter` inserts a literal `\n` into the source at the cursor position
 
 `Shift+Enter` SHALL behave identically to `Enter` for all formats.
 
@@ -113,6 +114,10 @@ The system SHALL NOT create a sibling node when the user presses `Enter` while e
 
 #### Scenario: Enter in TEXT-format edit mode does nothing
 - **WHEN** the user is editing a `content` node with `format: 'TEXT'` and presses `Enter`
+- **THEN** no sibling node is created, no character is inserted into the source, and `preventDefault` is called
+
+#### Scenario: Enter in MARKDOWN_MINIMAL edit mode does nothing
+- **WHEN** the user is editing a `heading` node with `format: 'MARKDOWN_MINIMAL'` and presses `Enter`
 - **THEN** no sibling node is created, no character is inserted into the source, and `preventDefault` is called
 
 #### Scenario: Enter in NEWLINES edit mode inserts \n
@@ -156,6 +161,14 @@ When the selection is exactly one content-bearing node, the system SHALL display
 #### Scenario: Heading with bold imports as MARKDOWN_MINIMAL
 - **WHEN** `parseHtmlToTree('<h1>The <strong>big</strong> intro</h1>')` runs
 - **THEN** the resulting heading node has `format: 'MARKDOWN_MINIMAL'` and `contents` equal to `'The **big** intro'`
+
+#### Scenario: Heading with `<br>` only imports as NEWLINES
+- **WHEN** `parseHtmlToTree('<h1>top<br>bottom</h1>')` runs
+- **THEN** the resulting heading node has `format: 'NEWLINES'` (NOT `MARKDOWN_MINIMAL`, which is single-line) and `contents` equal to `'top\nbottom'`
+
+#### Scenario: Heading with marks AND `<br>` imports as MARKDOWN_MINIMAL with the break dropped
+- **WHEN** `parseHtmlToTree('<h1><strong>big</strong> top<br>bottom</h1>')` runs
+- **THEN** the heading node has `format: 'MARKDOWN_MINIMAL'` and `contents` equal to `'**big** top bottom'` — the importer prefers preserving the marks and drops the line break (MARKDOWN_MINIMAL has no newline rule)
 
 #### Scenario: Paragraph with inline marks imports as MARKDOWN
 - **WHEN** `parseHtmlToTree('<p>see <em>this</em> and <s>that</s></p>')` runs

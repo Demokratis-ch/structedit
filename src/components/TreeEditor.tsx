@@ -194,11 +194,12 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       // In edit mode Enter never creates a sibling; behaviour depends on the node's format.
       e.preventDefault();
       const node = flattenedNodes.find((fn) => fn.node.id === id)?.node;
-      const format = node && 'format' in node ? (node as { format: string }).format : 'TEXT';
-      if (format !== 'TEXT') {
-        // Insert a literal newline at the cursor for newline-capable formats.
-        // execCommand is the only reliable cross-browser path inside contentEditable;
-        // its onInput will fire and propagate the new text via ContentBlock.
+      const format = node && 'format' in node ? (node as { format: NodeFormat }).format : 'TEXT';
+      // TEXT and MARKDOWN_MINIMAL are single-line — Enter is a no-op. The other formats
+      // accept a literal `\n`; execCommand is the only reliable cross-browser path inside
+      // contentEditable, and its onInput propagates the new text via ContentBlock.
+      const NEWLINE_FORMATS: NodeFormat[] = ['NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN'];
+      if (NEWLINE_FORMATS.includes(format)) {
         window.document.execCommand?.('insertText', false, '\n');
       }
       return;
