@@ -38,18 +38,42 @@ const renderMarkdownMinimal = (raw: string): string => {
 };
 
 /**
+ * Apply `transform` to every prose segment of a markdown source while leaving code
+ * regions untouched. `String.split` with a capturing group interleaves matches with
+ * non-matches, so even-indexed parts are prose and odd-indexed are code.
+ *
+ * Code regions detected:
+ * - **Fenced blocks**: `` ``` `` opener at column 0, optional language tag, body, `` ``` ``
+ *   closer on its own line. Listed first in the alternation so the inline-code rule
+ *   doesn't greedily consume the opener as two empty backtick spans.
+ * - **Inline code spans**: single-backtick `` ` `` pairs on a single line. Multi-tick
+ *   spans (`` `` ``…`` `` ``) and indented code blocks (4-space-prefixed lines) are
+ *   NOT recognized — the importer doesn't produce them, but a hand-typed source that
+ *   uses them will leak `~`/`^` substitutions into those regions.
+ */
+const transformProseOnly = (src: string, transform: (s: string) => string): string => {
+  const CODE_REGION = /(^```[\s\S]*?^```[ \t]*$|`[^`\n]*`)/gm;
+  const parts = src.split(CODE_REGION);
+  return parts.map((p, i) => (i % 2 === 1 ? p : transform(p))).join('');
+};
+
+/**
  * Pre-process a markdown source so single-tilde `~x~` and `^x^` survive `marked`:
  * GFM treats single-tilde as strikethrough too (and marked has no built-in sub/sup), so we
  * convert these marks to literal `<sub>` / `<sup>` tags before marked sees them. Marked
  * passes the resulting raw HTML through, and DOMPurify's per-format allow-list keeps them.
- * `~~strike~~` is left untouched (the negative lookbehind/ahead skip double tildes), so
- * marked's gfm rule still produces `<del>...</del>`.
+ *
+ * The inner content must be non-empty and contain no whitespace, which keeps unrelated
+ * prose like `cd ~/foo and ~/bar` or `a^2 + b^2` from being mangled. `~~strike~~` is left
+ * untouched via the negative lookbehind/ahead. Code spans and fenced blocks are skipped
+ * entirely so backtick-wrapped content like `` `~/path~` `` stays literal.
  */
-const protectSupSubMarks = (raw: string): string => {
-  let s = raw.replace(/(?<!~)~([^~\s][^~]*?)~(?!~)/g, '<sub>$1</sub>');
-  s = s.replace(/\^([^^\s][^^]*?)\^/g, '<sup>$1</sup>');
-  return s;
-};
+const protectSupSubMarks = (raw: string): string =>
+  transformProseOnly(raw, (prose) =>
+    prose
+      .replace(/(?<!~)~([^~\s]+)~(?!~)/g, '<sub>$1</sub>')
+      .replace(/\^([^^\s]+)\^/g, '<sup>$1</sup>')
+  );
 
 type SanitizeConfig = Parameters<typeof DOMPurify.sanitize>[1];
 
@@ -140,23 +164,69 @@ const BR_SENTINEL = '';
  * MARKDOWN_MINIMAL has no link or code rule, so links collapse to their label and code
  * spans collapse to their inner text.
  */
+/**
+ * Wrap `inner` with `open` / `close` while floating leading/trailing *horizontal*
+ * whitespace OUTSIDE the delimiters. Word and many web editors emit `<em>Test </em>`
+ * with the trailing space inside the tag; the literal `*Test *` would not parse as
+ * italic. Newlines stay inside the mark — pulling them out would inject a hard break
+ * into otherwise inline content.
+ */
+const wrapMark = (inner: string, open: string, close: string = open): string => {
+  // Always matches (greedy ends are anchored), so the destructure is safe.
+  const [, lead, mid, tail] = /^([ \t]*)([\s\S]*?)([ \t]*)$/.exec(inner) as RegExpExecArray;
+  if (mid.length === 0) return lead + tail; // mark wrapping only whitespace — drop it
+  return `${lead}${open}${mid}${close}${tail}`;
+};
+
+/**
+ * Decode HTML entities that would otherwise survive into stored markdown source and get
+ * re-escaped by `marked` (e.g. `&amp;` \u2192 `&amp;amp;`). We deliberately do NOT decode
+ * `&lt;` / `&gt;` (and their numeric equivalents 0x3C / 0x3E): the tag-stripping pass
+ * runs after this step and would mistake the resulting `<` / `>` for tag markers,
+ * potentially deleting user content or executing markup that started life as text.
+ *
+ * Callers are expected to pass strings that have already been through the importer's
+ * DOMPurify + DOMParser round-trip, which case-folds named entities (`&AMP;` \u2192 `&amp;`)
+ * and canonicalises numeric refs (`&#X3C;` \u2192 `&#x3c;`, `&#0060;` \u2192 `&#60;`). Without
+ * that pre-pass, an attacker-supplied `&LT;script&GT;` would slip past the skip set
+ * and form a phantom tag.
+ */
+const NAMED_ENTITY_DECODE: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  quot: '"',
+  apos: "'",
+};
+const decodeCommonEntities = (s: string): string =>
+  s
+    .replace(/&(nbsp|amp|quot|apos);/g, (_, name: string) => NAMED_ENTITY_DECODE[name])
+    .replace(/&#(\d+);/g, (m, code: string) => {
+      const n = Number(code);
+      return n === 0x3c || n === 0x3e ? m : String.fromCodePoint(n);
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (m, code: string) => {
+      const n = parseInt(code, 16);
+      return n === 0x3c || n === 0x3e ? m : String.fromCodePoint(n);
+    })
+    .replace(/\u00A0/g, ' ');
+
 export const htmlToMarkdown = (html: string, format: NodeFormat): string => {
   if (format === 'TEXT') {
-    return html
+    return decodeCommonEntities(html)
       .replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
   // NEWLINES: keep <br> → \n but no other formatting.
   if (format === 'NEWLINES') {
-    return html
+    return decodeCommonEntities(html)
       .replace(/<br\b[^>]*\/?>/gi, BR_SENTINEL)
       .replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '')
       .replace(/[ \t\f\v]+/g, ' ')
       .replaceAll(BR_SENTINEL, '\n')
       .trim();
   }
-  let s = html;
+  let s = decodeCommonEntities(html);
   if (format === 'MARKDOWN_MINIMAL') {
     // MARKDOWN_MINIMAL is single-line per spec — drop <br> entirely (becomes a space
     // after collapse), and drop anchors / code wrappers since the format has no rules
@@ -173,13 +243,19 @@ export const htmlToMarkdown = (html: string, format: NodeFormat): string => {
     );
     // Anchors without href: drop the wrapper, keep the label.
     s = s.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, '$1');
-    s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+    s = s.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, (_m, inner: string) => wrapMark(inner, '`'));
   }
-  s = s.replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**');
-  s = s.replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*');
-  s = s.replace(/<(?:s|strike)\b[^>]*>([\s\S]*?)<\/(?:s|strike)>/gi, '~~$1~~');
-  s = s.replace(/<sup\b[^>]*>([\s\S]*?)<\/sup>/gi, '^$1^');
-  s = s.replace(/<sub\b[^>]*>([\s\S]*?)<\/sub>/gi, '~$1~');
+  s = s.replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, (_m, inner: string) =>
+    wrapMark(inner, '**')
+  );
+  s = s.replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, (_m, inner: string) =>
+    wrapMark(inner, '*')
+  );
+  s = s.replace(/<(?:s|strike)\b[^>]*>([\s\S]*?)<\/(?:s|strike)>/gi, (_m, inner: string) =>
+    wrapMark(inner, '~~')
+  );
+  s = s.replace(/<sup\b[^>]*>([\s\S]*?)<\/sup>/gi, (_m, inner: string) => wrapMark(inner, '^'));
+  s = s.replace(/<sub\b[^>]*>([\s\S]*?)<\/sub>/gi, (_m, inner: string) => wrapMark(inner, '~'));
   // Drop any remaining tags we don't have a Markdown equivalent for (span, u, etc.) —
   // their inner text is preserved.
   s = s.replace(/<\/?(?:[a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, '');
@@ -219,7 +295,10 @@ export const renderContent = (raw: string, format: NodeFormat): string => {
       break;
     }
     case 'MARKDOWN': {
-      html = sanitize(marked.parse(raw, { async: false }) as string, 'MARKDOWN');
+      html = sanitize(
+        marked.parse(protectSupSubMarks(raw), { async: false }) as string,
+        'MARKDOWN'
+      );
       break;
     }
   }

@@ -201,6 +201,73 @@ describe('renderContent — MARKDOWN', () => {
       expect(a.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
     }
   });
+
+  it('renders ^x^ as <sup>x</sup>', () => {
+    const html = renderContent('a^2^', 'MARKDOWN');
+    expect(html).toContain('<sup>2</sup>');
+  });
+
+  it('renders ~x~ as <sub>x</sub>, not strikethrough', () => {
+    const html = renderContent('H~2~O', 'MARKDOWN');
+    expect(html).toContain('<sub>2</sub>');
+    expect(html).not.toMatch(/<(?:s|del)>2<\/(?:s|del)>/);
+  });
+
+  it('still renders ~~x~~ as strikethrough (regression)', () => {
+    const html = renderContent('~~gone~~', 'MARKDOWN');
+    expect(html).toMatch(/<(?:s|del)>gone<\/(?:s|del)>/);
+    expect(html).not.toContain('<sub>');
+  });
+
+  describe('does not mangle code spans / blocks / unrelated tildes & carets', () => {
+    it('inline code span containing ~x~ stays literal', () => {
+      const html = renderContent('see `~x~` here', 'MARKDOWN');
+      expect(html).toContain('<code>~x~</code>');
+      expect(html).not.toContain('<sub>');
+    });
+
+    it('inline code span containing ^x^ stays literal', () => {
+      const html = renderContent('see `^x^` here', 'MARKDOWN');
+      expect(html).toContain('<code>^x^</code>');
+      expect(html).not.toContain('<sup>');
+    });
+
+    it('cd ~/foo and ~/bar is not mangled into a <sub>', () => {
+      const html = renderContent('cd ~/foo and ~/bar', 'MARKDOWN');
+      expect(html).not.toContain('<sub>');
+      expect(html).toContain('cd ~/foo and ~/bar');
+    });
+
+    it('a^2 + b^2 is not collapsed into a single <sup>', () => {
+      const html = renderContent('a^2 + b^2', 'MARKDOWN');
+      expect(html).not.toContain('<sup>');
+      expect(html).toContain('a^2 + b^2');
+    });
+
+    it('~space inside~ is not matched (regex requires no whitespace inside)', () => {
+      const html = renderContent('approx ~10 ms ~20 ms', 'MARKDOWN');
+      expect(html).not.toContain('<sub>');
+      expect(html).toContain('approx ~10 ms ~20 ms');
+    });
+
+    it('fenced code block keeps ~x~ literal inside <pre><code>', () => {
+      const html = renderContent('```\ncd ~/foo~\n```', 'MARKDOWN');
+      expect(html).toContain('<pre>');
+      expect(html).toContain('<code>');
+      // The fenced body must NOT contain `<sub>` text (escaped or otherwise) and must
+      // preserve the original `~/foo~` characters verbatim.
+      expect(html).toMatch(/<code[^>]*>[\s\S]*cd ~\/foo~[\s\S]*<\/code>/);
+      expect(html).not.toMatch(/&lt;sub&gt;|<sub>/);
+    });
+
+    it('fenced code block with language tag keeps ^x^ literal', () => {
+      // Inner content `^2^` would normally be turned into <sup>; inside a fenced block
+      // it must stay literal regardless of the language tag on the opener.
+      const html = renderContent('```js\na = b^2^\n```', 'MARKDOWN');
+      expect(html).toMatch(/<code[^>]*>[\s\S]*a = b\^2\^[\s\S]*<\/code>/);
+      expect(html).not.toMatch(/&lt;sup&gt;|<sup>/);
+    });
+  });
 });
 
 describe('renderContent — no spurious trailing whitespace', () => {

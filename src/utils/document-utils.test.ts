@@ -364,6 +364,95 @@ describe('Document Utils', () => {
         expect(content.format).toBe('MARKDOWN');
         expect(content.contents.de).toBe('run `npm test` please');
       });
+
+      it('Trims whitespace inside an inline mark (trailing space inside <em>)', () => {
+        // Word docs frequently emit `<em>Test </em>` with the space inside the tag.
+        // The space must move outside the asterisks so the markdown parses as italic.
+        const doc = parseHtmlToTree('<p><em>Test </em>and more</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('*Test* and more');
+      });
+
+      it('Trims whitespace inside <strong> wrapping the entire content', () => {
+        const doc = parseHtmlToTree('<p><strong> Bold </strong></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('**Bold**');
+      });
+
+      it('Trims whitespace inside <em> when it leads the content', () => {
+        const doc = parseHtmlToTree('<p><em> leading</em> rest</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('*leading* rest');
+      });
+
+      it('Decodes &nbsp; (\\u00A0) into a regular space', () => {
+        // Word docs use non-breaking spaces (`&nbsp;` / ` `) liberally. Marked
+        // re-escapes the `&`, surfacing literal `&nbsp;` text in the rendered output.
+        // The importer should normalize them to plain spaces for MARKDOWN sources.
+        const doc = parseHtmlToTree('<p>Hello&nbsp;world</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).not.toContain('&nbsp;');
+        expect(content.contents.de).not.toContain(' ');
+        expect(content.contents.de).toBe('Hello world');
+      });
+
+      it('Decodes &nbsp; inside an inline mark', () => {
+        const doc = parseHtmlToTree('<p><strong>foo&nbsp;bar</strong></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('**foo bar**');
+      });
+
+      it('Newline inside an inline mark stays inside (not pulled out)', () => {
+        // wrapMark used to pull \n out of marks via /\s*/, breaking inline structure.
+        // Only horizontal whitespace should float outside the delimiters.
+        const doc = parseHtmlToTree('<p><em>hi\nthere</em></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        // The newline must remain BETWEEN the asterisks, not after them.
+        expect(content.contents.de).toBe('*hi\nthere*');
+      });
+
+      it('Decodes &amp; into & (and renders as the user intended)', () => {
+        const doc = parseHtmlToTree('<p>Tom &amp; Jerry</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        // Stored content has a single & — marked re-escapes it on render so the user
+        // sees "Tom & Jerry" instead of "Tom &amp; Jerry".
+        expect(content.contents.de).toBe('Tom & Jerry');
+      });
+
+      it('Decodes &quot; and &apos;', () => {
+        const doc = parseHtmlToTree('<p>he said &quot;hi&quot; and &apos;bye&apos;</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe(`he said "hi" and 'bye'`);
+      });
+
+      it('Decodes numeric entities like &#8212; (em dash)', () => {
+        const doc = parseHtmlToTree('<p>em&#8212;dash</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('em—dash');
+      });
+
+      it('Decodes hex numeric entities like &#x2014;', () => {
+        const doc = parseHtmlToTree('<p>em&#x2014;dash</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('em—dash');
+      });
+
+      it('Leaves &lt; and &gt; alone (decoding them would create phantom tags)', () => {
+        // We deliberately don't decode `&lt;` / `&gt;` because the importer's tag-
+        // stripping pass would then mistake the resulting `<` / `>` for tag markers.
+        // The cost is that users with literal angle brackets in their content see
+        // them entity-encoded — acceptable.
+        const doc = parseHtmlToTree('<p>x &lt;script&gt;y</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        // The text passes through with the entities still encoded, so no fake tags
+        // are stripped. (The render pipeline handles them as plain text via marked.)
+        expect(content.contents.de).toContain('&lt;script&gt;');
+        expect(content.contents.de).toContain('y');
+      });
     });
 
     it('uses de language by default', () => {
