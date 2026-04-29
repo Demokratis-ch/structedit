@@ -369,7 +369,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}
           `}
         >
-          {node.type}
+          {'format' in node ? `${node.type} · ${node.format}` : node.type}
         </span>
 
         {/* Content area with left padding for drag handle */}

@@ -413,4 +413,40 @@ describe('RecursiveTreeNode', () => {
       expect(nodeElement.classList.contains('cursor-not-allowed')).toBe(false);
     });
   });
+
+  describe('type + format indicator', () => {
+    test('content-bearing node shows "<type> · <format>"', () => {
+      const node: ContentDocumentNode = {
+        id: 'p',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: '**bold**' },
+        children: [],
+      };
+      const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+      expect(getByText('content · MARKDOWN')).toBeTruthy();
+    });
+
+    test('heading with TEXT format shows "heading · TEXT"', () => {
+      const node = createTestNode(); // heading + TEXT
+      const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+      expect(getByText('heading · TEXT')).toBeTruthy();
+    });
+
+    test('container-only node (list_item) shows just the type, no format', () => {
+      const node: ContainerDocumentNode = {
+        id: 'li',
+        number: '1.',
+        type: 'list_item',
+        children: [],
+      };
+      const { getByText, queryByText } = renderWithContext(
+        <RecursiveTreeNode node={node} depth={1} />
+      );
+      expect(getByText('list_item')).toBeTruthy();
+      // No "·" separator and no format token in the indicator
+      expect(queryByText(/list_item ·/)).toBeNull();
+    });
+  });
 });
