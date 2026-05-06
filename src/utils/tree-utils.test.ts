@@ -7,6 +7,7 @@ import type {
 } from '../types/document';
 import {
   buildIndices,
+  changeNodeFormat,
   flattenForRendering,
   getNodeAtPath,
   insertNodeAtPath,
@@ -30,6 +31,7 @@ const createListItem = (
       id: `${id}-content`,
       number: null,
       type: 'content',
+      format: 'TEXT',
       contents: { de: content },
       children: [],
     } as ContentDocumentNode,
@@ -46,12 +48,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h1',
       number: '1',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
         },
@@ -59,12 +63,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
           id: 'h2',
           number: '1.1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Nested Heading' },
           children: [
             {
               id: 'p2',
               number: null,
               type: 'content',
+              format: 'TEXT',
               contents: { de: 'Nested paragraph' },
               children: [],
             },
@@ -76,6 +82,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
       id: 'h1b',
       number: '2',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
     },
@@ -185,6 +192,7 @@ describe('insertNodeAtPath', () => {
     id: 'new',
     number: null,
     type: 'content',
+    format: 'TEXT',
     contents: { de: 'New content' },
     children: [],
   };
@@ -224,6 +232,7 @@ describe('insertNodeAtPath', () => {
       id: 'h1c',
       number: '3',
       type: 'heading',
+      format: 'TEXT',
       contents: { de: 'Third Heading' },
       children: [],
     };
@@ -340,24 +349,28 @@ describe('buildIndices', () => {
           id: 'h1',
           number: null,
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Level 1' },
           children: [
             {
               id: 'h2',
               number: null,
               type: 'heading',
+              format: 'TEXT',
               contents: { de: 'Level 2' },
               children: [
                 {
                   id: 'h3',
                   number: null,
                   type: 'heading',
+                  format: 'TEXT',
                   contents: { de: 'Level 3' },
                   children: [
                     {
                       id: 'p',
                       number: null,
                       type: 'content',
+                      format: 'TEXT',
                       contents: { de: 'Deep content' },
                       children: [],
                     },
@@ -544,6 +557,7 @@ describe('mergeAdjacentLists', () => {
           id: 'content1',
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { de: 'Separator' },
           children: [],
         },
@@ -567,8 +581,22 @@ describe('mergeAdjacentLists', () => {
       number: null,
       type: 'document',
       children: [
-        { id: 'p1', number: null, type: 'content', contents: { de: 'A' }, children: [] },
-        { id: 'p2', number: null, type: 'content', contents: { de: 'B' }, children: [] },
+        {
+          id: 'p1',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'A' },
+          children: [],
+        },
+        {
+          id: 'p2',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'B' },
+          children: [],
+        },
       ],
     };
 
@@ -587,6 +615,7 @@ describe('mergeAdjacentLists', () => {
           id: 'heading1',
           number: '1',
           type: 'heading',
+          format: 'TEXT',
           contents: { de: 'Heading' },
           children: [
             {
@@ -658,6 +687,7 @@ describe('nested lists', () => {
         id: `${itemId}-content`,
         number: null,
         type: 'content',
+        format: 'TEXT',
         contents: { de: itemContent },
         children: [],
       } as ContentDocumentNode,
@@ -909,5 +939,74 @@ describe('nested lists', () => {
     const nestedList = getNodeAtPath(updated, [0, 1, 1]) as ContainerDocumentNode;
     expect(nestedList.children.length).toBe(1);
     expect(nestedList.children[0].id).toBe('sub2');
+  });
+});
+
+describe('changeNodeFormat', () => {
+  test('updates format on a content node', () => {
+    const doc = createTestDocument();
+    const updated = changeNodeFormat(doc, [0, 0], 'MARKDOWN');
+    const node = getNodeAtPath(updated, [0, 0]) as ContentDocumentNode;
+    expect(node.format).toBe('MARKDOWN');
+  });
+
+  test('leaves contents untouched', () => {
+    const doc = createTestDocument();
+    const before = getNodeAtPath(doc, [0, 0]) as ContentDocumentNode;
+    const updated = changeNodeFormat(doc, [0, 0], 'MARKDOWN');
+    const after = getNodeAtPath(updated, [0, 0]) as ContentDocumentNode;
+    expect(after.contents).toEqual(before.contents);
+  });
+
+  test('returns a new tree (immutability)', () => {
+    const doc = createTestDocument();
+    const updated = changeNodeFormat(doc, [0, 0], 'MARKDOWN');
+    expect(updated).not.toBe(doc);
+  });
+
+  test('updates format on a heading node', () => {
+    const doc = createTestDocument();
+    const updated = changeNodeFormat(doc, [0], 'MARKDOWN_MINIMAL');
+    const heading = getNodeAtPath(updated, [0]) as HeadingDocumentNode;
+    expect(heading.format).toBe('MARKDOWN_MINIMAL');
+  });
+
+  test('no-ops (returns same root) when target format is not allowed for the node type', () => {
+    const doc = createTestDocument();
+    // heading does not allow MARKDOWN
+    const result = changeNodeFormat(doc, [0], 'MARKDOWN');
+    expect(result).toBe(doc);
+    const heading = getNodeAtPath(result, [0]) as HeadingDocumentNode;
+    expect(heading.format).toBe('TEXT');
+  });
+
+  test('no-ops when content node asked for MARKDOWN_MINIMAL', () => {
+    const doc = createTestDocument();
+    const result = changeNodeFormat(doc, [0, 0], 'MARKDOWN_MINIMAL');
+    expect(result).toBe(doc);
+  });
+
+  test('no-ops when target node is a container (no format)', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'list',
+          children: [],
+        },
+      ],
+    };
+    const result = changeNodeFormat(doc, [0], 'TEXT');
+    expect(result).toBe(doc);
+  });
+
+  test('no-ops when path does not exist', () => {
+    const doc = createTestDocument();
+    const result = changeNodeFormat(doc, [99], 'TEXT');
+    expect(result).toBe(doc);
   });
 });

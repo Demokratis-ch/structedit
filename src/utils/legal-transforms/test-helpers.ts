@@ -27,6 +27,7 @@ export function content(text: string, lang: Language = 'de'): ContentDocumentNod
     id: generateId(),
     number: null,
     type: 'content',
+    format: 'TEXT',
     contents: { [lang]: text },
     children: [],
   };
@@ -44,6 +45,7 @@ export function heading(
     id: generateId(),
     number: null,
     type: 'heading',
+    format: 'TEXT',
     contents: { [lang]: text },
     children,
   };

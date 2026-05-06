@@ -5,6 +5,33 @@
 export type Language = 'en' | 'de' | 'fr' | 'it' | 'rm';
 
 /**
+ * Per-node formatting mode. Values match the Demokratis platform spec
+ * (`SCREAMING_SNAKE_CASE`) so JSON crossing the boundary needs no translation.
+ */
+export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_INLINE' | 'MARKDOWN';
+
+export type ContentBearingNodeType = 'heading' | 'content' | 'footnote' | 'image';
+
+export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
+  heading: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
+  content: ['TEXT', 'NEWLINES', 'MARKDOWN'],
+  footnote: ['TEXT', 'NEWLINES', 'MARKDOWN'],
+  image: ['TEXT', 'NEWLINES'],
+};
+
+export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
+  heading: 'TEXT',
+  content: 'TEXT',
+  footnote: 'TEXT',
+  image: 'TEXT',
+};
+
+export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeFormat): boolean => {
+  const allowed = ALLOWED_FORMATS[nodeType];
+  return Array.isArray(allowed) && allowed.includes(format);
+};
+
+/**
  * Container-only nodes have children but no content of their own.
  */
 export type ContainerDocumentNodeType =
@@ -29,6 +56,7 @@ export interface LeafDocumentNode {
   number: string | null;
   type: LeafDocumentNodeType;
   contents: Partial<{ [K in Language]: string }>;
+  format: NodeFormat;
 }
 
 /**
@@ -40,6 +68,7 @@ export interface HeadingDocumentNode {
   type: 'heading';
   contents: Partial<{ [K in Language]: string }>;
   children: DocumentNode[];
+  format: NodeFormat;
 }
 
 /**
@@ -52,6 +81,7 @@ export interface ContentDocumentNode {
   type: 'content';
   contents: Partial<{ [K in Language]: string }>;
   children: DocumentNode[]; // Can only contain footnote nodes
+  format: NodeFormat;
 }
 
 export type DocumentNode =
@@ -74,18 +104,21 @@ export const exampleDocument: ContainerDocumentNode = {
       number: '1',
       type: 'heading',
       contents: { en: 'Introduction' },
+      format: 'TEXT',
       children: [
         {
           id: '003',
           number: null,
           type: 'content',
           contents: { en: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
+          format: 'TEXT',
           children: [
             {
               id: '004',
               number: 'i.',
               type: 'footnote',
               contents: { en: 'This is a footnote.', de: 'Dies ist eine Fussnote.' },
+              format: 'TEXT',
             },
           ],
         },
@@ -101,6 +134,13 @@ export const exampleDocument: ContainerDocumentNode = {
 const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
 const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'list_item'];
 const LEAF_TYPES: LeafDocumentNodeType[] = ['image', 'footnote'];
+const VALID_FORMATS: NodeFormat[] = [
+  'TEXT',
+  'NEWLINES',
+  'MARKDOWN_MINIMAL',
+  'MARKDOWN_INLINE',
+  'MARKDOWN',
+];
 
 /**
  * Mapping of parent types to their allowed child types.
@@ -162,15 +202,24 @@ const isValidNodeInternal = (
   if (CONTAINER_TYPES.includes(type as ContainerDocumentNodeType)) {
     if (!Array.isArray(node.children)) return false;
     if ('contents' in node) return false;
+    if ('format' in node) return false;
     return node.children.every((child) =>
       isValidNodeInternal(child, type as ContainerDocumentNodeType, seenIds)
     );
   }
 
+  // Validate format on every content-bearing node
+  const isValidFormatForType = (nodeType: ContentBearingNodeType): boolean => {
+    if (typeof node.format !== 'string') return false;
+    if (!VALID_FORMATS.includes(node.format as NodeFormat)) return false;
+    return canHaveFormat(nodeType, node.format as NodeFormat);
+  };
+
   // Leaf nodes
   if (LEAF_TYPES.includes(type as LeafDocumentNodeType)) {
     if (!isValidContents(node.contents)) return false;
     if ('children' in node) return false;
+    if (!isValidFormatForType(type as ContentBearingNodeType)) return false;
     return true;
   }
 
@@ -178,6 +227,7 @@ const isValidNodeInternal = (
   if (type === 'heading') {
     if (!isValidContents(node.contents)) return false;
     if (!Array.isArray(node.children)) return false;
+    if (!isValidFormatForType('heading')) return false;
     return node.children.every((child) => isValidNodeInternal(child, 'heading', seenIds));
   }
 
@@ -185,6 +235,7 @@ const isValidNodeInternal = (
   if (type === 'content') {
     if (!isValidContents(node.contents)) return false;
     if (!Array.isArray(node.children)) return false;
+    if (!isValidFormatForType('content')) return false;
     return node.children.every((child) => isValidNodeInternal(child, 'content', seenIds));
   }
 

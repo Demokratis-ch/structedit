@@ -1,18 +1,21 @@
 import { useCallback } from 'react';
 import type {
   ContainerDocumentNode,
+  ContentBearingNodeType,
   ContentDocumentNode,
   DocumentNode,
   HeadingDocumentNode,
   Language,
   LeafDocumentNode,
+  NodeFormat,
   ParentType,
 } from '../types/document';
-import { canBeChildOf } from '../types/document';
+import { canBeChildOf, canHaveFormat, DEFAULT_FORMAT } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { generateId } from '../utils/document-utils';
 import {
   buildIndices,
+  changeNodeFormat as changeNodeFormatInTree,
   getNodeAtPath,
   insertNodeAtPath,
   mergeAdjacentLists,
@@ -20,6 +23,20 @@ import {
   removeNodeAtPath,
   updateNodeAtPath,
 } from '../utils/tree-utils';
+
+/**
+ * Decide which format the converted node should carry: keep the previous one if it's
+ * still allowed for the new node type, otherwise fall back to the type's default.
+ */
+const carryFormatOrDefault = (
+  previousFormat: NodeFormat | undefined,
+  nextType: ContentBearingNodeType
+): NodeFormat => {
+  if (previousFormat && canHaveFormat(nextType, previousFormat)) {
+    return previousFormat;
+  }
+  return DEFAULT_FORMAT[nextType];
+};
 
 export type MoveResult = { success: true } | { success: false; reason: string };
 
@@ -43,6 +60,7 @@ function createNewSiblingNode(parent: DocumentNode, language: Language): Documen
           id: generateId(),
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { [language]: '' },
           children: [],
         } as ContentDocumentNode,
@@ -54,6 +72,7 @@ function createNewSiblingNode(parent: DocumentNode, language: Language): Documen
     id: generateId(),
     number: null,
     type: 'content',
+    format: 'TEXT',
     contents: { [language]: '' },
     children: [],
   } as ContentDocumentNode;
@@ -339,6 +358,27 @@ export const useTreeOperations = ({
   );
 
   /**
+   * Change a content-bearing node's format. No-op when the node doesn't exist or the
+   * target format isn't allowed for its type. Commits a single history entry on success.
+   */
+  const changeNodeFormat = useCallback(
+    (id: string, format: NodeFormat) => {
+      const path = nodeIndex.get(id);
+      if (!path) return;
+
+      const node = getNodeAtPath(document, path);
+      if (!node) return;
+      const contentBearing: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
+      if (!contentBearing.includes(node.type as ContentBearingNodeType)) return;
+      if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return;
+
+      const newDoc = changeNodeFormatInTree(document, path, format);
+      commit(newDoc);
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
    * Update node number/label.
    */
   const updateNodeNumber = useCallback(
@@ -449,11 +489,17 @@ export const useTreeOperations = ({
     if (targetType === 'footnote') {
       if (node.type === 'footnote') return null; // Already a footnote
 
+      const carryFormat = carryFormatOrDefault(
+        (node as { format?: NodeFormat }).format,
+        'footnote'
+      );
+
       // Create footnote node (leaf - no children)
       const footnoteNode: LeafDocumentNode = {
         id: node.id,
         number: node.number,
         type: 'footnote',
+        format: carryFormat,
         contents: node.contents,
       };
 
@@ -490,10 +536,13 @@ export const useTreeOperations = ({
     if (targetType === 'heading') {
       if (node.type === 'heading') return null; // Already a heading
 
+      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'heading');
+
       const newNode: HeadingDocumentNode = {
         id: node.id,
         number: node.number,
         type: 'heading',
+        format: carryFormat,
         contents: node.contents,
         children: [],
       };
@@ -505,10 +554,13 @@ export const useTreeOperations = ({
     if (targetType === 'content') {
       if (node.type === 'content') return null; // Already content
 
+      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'content');
+
       const contentNode: ContentDocumentNode = {
         id: node.id,
         number: node.number,
         type: 'content',
+        format: carryFormat,
         contents: node.contents,
         children: [],
       };
@@ -545,6 +597,7 @@ export const useTreeOperations = ({
             id: node.id,
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents: node.contents,
             children: [],
           } as ContentDocumentNode,
@@ -641,6 +694,7 @@ export const useTreeOperations = ({
             id: item.id,
             number: null,
             type: 'heading',
+            format: 'TEXT',
             contents,
             children: [],
           } as HeadingDocumentNode)
@@ -648,6 +702,7 @@ export const useTreeOperations = ({
             id: item.id,
             number: null,
             type: 'content',
+            format: 'TEXT',
             contents,
             children: [],
           } as ContentDocumentNode);
@@ -776,6 +831,7 @@ export const useTreeOperations = ({
     indentNodes,
     outdentNodes,
     changeNodeTypes,
+    changeNodeFormat,
     moveNodeById,
     getReceivingParentId,
     nodeIndex,

@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
-import type { Language } from '../types/document';
+import type { Language, NodeFormat } from '../types/document';
 import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
@@ -61,6 +61,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     updateNodeContents,
     updateNodeNumber,
     changeNodeTypes,
+    changeNodeFormat,
     moveNodeById,
     indentSelected,
     outdentSelected,
@@ -114,6 +115,21 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     }
     return null;
   }, [selectedCount, selectedIds, flattenedNodes]);
+
+  // Format of the single selected content-bearing node, if any.
+  const selectedNodeFormat = useMemo<NodeFormat | undefined>(() => {
+    if (selectedCount !== 1) return undefined;
+    const selectedId = Array.from(selectedIds)[0];
+    const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
+    if (!flatNode || !('format' in flatNode.node)) return undefined;
+    return (flatNode.node as { format: NodeFormat }).format;
+  }, [selectedCount, selectedIds, flattenedNodes]);
+
+  const handleChangeFormat = (format: NodeFormat) => {
+    if (selectedCount !== 1) return;
+    const selectedId = Array.from(selectedIds)[0];
+    if (selectedId) changeNodeFormat(selectedId, format);
+  };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     store.setDraggedNodeId(id);
@@ -173,18 +189,25 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
   };
 
   const handleBlockKeyDown = (e: React.KeyboardEvent, id: string) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
+      // Sibling creation moves to the global (selected, non-editing) handler.
+      // In edit mode Enter never creates a sibling; behaviour depends on the node's format.
       e.preventDefault();
-      const newId = addNodeAfter(id);
-      // Focus the newly created node so the user can type in it immediately
-      if (newId) {
-        store.setEditingId(newId);
-        setTimeout(() => blockRefs.current[newId]?.focus(), 0);
+      const node = flattenedNodes.find((fn) => fn.node.id === id)?.node;
+      const format = node && 'format' in node ? (node as { format: NodeFormat }).format : 'TEXT';
+      // TEXT and MARKDOWN_MINIMAL are single-line — Enter is a no-op. The other formats
+      // accept a literal `\n`; execCommand is the only reliable cross-browser path inside
+      // contentEditable, and its onInput propagates the new text via ContentBlock.
+      const NEWLINE_FORMATS: NodeFormat[] = ['NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN'];
+      if (NEWLINE_FORMATS.includes(format)) {
+        window.document.execCommand?.('insertText', false, '\n');
       }
-    } else if (e.key === 'Backspace') {
+      return;
+    }
+    if (e.key === 'Backspace') {
       const node = flattenedNodes.find((fn) => fn.node.id === id);
       const content = node && 'contents' in node.node ? node.node.contents[language] || '' : '';
-      if (!content || content === '<br>' || content.trim() === '') {
+      if (content.trim() === '') {
         if (flattenedNodes.length > 0) {
           e.preventDefault();
           removeNodes([id]);
@@ -434,8 +457,9 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
           <div>
             <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
             <p className="text-gray-500">
-              Click to select. Shift+Click to select range. Double-click to edit. Enter to create a
-              new node.
+              Click to select. Shift+Click to select range. Double-click to edit. Enter on a
+              selected node creates a new sibling; in edit mode it inserts a newline (for
+              newline-capable formats).
             </p>
           </div>
           <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
@@ -479,7 +503,9 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         selectedCount={selectedCount}
         isEditing={!!editingId}
         selectedNodeType={selectedNodeType}
+        selectedNodeFormat={selectedNodeFormat}
         onUpdateType={handleBulkUpdateType}
+        onChangeFormat={handleChangeFormat}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
       />

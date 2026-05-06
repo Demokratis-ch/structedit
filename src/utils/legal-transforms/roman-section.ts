@@ -71,6 +71,7 @@ export const romanSectionTransform: TreeTransform = (
         id: generateId(),
         number: sectionMatch.number,
         type: 'heading',
+        format: 'TEXT',
         contents: { [language]: sectionMatch.rest },
         children: [],
       };

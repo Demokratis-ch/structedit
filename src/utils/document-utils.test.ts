@@ -233,11 +233,226 @@ describe('Document Utils', () => {
       expect(nestedItem1Content.contents.de).toContain('die öffentliche Volksschule');
     });
 
-    it('strips inline formatting from contents', () => {
-      const html = '<p><b>Bold</b> and <i>italic</i></p>';
+    it('strips inline formatting when chosen format is TEXT (no inline marks present)', () => {
+      const html = '<p>Plain words only</p>';
       const doc = parseHtmlToTree(html);
-      const content = doc.children[0] as LeafDocumentNode;
-      expect(content.contents.de).toBe('Bold and italic');
+      const content = doc.children[0] as ContentDocumentNode;
+      expect(content.format).toBe('TEXT');
+      expect(content.contents.de).toBe('Plain words only');
+    });
+
+    describe('format selection per spec D8 / importer scenarios', () => {
+      it('Plain heading imports as TEXT format', () => {
+        const doc = parseHtmlToTree('<h1>Intro</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.type).toBe('heading');
+        expect(heading.format).toBe('TEXT');
+        expect(heading.contents.de).toBe('Intro');
+      });
+
+      it('Heading with bold imports as MARKDOWN_MINIMAL', () => {
+        const doc = parseHtmlToTree('<h1>The <strong>big</strong> intro</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.contents.de).toBe('The **big** intro');
+      });
+
+      it('Paragraph with inline marks imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>see <em>this</em> and <s>that</s></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('see *this* and ~~that~~');
+      });
+
+      it('Plain paragraph keeps TEXT format', () => {
+        const doc = parseHtmlToTree('<p>just words</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('TEXT');
+        expect(content.contents.de).toBe('just words');
+      });
+
+      it('Heading with <em> imports as MARKDOWN_MINIMAL', () => {
+        const doc = parseHtmlToTree('<h1>An <em>emphatic</em> title</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        expect(heading.contents.de).toBe('An *emphatic* title');
+      });
+
+      it('Paragraph with <sup> imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>x<sup>2</sup> + y</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('x^2^ + y');
+      });
+
+      it('Paragraph with <sub> imports as MARKDOWN', () => {
+        const doc = parseHtmlToTree('<p>H<sub>2</sub>O</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('H~2~O');
+      });
+
+      it('Strips inline formatting via Markdown conversion (b → bold)', () => {
+        const doc = parseHtmlToTree('<p><b>Bold</b> and <i>italic</i></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('**Bold** and *italic*');
+      });
+
+      it('Paragraph with <br> imports as MARKDOWN with a literal newline', () => {
+        const doc = parseHtmlToTree('<p>line one<br>line two</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('line one\nline two');
+      });
+
+      it('Paragraph with <a href> imports as MARKDOWN preserving the link', () => {
+        const doc = parseHtmlToTree('<p>see <a href="https://example.com">site</a></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('see [site](https://example.com)');
+      });
+
+      it('Plain paragraph without href ignores spurious <a> (no href) and stays TEXT', () => {
+        const doc = parseHtmlToTree('<p><a>just words</a></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('TEXT');
+        expect(content.contents.de).toBe('just words');
+      });
+
+      it('Heading with <br> only imports as NEWLINES (MARKDOWN_MINIMAL is single-line)', () => {
+        const doc = parseHtmlToTree('<h1>top<br>bottom</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('NEWLINES');
+        expect(heading.contents.de).toBe('top\nbottom');
+      });
+
+      it('Heading with marks AND <br> imports as MARKDOWN_MINIMAL with the break dropped', () => {
+        const doc = parseHtmlToTree('<h1><strong>big</strong> top<br>bottom</h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        // No \n in the stored source — MARKDOWN_MINIMAL has no newline rule, so the
+        // importer drops the break (preferring to preserve the marks).
+        expect(heading.contents.de).not.toContain('\n');
+        expect(heading.contents.de).toBe('**big** top bottom');
+      });
+
+      it('Heading with <a href> drops link syntax (MARKDOWN_MINIMAL has no link rule)', () => {
+        const doc = parseHtmlToTree('<h1>see <a href="https://example.com">site</a></h1>');
+        const heading = doc.children[0] as HeadingDocumentNode;
+        // Heading is MARKDOWN_MINIMAL because of the bold-eligible heuristic? An anchor
+        // alone shouldn't push a heading off TEXT (headings only get MARKDOWN_MINIMAL on
+        // inline marks), so this stays plain text — the link label survives.
+        expect(heading.format).toBe('TEXT');
+        expect(heading.contents.de).toBe('see site');
+      });
+
+      it('Heading with bold AND link emits the bold but keeps link as plain label', () => {
+        const doc = parseHtmlToTree(
+          '<h1><strong>big</strong> <a href="https://example.com">site</a></h1>'
+        );
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.format).toBe('MARKDOWN_MINIMAL');
+        // `[label](url)` would render as literal text under MARKDOWN_MINIMAL — the
+        // importer drops the link syntax to keep just the label.
+        expect(heading.contents.de).toBe('**big** site');
+      });
+
+      it('Paragraph with <code> imports as MARKDOWN preserving the code span', () => {
+        const doc = parseHtmlToTree('<p>run <code>npm test</code> please</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('run `npm test` please');
+      });
+
+      it('Trims whitespace inside an inline mark (trailing space inside <em>)', () => {
+        // Word docs frequently emit `<em>Test </em>` with the space inside the tag.
+        // The space must move outside the asterisks so the markdown parses as italic.
+        const doc = parseHtmlToTree('<p><em>Test </em>and more</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('*Test* and more');
+      });
+
+      it('Trims whitespace inside <strong> wrapping the entire content', () => {
+        const doc = parseHtmlToTree('<p><strong> Bold </strong></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('**Bold**');
+      });
+
+      it('Trims whitespace inside <em> when it leads the content', () => {
+        const doc = parseHtmlToTree('<p><em> leading</em> rest</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        expect(content.contents.de).toBe('*leading* rest');
+      });
+
+      it('Decodes &nbsp; (\\u00A0) into a regular space', () => {
+        // Word docs use non-breaking spaces (`&nbsp;` / ` `) liberally. Marked
+        // re-escapes the `&`, surfacing literal `&nbsp;` text in the rendered output.
+        // The importer should normalize them to plain spaces for MARKDOWN sources.
+        const doc = parseHtmlToTree('<p>Hello&nbsp;world</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).not.toContain('&nbsp;');
+        expect(content.contents.de).not.toContain(' ');
+        expect(content.contents.de).toBe('Hello world');
+      });
+
+      it('Decodes &nbsp; inside an inline mark', () => {
+        const doc = parseHtmlToTree('<p><strong>foo&nbsp;bar</strong></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('**foo bar**');
+      });
+
+      it('Newline inside an inline mark stays inside (not pulled out)', () => {
+        // wrapMark used to pull \n out of marks via /\s*/, breaking inline structure.
+        // Only horizontal whitespace should float outside the delimiters.
+        const doc = parseHtmlToTree('<p><em>hi\nthere</em></p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.format).toBe('MARKDOWN');
+        // The newline must remain BETWEEN the asterisks, not after them.
+        expect(content.contents.de).toBe('*hi\nthere*');
+      });
+
+      it('Decodes &amp; into & (and renders as the user intended)', () => {
+        const doc = parseHtmlToTree('<p>Tom &amp; Jerry</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        // Stored content has a single & — marked re-escapes it on render so the user
+        // sees "Tom & Jerry" instead of "Tom &amp; Jerry".
+        expect(content.contents.de).toBe('Tom & Jerry');
+      });
+
+      it('Decodes &quot; and &apos;', () => {
+        const doc = parseHtmlToTree('<p>he said &quot;hi&quot; and &apos;bye&apos;</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe(`he said "hi" and 'bye'`);
+      });
+
+      it('Decodes numeric entities like &#8212; (em dash)', () => {
+        const doc = parseHtmlToTree('<p>em&#8212;dash</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('em—dash');
+      });
+
+      it('Decodes hex numeric entities like &#x2014;', () => {
+        const doc = parseHtmlToTree('<p>em&#x2014;dash</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('em—dash');
+      });
+
+      it('Leaves &lt; and &gt; alone (decoding them would create phantom tags)', () => {
+        // We deliberately don't decode `&lt;` / `&gt;` because the importer's tag-
+        // stripping pass would then mistake the resulting `<` / `>` for tag markers.
+        // The cost is that users with literal angle brackets in their content see
+        // them entity-encoded — acceptable.
+        const doc = parseHtmlToTree('<p>x &lt;script&gt;y</p>');
+        const content = doc.children[0] as ContentDocumentNode;
+        // The text passes through with the entities still encoded, so no fake tags
+        // are stripped. (The render pipeline handles them as plain text via marked.)
+        expect(content.contents.de).toContain('&lt;script&gt;');
+        expect(content.contents.de).toContain('y');
+      });
     });
 
     it('uses de language by default', () => {

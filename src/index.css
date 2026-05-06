@@ -238,3 +238,95 @@ tr:nth-child(even) {
 td {
   color: #4b5563;
 }
+
+/* Rendered-Markdown typography hook
+ *
+ * ContentBlock attaches `.markdown-rendered` to its host element only when in
+ * display mode (`disabled === true`) and the format is `MARKDOWN` or
+ * `MARKDOWN_INLINE`. The base-typography rule above deliberately skips elements
+ * inside Tailwind `text-*` utilities — which the rendered tree always is — so
+ * Tailwind preflight wins and h1/ul/a/etc. lose their user-agent defaults. We
+ * restore the relevant ones here, scoped tightly to the hook.
+ */
+.markdown-rendered h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-medium);
+  margin-block: 0.5em 0.25em;
+  line-height: 1.3;
+}
+.markdown-rendered h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-medium);
+  margin-block: 0.5em 0.25em;
+  line-height: 1.3;
+}
+.markdown-rendered h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-medium);
+  margin-block: 0.5em 0.25em;
+  line-height: 1.3;
+}
+.markdown-rendered h4,
+.markdown-rendered h5,
+.markdown-rendered h6 {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  margin-block: 0.5em 0.25em;
+}
+
+.markdown-rendered p { margin-block: 0.5em; }
+.markdown-rendered ul {
+  list-style: disc;
+  padding-inline-start: 1.5em;
+  margin-block: 0.5em;
+}
+.markdown-rendered ol {
+  list-style: decimal;
+  padding-inline-start: 1.5em;
+  margin-block: 0.5em;
+}
+.markdown-rendered li {
+  display: list-item;
+  margin-block: 0.125em;
+}
+
+.markdown-rendered a {
+  color: var(--green-dark);
+  text-decoration: underline;
+}
+.markdown-rendered a:hover {
+  color: var(--green-mid);
+}
+
+.markdown-rendered blockquote {
+  border-inline-start: 3px solid var(--border);
+  padding-inline-start: 0.75em;
+  margin-block: 0.5em;
+  color: var(--muted-foreground);
+}
+
+.markdown-rendered code {
+  background: var(--muted);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.markdown-rendered pre {
+  background: var(--muted);
+  padding: 0.5em 0.75em;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-block: 0.5em;
+}
+.markdown-rendered pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.875em;
+}
+
+.markdown-rendered hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin-block: 1em;
+}

@@ -50,6 +50,7 @@ function createList(
           id: generateId(),
           number: null,
           type: 'content' as const,
+          format: 'TEXT' as const,
           contents: {
             [language]: stripLetterPrefix(item.originalContent.contents[language] || ''),
           },

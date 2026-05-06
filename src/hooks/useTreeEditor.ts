@@ -49,6 +49,7 @@ export const useTreeEditor = (
     indentNodes,
     outdentNodes,
     changeNodeTypes,
+    changeNodeFormat,
     moveNodeById,
     getReceivingParentId,
   } = useTreeOperations({
@@ -296,6 +297,7 @@ export const useTreeEditor = (
     indentNodes,
     outdentNodes,
     changeNodeTypes,
+    changeNodeFormat,
     moveNodeById,
 
     // Bulk operations

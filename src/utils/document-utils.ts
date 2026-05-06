@@ -5,7 +5,14 @@ import type {
   DocumentNode,
   HeadingDocumentNode,
   Language,
+  NodeFormat,
 } from '../types/document';
+import {
+  hasInlineMarks,
+  hasOnlyAnchorMarks,
+  hasOnlyBreakMarks,
+  htmlToMarkdown,
+} from './format-render';
 import { applySwissLegalTransforms } from './legal-transforms';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -109,16 +116,41 @@ export const parseHtmlToTree = (
     getCurrentParent().children.push(node);
   };
 
+  /**
+   * Extract the inner HTML of a node with block tags stripped, but inline marks preserved
+   * so the caller can decide whether to keep them as Markdown or drop them.
+   */
   const getInnerHtml = (node: Node): string => {
     if (node instanceof HTMLElement) {
       let content = node.innerHTML.trim();
-      // Strip nested block tags
       content = content.replace(/<\/?(div|p|h[1-6]|ul|ol|li)[^>]*>/gi, '');
-      // Strip inline formatting tags (Demokratis platform doesn't support formatting)
-      content = content.replace(/<\/?(b|i|em|strong|u|s|strike|span|code|sub|sup)[^>]*>/gi, '');
       return content;
     }
     return (node.textContent || '').replace(/[\s\n]+/g, ' ').trim();
+  };
+
+  /**
+   * Pick the per-node default format (design D8):
+   *   heading → NEWLINES when only `<br>` is present (no inline marks, no anchor)
+   *             → TEXT when only an anchor is present (links can't render under MARKDOWN_MINIMAL)
+   *             → MARKDOWN_MINIMAL when an inline mark is present (any `<br>` is dropped:
+   *               MARKDOWN_MINIMAL is single-line per the platform spec)
+   *             → TEXT otherwise
+   *   content/footnote → MARKDOWN when any inline mark, `<br>`, or anchor is present.
+   *   image → always TEXT.
+   */
+  const chooseFormat = (
+    nodeType: 'heading' | 'content' | 'footnote' | 'image',
+    rawHtml: string
+  ): NodeFormat => {
+    if (nodeType === 'image') return 'TEXT';
+    if (!hasInlineMarks(rawHtml)) return 'TEXT';
+    if (nodeType === 'heading') {
+      if (hasOnlyAnchorMarks(rawHtml)) return 'TEXT';
+      if (hasOnlyBreakMarks(rawHtml)) return 'NEWLINES';
+      return 'MARKDOWN_MINIMAL';
+    }
+    return 'MARKDOWN';
   };
 
   const getDirectText = (li: Node): string => {
@@ -162,6 +194,7 @@ export const parseHtmlToTree = (
           id: generateId(),
           number: null,
           type: 'content',
+          format: 'TEXT',
           contents: { [language]: directText },
           children: [],
         } as ContentDocumentNode);
@@ -190,7 +223,9 @@ export const parseHtmlToTree = (
     // Heading elements - these define structure
     if (/^h[1-6]$/.test(tagName)) {
       const level = parseInt(tagName[1], 10); // 1-6
-      const content = getInnerHtml(domNode);
+      const rawHtml = getInnerHtml(domNode);
+      const format = chooseFormat('heading', rawHtml);
+      const content = htmlToMarkdown(rawHtml, format);
 
       // Pop stack to appropriate level (heading level becomes index in stack)
       while (parentStack.length > level) {
@@ -201,6 +236,7 @@ export const parseHtmlToTree = (
         id: generateId(),
         number: null,
         type: 'heading',
+        format,
         contents: { [language]: content },
         children: [],
       };
@@ -225,16 +261,21 @@ export const parseHtmlToTree = (
 
     // Paragraphs - create content nodes
     if (tagName === 'p') {
-      const content = getInnerHtml(domNode);
-      if (content) {
-        const contentNode: ContentDocumentNode = {
-          id: generateId(),
-          number: null,
-          type: 'content',
-          contents: { [language]: content },
-          children: [],
-        };
-        addChild(contentNode);
+      const rawHtml = getInnerHtml(domNode);
+      if (rawHtml) {
+        const format = chooseFormat('content', rawHtml);
+        const content = htmlToMarkdown(rawHtml, format);
+        if (content) {
+          const contentNode: ContentDocumentNode = {
+            id: generateId(),
+            number: null,
+            type: 'content',
+            format,
+            contents: { [language]: content },
+            children: [],
+          };
+          addChild(contentNode);
+        }
       }
       return;
     }
