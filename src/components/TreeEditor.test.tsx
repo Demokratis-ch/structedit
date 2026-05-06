@@ -210,6 +210,106 @@ describe('double-click inline editing', () => {
     vi.useRealTimers();
   });
 
+  // Regression: clicking inside an already-editing field used to bubble up to the
+  // node wrapper's onClick, which called containerRef.focus() unconditionally and
+  // blurred the contentEditable — making the caret disappear (issue #60).
+  test('clicking inside an editing node keeps focus on its contentEditable', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor();
+
+    const firstHeading = getTreePane().getByText('First Heading');
+
+    await act(async () => {
+      fireEvent.doubleClick(firstHeading);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    expect(editingEl.getAttribute('contenteditable')).toBe('true');
+
+    // Simulate the user clicking inside the field they're editing (e.g. to move
+    // the caret). The bug was synchronous focus theft, so no timers to flush.
+    await act(async () => {
+      fireEvent.click(editingEl);
+    });
+
+    expect(document.activeElement).toBe(editingEl);
+
+    vi.useRealTimers();
+  });
+
+  test('clicking a non-editing node moves focus to the container', () => {
+    renderTreeEditor();
+
+    fireEvent.click(getTreePane().getByText('First Heading'));
+
+    // The container owns keyboard handling; a plain (non-editing) click must
+    // route focus there so arrow keys and shortcuts work.
+    expect(document.activeElement).toBe(getContainer());
+  });
+
+  // Regression: Firefox suppresses caret-positioning in a contentEditable when
+  // any ancestor element has draggable=true. With nested nodes (heading + child
+  // content) the parent wrapper's draggable=true broke clicking inside the
+  // nested editing field (issue #60). All node wrappers must drop draggable
+  // while any node is in edit mode.
+  test('all node wrappers drop draggable while any node is editing', async () => {
+    vi.useFakeTimers();
+    const nestedDoc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          format: 'TEXT',
+          contents: { de: 'Parent Heading' },
+          children: [
+            {
+              id: 'c1',
+              number: null,
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Nested Content' },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <EditorInterface
+        initialDocument={nestedDoc}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    // Sanity: before editing, both wrappers are draggable.
+    let wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBe(2);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('true');
+
+    // Enter edit mode on the nested content node.
+    await act(async () => {
+      fireEvent.doubleClick(getTreePane().getByText('Nested Content'));
+      vi.runAllTimers();
+    });
+
+    // Every wrapper — including the parent heading — must now declare
+    // draggable=false so Firefox lets the browser position the caret.
+    wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBe(2);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('false');
+
+    vi.useRealTimers();
+  });
+
   test('pressing Enter while editing a TEXT-format node does NOT create a sibling', async () => {
     vi.useFakeTimers();
     renderTreeEditor();

@@ -360,6 +360,14 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
 
   const handleClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    // Click inside the currently-editing node: let the browser position the
+    // caret natively. Do not steal focus to the container and do not run
+    // selection/state updates — Firefox in particular drops the visible caret
+    // when the editing element is touched by a React re-render mid-click
+    // (issue #60).
+    if (store.getEditingId() === id) {
+      return;
+    }
     // Focus the container so keyboard events work
     containerRef.current?.focus();
     handleNodeClick(id, {

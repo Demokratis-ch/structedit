@@ -1,6 +1,6 @@
 import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
-import { memo } from 'react';
+import { memo, useCallback, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import type { DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
@@ -54,6 +54,14 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       isReceivingParent,
       isInvalidDrop,
     } = useNodeState(store, node.id);
+    // Firefox suppresses caret-positioning in a contentEditable when any
+    // ancestor has draggable=true (issue #60). Disable draggable on every
+    // node while any node is in edit mode — drag-to-reorder is unavailable
+    // mid-edit anyway, so this is a no-op behaviour-wise.
+    const isAnyNodeEditing = useSyncExternalStore(
+      store.subscribe,
+      useCallback(() => store.getEditingId() !== null, [store])
+    );
 
     const {
       language,
@@ -289,7 +297,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
 
     return (
       <div
-        draggable={!isEditing}
+        draggable={!isAnyNodeEditing}
         onDragStart={(e) => {
           e.stopPropagation();
           onDragStart(e, node.id);
