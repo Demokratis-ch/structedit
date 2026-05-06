@@ -22,8 +22,8 @@ Imported documents already contain inline formatting (bold, italic, strikethroug
   - `TEXT`: escape and strip newlines
   - `NEWLINES`: escape, convert `\n` to `<br>`
   - `MARKDOWN_MINIMAL`: render `**bold**`, `*italic*`, `~~strike~~`, `^sup^`, `~sub~` only
-  - `MARKDOWN_INLINE`: full CommonMark inline (links, code, etc.) plus strike + sup/sub, no block elements
-  - `MARKDOWN`: full CommonMark including paragraphs, lists, tables
+  - `MARKDOWN_INLINE`: full CommonMark inline (links, code, etc.) plus strike + sup/sub, no block elements, no bare HTML
+  - `MARKDOWN`: full CommonMark + GFM (paragraphs, lists, tables, strikethrough, autolinks); raw HTML in source is dropped, not rendered
 - **BREAKING (UX):** in edit mode, `Enter` no longer creates a sibling node. Behaviour now depends on format:
   - `TEXT`: ignored (with `preventDefault`)
   - `NEWLINES`, `MARKDOWN_MINIMAL`, `MARKDOWN_INLINE`, `MARKDOWN`: insert a newline inside the edited node

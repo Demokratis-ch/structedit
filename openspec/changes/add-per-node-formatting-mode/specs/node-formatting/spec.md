@@ -9,7 +9,7 @@ The system SHALL define exactly five formatting levels — `TEXT`, `NEWLINES`, `
 
 #### Scenario: Each level has a documented rendering contract
 - **WHEN** the renderer is asked to render a string under any level
-- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` is single-line and supports only bold/italic/strike/sup/sub (newlines are collapsed to a space, never preserved as `<br>`); `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements; `MARKDOWN` supports full CommonMark including blocks (paragraphs, lists, tables)
+- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` is single-line and supports only bold/italic/strike/sup/sub (newlines are collapsed to a space, never preserved as `<br>`); `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements **and no bare HTML**; `MARKDOWN` supports full CommonMark + GFM (paragraphs, lists, tables, strikethrough, autolinks) **with bare HTML disabled — raw `<tag>…</tag>` in source is dropped, not rendered**
 
 ### Requirement: Every content-bearing node carries a required format field
 The system SHALL require a `format: NodeFormat` field on every node whose type can hold `contents` (`heading`, `content`, `footnote`, `image`). Container-only nodes (`document`, `list`, `list_item`) SHALL NOT carry a format. `isValidNode` and `isValidDocument` SHALL reject any tree that violates these rules.
@@ -82,6 +82,22 @@ The system SHALL provide a pure function `renderContent(raw: string, format: Nod
 #### Scenario: MARKDOWN renders full CommonMark
 - **WHEN** `renderContent('- a\n- b', 'MARKDOWN')` is called
 - **THEN** the output contains `<ul>` with two `<li>` children
+
+#### Scenario: MARKDOWN does not render bare block HTML
+- **WHEN** `renderContent('<div>raw</div>', 'MARKDOWN')` is called
+- **THEN** the output contains no `<div>` element
+
+#### Scenario: MARKDOWN does not render bare inline HTML
+- **WHEN** `renderContent('hello <span class="x">there</span>', 'MARKDOWN')` is called
+- **THEN** the output contains no `<span>` element; surrounding prose still renders
+
+#### Scenario: MARKDOWN does not render bare HTML even for tags in the allow-list
+- **WHEN** `renderContent('<strong>raw</strong>', 'MARKDOWN')` is called
+- **THEN** the output contains no `<strong>` element — the source had to be `**raw**` to render bold; raw tags are stripped regardless of whether DOMPurify would otherwise allow them
+
+#### Scenario: MARKDOWN_INLINE does not render bare HTML
+- **WHEN** `renderContent('see <em>this</em>', 'MARKDOWN_INLINE')` is called
+- **THEN** the output contains no `<em>` element produced by the raw tag — Markdown `*…*` is the only path to inline emphasis
 
 #### Scenario: All formats sanitize XSS
 - **WHEN** `renderContent('<img src=x onerror=alert(1)>', format)` is called for any format

@@ -57,8 +57,8 @@ A new module [src/utils/format-render.ts] exposes `renderContent(raw: string, fo
 - `TEXT`: HTML-escape, then `replace(/\n+/g, ' ')`.
 - `NEWLINES`: HTML-escape, then `replace(/\n/g, '<br>')`.
 - `MARKDOWN_MINIMAL`: a small in-house regex pipeline supporting only `**bold**`, `*italic*`, `~~strike~~`, `^sup^`, `~sub~`. Run on escaped text. **Single-line per platform spec**: no links, no images, no code, no blocks, and *no* newline support — `\n` collapses to a space (matching `TEXT`'s newline handling). A heading that needs both inline marks and a line break must pick: the importer drops the break to preserve the marks; if a heading carries only a `<br>` and no marks, the importer demotes to `NEWLINES`.
-- `MARKDOWN_INLINE`: full CommonMark inline via [`marked`](https://github.com/markedjs/marked) parser run in inline mode (`marked.parseInline`), then post-process to add strike + sup/sub support, then `DOMPurify` with an inline-only allow-list.
-- `MARKDOWN`: `marked.parse` (block + inline), then `DOMPurify` with the existing block allow-list, plus `sub`/`sup`.
+- `MARKDOWN_INLINE`: full CommonMark inline via [`marked`](https://github.com/markedjs/marked) (`parseInline`) on a private instance configured with a `renderer.html` override that returns the empty string (with a narrow exception for `<sub>` / `<sup>` sentinels — see D11), then post-process to add strike + sup/sub support, then `DOMPurify` with an inline-only allow-list. Raw inline HTML in source does not survive into output — Markdown delimiters are the only path.
+- `MARKDOWN`: `marked.parse` (block + inline) on the same private instance (the override handles both `Tokens.HTML` and `Tokens.Tag`), then `DOMPurify` with the block allow-list, plus `sub`/`sup`. CommonMark + GFM features (lists, tables, strikethrough, autolinks) render normally; bare HTML — block or inline — does not. Rationale: DOMPurify alone cannot distinguish a `<strong>` produced by `**foo**` from a `<strong>` written verbatim in source; the renderer override makes the distinction at the token level. Image syntax `![alt](src)` is currently NOT rendered (omitted from the DOMPurify allow-list); see open questions.
 
 All paths end with `DOMPurify.sanitize` to defend against XSS. The function is pure → trivial to test with a table of `(input, format) → expectedHtml`.
 
@@ -141,6 +141,19 @@ Per the user's standing instruction, each task in tasks.md follows: write failin
 - **[Importer heuristic is fuzzy]** → Mitigation: heuristic only sets the *default* format; the user can override per-node via the toolbar. Tests assert each branch with realistic fixtures.
 - **[`document.execCommand` is deprecated]** → Mitigation: still works in all current browsers and is the only reliable cross-browser way to insert text inside contentEditable. If/when it's removed, the editing layer is small and isolated; swap to a manual Range/Selection update.
 
+### D11. Bare HTML in MARKDOWN / MARKDOWN_INLINE source is stripped at the token level
+
+`marked` passes raw HTML through by default; DOMPurify's allow-list cannot distinguish a `<strong>` rendered from `**foo**` from one written verbatim in source. We therefore configure a private `marked` instance with `renderer.html` returning the empty string. Both block-level (`Tokens.HTML`) and inline (`Tokens.Tag`) raw-HTML tokens dispatch through that single override, so a single rule covers both.
+
+The override eats *html tokens*, not the surrounding text. The user-visible behavior depends on how `marked` tokenizes the input:
+
+- **Inline raw HTML** (`<strong>foo</strong>`, `<span>foo</span>`, `<a href="…">foo</a>`) tokenizes as three tokens — opening `Tokens.Tag`, a `text` token, closing `Tokens.Tag`. The override drops the two tag tokens; the text token survives. Net effect: tags vanish, inner text remains as plain prose in the surrounding paragraph. `<strong>raw</strong> and **md**` renders as `raw and <strong>md</strong>`.
+- **Block-level raw HTML** (`<div>...</div>`, `<table>` written by hand) tokenizes as one `Tokens.HTML` block whose `text` field contains the entire block. The override drops the whole token. Net effect: the block and its inner text both disappear.
+
+This asymmetry is deliberate: preserving the inner text in the inline case keeps user content visible (just unformatted), which is friendlier than silently swallowing it. Returning the source verbatim was rejected because DOMPurify would re-parse and re-allow allowlisted tags — the original problem; HTML-escaping for literal display was rejected as visually noisy and inconsistent with CommonMark's silent handling of malformed input (an unclosed `**` is a no-op, not literal `*`). If users genuinely want angle brackets to appear, they can write entity escapes (`&lt;div&gt;`) or wrap them in a code span — those paths are unchanged.
+
+`<sub>` / `<sup>` are a narrow exception: `protectSupSubMarks` emits them as sentinels for `~x~` / `^x^` marks. The override allows exactly that form (no attributes, exact tag name) through. A hostile `<sub onerror=...>` cannot match the strict pattern; DOMPurify is the second line of defense.
+
 ## Migration Plan
 
 No persistence layer exists in StructEdit today — every tree is rebuilt from a freshly imported document or from `exampleDocument`. Therefore there are no stored trees to migrate. The change is purely additive at runtime:
@@ -154,3 +167,5 @@ Rollback: the change is a single PR. Reverting it restores the old behaviour. No
 
 - Format switcher UI: dropdown vs. segmented buttons? Going with `<select>` for v1; revisit after user feedback.
 - Do we want a keyboard shortcut to cycle formats on the selected node? Out of scope for this change; can be added later.
+- Should `MARKDOWN` support inline images (`![alt](src)`)? "Full CommonMark" includes images, but the DOMPurify allow-list currently omits `img`. Out of scope for the bare-HTML fix; flagged as a separate decision.
+- "CommonMark" in this spec means **CommonMark + GFM** (tables, strikethrough, autolinks). `marked` enables these by default and the existing test suite pins them down. Documented to match shipped behavior.

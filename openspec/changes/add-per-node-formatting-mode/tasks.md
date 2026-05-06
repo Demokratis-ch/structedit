@@ -51,3 +51,10 @@
 - [x] 8.1 Run `npm run test` and confirm the entire suite is green
 - [x] 8.2 Run `npm run build` and confirm it succeeds with no new TypeScript errors
 - [ ] 8.3 Manually verify in `npm run dev` (port 3000): import a DOCX containing bold/italic, change a node's format via the toolbar, hit Enter inside a `MARKDOWN` content node and confirm a `\n` is inserted (rendered as a line break on blur), hit Enter inside a heading with `MARKDOWN_MINIMAL` and confirm the newline shows as a `<br>`, hit Enter on a selected non-editing node and confirm a sibling is created, undo/redo a format change
+
+## 9. Disable bare HTML in MARKDOWN / MARKDOWN_INLINE
+
+- [x] 9.1 Red: extend [src/utils/format-render.test.ts](src/utils/format-render.test.ts) with bare-HTML scenarios for both formats — block `<div>`, inline `<span>`, allow-listed `<strong>`, MARKDOWN_INLINE bare `<em>` and bare `<a>` — plus regressions for CommonMark autolinks, GFM tables, GFM strikethrough, and Markdown bold/italic still rendering
+- [x] 9.2 Green: in [src/utils/format-render.ts](src/utils/format-render.ts) replace `import { marked }` with `import { Marked }`; instantiate a private `markedNoHtml` configured with `renderer.html` returning `''` (with a narrow exception that passes `<sub>`, `</sub>`, `<sup>`, `</sup>` through verbatim so `protectSupSubMarks` sentinels survive); call `markedNoHtml.parse` / `markedNoHtml.parseInline` from the `MARKDOWN` / `MARKDOWN_INLINE` branches of `renderContent`
+- [x] 9.3 Refactor: confirm sub/sup, GFM features, and existing XSS tests still pass — `protectSupSubMarks` itself is unchanged
+- [ ] 9.4 Verify: `npm run test`, `npm run build`, and a manual `npm run dev` smoke (typed `<strong>foo</strong>` does not bold; `**foo**` does; CommonMark autolink `<https://example.com>` still becomes a link; code-fenced `<div>` still shows angle brackets)

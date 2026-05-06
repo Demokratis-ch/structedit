@@ -1,6 +1,31 @@
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import { Marked } from 'marked';
 import type { NodeFormat } from '../types/document';
+
+/**
+ * Private `marked` instance with bare HTML disabled. CommonMark passes raw
+ * HTML through by default; we override `renderer.html` so that
+ *   - `<div>x</div>` (block, Tokens.HTML)
+ *   - `<span>x</span>` (inline, Tokens.Tag)
+ * never reach the DOMPurify stage. DOMPurify alone cannot tell a `<strong>`
+ * rendered from `**x**` (which we want) apart from one written verbatim in
+ * source (which we don't); the override makes that distinction at the token
+ * level, before sanitization.
+ *
+ * Exception: `protectSupSubMarks` injects literal `<sub>` / `<sup>` tags as
+ * sentinels for ~x~ / ^x^ marks. We pass exactly those four tokens through
+ * — exact tag, no attributes — so the existing sub/sup mechanism keeps
+ * working. A hostile `<sub onerror=...>` cannot match the strict pattern;
+ * DOMPurify is the second line of defense.
+ */
+const SUP_SUB_PASSTHROUGH = /^<\/?(?:sub|sup)>$/;
+const markedNoHtml = new Marked({
+  renderer: {
+    html({ text }: { text: string }) {
+      return SUP_SUB_PASSTHROUGH.test(text) ? text : '';
+    },
+  },
+});
 
 const escapeHtml = (s: string): string =>
   s
@@ -289,14 +314,14 @@ export const renderContent = (raw: string, format: NodeFormat): string => {
     }
     case 'MARKDOWN_INLINE': {
       html = sanitize(
-        marked.parseInline(protectSupSubMarks(raw), { async: false }) as string,
+        markedNoHtml.parseInline(protectSupSubMarks(raw), { async: false }) as string,
         'MARKDOWN_INLINE'
       );
       break;
     }
     case 'MARKDOWN': {
       html = sanitize(
-        marked.parse(protectSupSubMarks(raw), { async: false }) as string,
+        markedNoHtml.parse(protectSupSubMarks(raw), { async: false }) as string,
         'MARKDOWN'
       );
       break;

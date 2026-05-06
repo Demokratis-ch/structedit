@@ -270,6 +270,70 @@ describe('renderContent — MARKDOWN', () => {
   });
 });
 
+describe('renderContent — bare HTML in MARKDOWN source', () => {
+  it('drops bare block HTML', () => {
+    const html = renderContent('<div>raw block</div>', 'MARKDOWN');
+    expect(html).not.toContain('<div>');
+  });
+
+  it('drops bare inline HTML even when wrapped in a paragraph', () => {
+    const html = renderContent('hello <span class="x">there</span> world', 'MARKDOWN');
+    expect(html).not.toContain('<span');
+    expect(html).toContain('hello');
+    expect(html).toContain('world');
+  });
+
+  it('drops bare HTML even for tags that DOMPurify would otherwise allow', () => {
+    // `<strong>` is in the MARKDOWN allow-list, but it came from raw HTML in
+    // source, not from `**…**`. The Markdown delimiters are the only path to
+    // an emphasized output; raw tags must be stripped.
+    const html = renderContent('<strong>raw</strong>', 'MARKDOWN');
+    expect(html).not.toContain('<strong>');
+  });
+
+  it('still renders Markdown bold from `**` (regression)', () => {
+    const html = renderContent('**md bold**', 'MARKDOWN');
+    expect(html).toContain('<strong>md bold</strong>');
+  });
+
+  it('drops bare <script> with no XSS leak', () => {
+    const html = renderContent('<script>alert(1)</script>', 'MARKDOWN');
+    expect(hasExecutableXss(html)).toBe(false);
+    expect(html).not.toContain('<script');
+  });
+
+  it('preserves CommonMark autolinks (angle-bracket syntax produces a link token, not an html token)', () => {
+    const html = renderContent('<https://example.com>', 'MARKDOWN');
+    expect(html).toContain('href="https://example.com"');
+  });
+
+  it('preserves GFM tables (CommonMark + GFM contract)', () => {
+    const html = renderContent('| a | b |\n|---|---|\n| 1 | 2 |', 'MARKDOWN');
+    expect(html).toContain('<table>');
+    expect(html).toContain('<td>1</td>');
+  });
+
+  it('preserves GFM strikethrough', () => {
+    const html = renderContent('~~gone~~', 'MARKDOWN');
+    expect(html).toMatch(/<(?:s|del)>gone<\/(?:s|del)>/);
+  });
+});
+
+describe('renderContent — bare HTML in MARKDOWN_INLINE source', () => {
+  it('drops bare inline HTML', () => {
+    const bare = renderContent('see <em>raw</em> here', 'MARKDOWN_INLINE');
+    expect(bare).not.toContain('<em>raw</em>');
+    // Markdown italics still work — the delimiters are the only path.
+    expect(renderContent('see *md* here', 'MARKDOWN_INLINE')).toContain('<em>md</em>');
+  });
+
+  it('drops bare <a> tags (Markdown link syntax is the only path)', () => {
+    const bare = renderContent('<a href="https://x">raw</a>', 'MARKDOWN_INLINE');
+    expect(bare).not.toMatch(/<a[^>]*href="https:\/\/x"/);
+    expect(renderContent('[ok](https://x)', 'MARKDOWN_INLINE')).toContain('href="https://x"');
+  });
+});
+
 describe('renderContent — no spurious trailing whitespace', () => {
   // The rendered output is set via dangerouslySetInnerHTML into a contentEditable with
   // `white-space: pre-wrap`. A trailing newline (which marked appends after each block)
