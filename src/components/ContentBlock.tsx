@@ -63,17 +63,34 @@ export const ContentBlock = memo(
 
     const Tag = tagName as any;
 
+    // Tailwind preflight zeroes out user-agent styles for h1/ul/a/etc., and the
+    // base-typography rule in index.css skips elements inside `text-*` utilities
+    // (which the rendered tree always is). Tag the host with `markdown-rendered`
+    // when in display mode for a markdown-block format so a scoped stylesheet
+    // can restore heading sizes, list markers, and link styling.
+    const wantsMarkdownTypography =
+      disabled && (format === 'MARKDOWN' || format === 'MARKDOWN_INLINE');
+    const finalClassName = wantsMarkdownTypography ? `${className} markdown-rendered` : className;
+
+    // Editing always uses pre-wrap so user-typed `\n` shows as a real break.
+    // Markdown display uses `normal` because marked emits `\n` between block tags
+    // (e.g. `</h1>\n<ul>\n<li>...`); pre-wrap would render each as a visible blank
+    // line on top of the elements' own margins. Block-level structure handles
+    // layout there. TEXT/NEWLINES display still needs pre-wrap so newlines in
+    // those formats survive into rendered text.
+    const whiteSpace: 'pre-wrap' | 'normal' = wantsMarkdownTypography ? 'normal' : 'pre-wrap';
+
     return (
       <Tag
         ref={elRef}
-        className={className}
+        className={finalClassName}
         contentEditable={!disabled}
         onInput={handleInput}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
         suppressContentEditableWarning
         spellCheck={false}
-        style={{ whiteSpace: 'pre-wrap' }}
+        style={{ whiteSpace }}
       />
     );
   },

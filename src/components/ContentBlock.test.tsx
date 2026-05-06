@@ -114,6 +114,69 @@ describe('ContentBlock — editing path stores raw source', () => {
   });
 });
 
+describe('ContentBlock — white-space handling', () => {
+  test('uses white-space: pre-wrap while editing so user-typed \\n shows as a break', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} raw={'a\nb'} format="MARKDOWN" disabled={false} />
+    );
+    const el = container.querySelector('div') as HTMLElement;
+    expect(el.style.whiteSpace).toBe('pre-wrap');
+  });
+
+  test('uses white-space: normal in display mode so literal \\n between block tags do not produce visible blank lines', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} raw={'# h\n\n- a\n- b'} format="MARKDOWN" disabled />
+    );
+    const el = container.querySelector('div') as HTMLElement;
+    // marked's HTML output contains literal "\n" between </h1>, <ul>, <li>... — pre-wrap
+    // would render each as a visible blank line on top of the elements' own margins.
+    // Display mode relies on block-level structure for layout.
+    expect(el.style.whiteSpace).toBe('normal');
+  });
+
+  test('uses white-space: pre-wrap in display mode for TEXT and NEWLINES', () => {
+    for (const format of ['TEXT', 'NEWLINES'] as const) {
+      const { container } = render(
+        <ContentBlock {...defaultProps} raw={'a\nb'} format={format} disabled />
+      );
+      const el = container.querySelector('div') as HTMLElement;
+      expect(el.style.whiteSpace).toBe('pre-wrap');
+    }
+  });
+});
+
+describe('ContentBlock — markdown-rendered styling hook', () => {
+  test('attaches markdown-rendered class when displaying MARKDOWN', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} raw={'# h'} format="MARKDOWN" disabled />
+    );
+    expect(container.querySelector('div')?.className).toContain('markdown-rendered');
+  });
+
+  test('attaches markdown-rendered class when displaying MARKDOWN_INLINE', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} raw={'**hi**'} format="MARKDOWN_INLINE" disabled />
+    );
+    expect(container.querySelector('div')?.className).toContain('markdown-rendered');
+  });
+
+  test('does NOT attach markdown-rendered while editing MARKDOWN', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} raw={'# h'} format="MARKDOWN" disabled={false} />
+    );
+    expect(container.querySelector('div')?.className ?? '').not.toContain('markdown-rendered');
+  });
+
+  test('does NOT attach markdown-rendered for TEXT, NEWLINES, or MARKDOWN_MINIMAL', () => {
+    for (const format of ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'] as const) {
+      const { container } = render(
+        <ContentBlock {...defaultProps} raw={'x'} format={format} disabled />
+      );
+      expect(container.querySelector('div')?.className ?? '').not.toContain('markdown-rendered');
+    }
+  });
+});
+
 describe('ContentBlock — switching formats does not mutate stored content', () => {
   test('rerendering with a different format keeps the same raw passed in', () => {
     const onChange = vi.fn();
