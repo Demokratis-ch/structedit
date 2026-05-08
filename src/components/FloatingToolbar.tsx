@@ -1,10 +1,27 @@
-import { Asterisk, Heading, List, ListOrdered, SortAsc, Trash2, Type, X } from 'lucide-react';
+import {
+  Asterisk,
+  Bold,
+  Heading,
+  Italic,
+  List,
+  ListOrdered,
+  SortAsc,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  Trash2,
+  Type,
+  X,
+} from 'lucide-react';
 import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
+import type { InlineMark } from '../utils/inline-mark';
 
 type ToolbarBlockType = 'heading' | 'content' | 'ul' | 'ol' | 'abc' | 'footnote';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
 type SelectorNodeType = ToolbarBlockType | 'image';
+
+export type InlineMarksTarget = 'contenteditable' | 'input-number';
 
 interface FloatingToolbarProps {
   selectedCount: number;
@@ -15,7 +32,38 @@ interface FloatingToolbarProps {
   onChangeFormat?: (format: NodeFormat) => void;
   onDelete: () => void;
   onClearSelection: () => void;
+  inlineMarksTarget?: InlineMarksTarget | null;
+  inlineMarksFormat?: NodeFormat;
+  markActiveState?: Partial<Record<InlineMark, boolean>>;
+  onToggleMark?: (mark: InlineMark) => void;
 }
+
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.platform ?? '');
+const MOD = IS_MAC ? '⌘' : 'Ctrl+';
+const ALT = IS_MAC ? '⌥' : 'Alt+';
+const SHIFT = IS_MAC ? '⇧' : 'Shift+';
+
+const INLINE_MARK_BUTTONS: ReadonlyArray<{
+  mark: InlineMark;
+  Icon: typeof Bold;
+  title: string;
+}> = [
+  { mark: 'bold', Icon: Bold, title: `Bold (${MOD}B)` },
+  { mark: 'italic', Icon: Italic, title: `Italic (${MOD}I)` },
+  { mark: 'strike', Icon: Strikethrough, title: `Strikethrough (${ALT}${SHIFT}5)` },
+  { mark: 'sup', Icon: Superscript, title: `Superscript (${MOD}.)` },
+  { mark: 'sub', Icon: Subscript, title: `Subscript (${MOD},)` },
+];
+
+// Inline marks render visibly only for these formats. The number field is
+// always allowed because NumberMarkup forces MARKDOWN_MINIMAL regardless of the
+// surrounding node's format.
+export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
+  'MARKDOWN_MINIMAL',
+  'MARKDOWN_INLINE',
+  'MARKDOWN',
+];
 
 const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
 
@@ -28,8 +76,18 @@ export function FloatingToolbar({
   onChangeFormat,
   onDelete,
   onClearSelection,
+  inlineMarksTarget,
+  inlineMarksFormat,
+  markActiveState,
+  onToggleMark,
 }: FloatingToolbarProps) {
   if (selectedCount === 0 && !isEditing) return null;
+
+  const showInlineMarks =
+    isEditing &&
+    inlineMarksTarget != null &&
+    (inlineMarksTarget === 'input-number' ||
+      (inlineMarksFormat != null && FORMATS_WITH_MARKS.includes(inlineMarksFormat)));
 
   const typeButtonClass = (type: ToolbarBlockType) =>
     `p-2 rounded-lg transition-colors ${
@@ -126,6 +184,38 @@ export function FloatingToolbar({
               </option>
             ))}
           </select>
+        </>
+      )}
+
+      {showInlineMarks && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <div
+            data-testid="inline-marks-group"
+            className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-md bg-gray-800/60 border border-gray-700/40"
+          >
+            {INLINE_MARK_BUTTONS.map(({ mark, Icon, title }) => {
+              const active = markActiveState?.[mark] === true;
+              return (
+                <button
+                  key={mark}
+                  type="button"
+                  data-testid={`inline-mark-${mark}`}
+                  aria-pressed={active}
+                  aria-label={title}
+                  title={title}
+                  onClick={() => onToggleMark?.(mark)}
+                  className={`p-1.5 rounded transition-colors ${
+                    active
+                      ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/40'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <Icon size={16} />
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
 

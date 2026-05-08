@@ -91,6 +91,8 @@ export const ContentBlock = memo(
         suppressContentEditableWarning
         spellCheck={false}
         style={{ whiteSpace }}
+        data-structedit-node-id={blockId}
+        data-structedit-format={format}
       />
     );
   },

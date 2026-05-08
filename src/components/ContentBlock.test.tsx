@@ -177,6 +177,24 @@ describe('ContentBlock — markdown-rendered styling hook', () => {
   });
 });
 
+describe('ContentBlock — exposes data attributes for inline-mark targeting', () => {
+  test('renders data-structedit-node-id matching blockId', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} blockId="my-id" disabled={false} />
+    );
+    expect(container.querySelector('div')?.getAttribute('data-structedit-node-id')).toBe('my-id');
+  });
+
+  test('renders data-structedit-format matching format', () => {
+    const { container } = render(
+      <ContentBlock {...defaultProps} format="MARKDOWN_MINIMAL" disabled={false} />
+    );
+    expect(container.querySelector('div')?.getAttribute('data-structedit-format')).toBe(
+      'MARKDOWN_MINIMAL'
+    );
+  });
+});
+
 describe('ContentBlock — switching formats does not mutate stored content', () => {
   test('rerendering with a different format keeps the same raw passed in', () => {
     const onChange = vi.fn();

@@ -1276,3 +1276,248 @@ describe('FloatingToolbar button clicks', () => {
     expectNodeNotSelected('First Heading');
   });
 });
+
+describe('inline-marks toolbar — end-to-end toggle', () => {
+  test('clicking Bold while editing a MARKDOWN_MINIMAL heading wraps the selected text and updates the tree', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h',
+          number: '1',
+          type: 'heading',
+          format: 'MARKDOWN_MINIMAL',
+          contents: { de: 'hello' },
+          children: [],
+        },
+      ],
+    };
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('hello');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    expect(editingEl.getAttribute('contenteditable')).toBe('true');
+
+    // Select the whole word so the toggle wraps it.
+    const textNode = editingEl.firstChild as Text;
+    await act(async () => {
+      const range = window.document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 'hello'.length);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('inline-mark-bold'));
+    });
+
+    // Editing surface now shows the raw source with markdown delimiters.
+    expect(editingEl.textContent).toBe('**hello**');
+
+    // Press Escape to exit edit mode and confirm the tree state was updated
+    // (renderContent emits <strong> for MARKDOWN_MINIMAL bold in display mode).
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'Escape' });
+    });
+    expect(getTreePane().getByText('hello').closest('h2')?.innerHTML).toContain(
+      '<strong>hello</strong>'
+    );
+
+    vi.useRealTimers();
+  });
+
+  test('Google Docs–style keyboard shortcuts toggle the corresponding mark on the editing contenteditable', async () => {
+    vi.useFakeTimers();
+
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h',
+          number: null,
+          type: 'heading',
+          format: 'MARKDOWN_MINIMAL',
+          contents: { de: 'word' },
+          children: [],
+        },
+      ],
+    };
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    const target = getTreePane().getByText('word');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    const selectAll = () => {
+      const textNode = editingEl.firstChild as Text;
+      const range = window.document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, (editingEl.textContent ?? '').length);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    };
+
+    const cases: Array<{ event: KeyboardEventInit; expected: string }> = [
+      { event: { key: 'b', ctrlKey: true }, expected: '**word**' },
+      { event: { key: 'i', metaKey: true }, expected: '*word*' },
+      { event: { key: '5', code: 'Digit5', altKey: true, shiftKey: true }, expected: '~~word~~' },
+      { event: { key: '.', ctrlKey: true }, expected: '^word^' },
+      { event: { key: ',', metaKey: true }, expected: '~word~' },
+    ];
+
+    for (const { event, expected } of cases) {
+      // Reset to plain "word".
+      await act(async () => {
+        editingEl.textContent = 'word';
+        editingEl.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await act(async () => {
+        selectAll();
+      });
+      await act(async () => {
+        fireEvent.keyDown(editingEl, event);
+      });
+      expect(editingEl.textContent).toBe(expected);
+    }
+
+    vi.useRealTimers();
+  });
+
+  test('keyboard shortcuts do not fire when no editor is active', () => {
+    renderTreeEditor();
+
+    // No editor focused, no node selected — Ctrl+B should not throw or do anything.
+    fireEvent.keyDown(document.body, { key: 'b', ctrlKey: true });
+    // The first heading content stays as plain text.
+    expect(getTreePane().getByText('First Heading').innerHTML).toBe('First Heading');
+  });
+
+  test('keyboard shortcuts do not fire when format is TEXT (no markdown rendering)', async () => {
+    vi.useFakeTimers();
+    renderTreeEditor(); // First heading uses format: 'TEXT'.
+
+    const target = getTreePane().getByText('First Heading');
+    await act(async () => {
+      fireEvent.doubleClick(target);
+      vi.runAllTimers();
+    });
+
+    const editingEl = document.activeElement as HTMLElement;
+    await act(async () => {
+      const textNode = editingEl.firstChild as Text;
+      const range = window.document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 5);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await act(async () => {
+      fireEvent.keyDown(editingEl, { key: 'b', ctrlKey: true });
+    });
+
+    // textContent remains untouched — the shortcut was suppressed for TEXT format.
+    expect(editingEl.textContent).toBe('First Heading');
+    vi.useRealTimers();
+  });
+
+  test('clicking Bold while editing a number input commits to the tree without waiting for blur', async () => {
+    const initialDocument: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h',
+          number: '1',
+          type: 'heading',
+          format: 'TEXT',
+          contents: { de: 'heading text' },
+          children: [],
+        },
+      ],
+    };
+
+    render(
+      <EditorInterface
+        initialDocument={initialDocument}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+    // Double-click the number badge to enter edit mode on the number input.
+    const numberBadge = screen.getByTitle('Double-click to edit number');
+    await act(async () => {
+      fireEvent.doubleClick(numberBadge);
+    });
+
+    const input = document.querySelector(
+      'input[data-structedit-field="number"]'
+    ) as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    if (!input) throw new Error('number input not found');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+    expect(input.tagName).toBe('INPUT');
+    expect(input.getAttribute('data-structedit-field')).toBe('number');
+    await act(async () => {
+      input.setSelectionRange(0, input.value.length);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('inline-mark-bold'));
+    });
+
+    // Input shows the wrapped source.
+    expect(input.value).toBe('**1**');
+
+    // Crucially, the tree was updated WITHOUT blurring the input. Blur now and
+    // confirm the rendered NumberMarkup shows the bold mark.
+    await act(async () => {
+      input.blur();
+    });
+    expect(getContainer().innerHTML).toContain('<strong>1</strong>');
+  });
+});

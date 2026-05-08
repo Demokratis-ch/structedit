@@ -154,3 +154,122 @@ describe('FloatingToolbar — onChangeFormat', () => {
     expect(md.defaultPrevented).toBe(true);
   });
 });
+
+describe('FloatingToolbar — inline-marks group visibility', () => {
+  test('hidden when nothing is being edited (no inlineMarksTarget)', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="content"
+        selectedNodeFormat="MARKDOWN"
+        isEditing
+      />
+    );
+    expect(screen.queryByTestId('inline-marks-group')).toBeNull();
+  });
+
+  test('hidden when target is contenteditable but format is TEXT', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="content"
+        selectedNodeFormat="TEXT"
+        isEditing
+        inlineMarksTarget="contenteditable"
+        inlineMarksFormat="TEXT"
+      />
+    );
+    expect(screen.queryByTestId('inline-marks-group')).toBeNull();
+  });
+
+  test('hidden when target is contenteditable but format is NEWLINES', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        isEditing
+        inlineMarksTarget="contenteditable"
+        inlineMarksFormat="NEWLINES"
+      />
+    );
+    expect(screen.queryByTestId('inline-marks-group')).toBeNull();
+  });
+
+  test.each([
+    'MARKDOWN_MINIMAL',
+    'MARKDOWN_INLINE',
+    'MARKDOWN',
+  ] as const)('visible when target is contenteditable and format is %s', (format) => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        isEditing
+        inlineMarksTarget="contenteditable"
+        inlineMarksFormat={format}
+      />
+    );
+    expect(screen.getByTestId('inline-marks-group')).toBeTruthy();
+  });
+
+  test('visible when target is the number input regardless of node format', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        isEditing
+        inlineMarksTarget="input-number"
+        inlineMarksFormat="TEXT"
+      />
+    );
+    expect(screen.getByTestId('inline-marks-group')).toBeTruthy();
+  });
+});
+
+describe('FloatingToolbar — inline-marks buttons', () => {
+  const visibleProps = {
+    ...baseProps,
+    isEditing: true,
+    inlineMarksTarget: 'contenteditable' as const,
+    inlineMarksFormat: 'MARKDOWN_MINIMAL' as const,
+  };
+
+  test('renders one button per mark with aria-pressed reflecting active state', () => {
+    const onToggleMark = vi.fn();
+    render(
+      <FloatingToolbar
+        {...visibleProps}
+        onToggleMark={onToggleMark}
+        markActiveState={{ bold: true, italic: false, strike: false, sup: false, sub: false }}
+      />
+    );
+    expect(screen.getByTestId('inline-mark-bold').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('inline-mark-italic').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('inline-mark-strike').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('inline-mark-sup').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('inline-mark-sub').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  test.each([
+    'bold',
+    'italic',
+    'strike',
+    'sup',
+    'sub',
+  ] as const)('clicking %s calls onToggleMark with that mark', (mark) => {
+    const onToggleMark = vi.fn();
+    render(<FloatingToolbar {...visibleProps} onToggleMark={onToggleMark} />);
+    fireEvent.click(screen.getByTestId(`inline-mark-${mark}`));
+    expect(onToggleMark).toHaveBeenCalledTimes(1);
+    expect(onToggleMark).toHaveBeenCalledWith(mark);
+  });
+
+  test('mousedown on each mark button IS prevented (focus preservation)', () => {
+    render(<FloatingToolbar {...visibleProps} onToggleMark={vi.fn()} />);
+    for (const mark of ['bold', 'italic', 'strike', 'sup', 'sub']) {
+      const btn = screen.getByTestId(`inline-mark-${mark}`);
+      const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      btn.dispatchEvent(md);
+      expect(md.defaultPrevented, `mousedown on ${mark} should be prevented`).toBe(true);
+    }
+  });
+});
