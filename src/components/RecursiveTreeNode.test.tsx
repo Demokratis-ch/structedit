@@ -339,6 +339,25 @@ describe('RecursiveTreeNode', () => {
       // The input must show the raw markdown source so the user can edit it.
       expect(input?.value).toBe('**1**');
     });
+
+    test('number input carries data-structedit-field and data-structedit-node-id for inline-mark targeting', () => {
+      const node: HeadingDocumentNode = {
+        id: 'h-attr',
+        number: '1',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'x' },
+        children: [],
+      };
+      const store = new TreeUIStore();
+      store.setEditingNumberId('h-attr');
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+      const input = container.querySelector('input[type="text"]') as HTMLInputElement | null;
+      expect(input?.getAttribute('data-structedit-field')).toBe('number');
+      expect(input?.getAttribute('data-structedit-node-id')).toBe('h-attr');
+    });
   });
 
   describe('add node buttons', () => {

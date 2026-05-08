@@ -1,11 +1,28 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useActiveTextSelection } from '../hooks/useActiveTextSelection';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
 import type { Language, NodeFormat } from '../types/document';
-import { FloatingToolbar } from './FloatingToolbar';
+import { type InlineMark, isMarkActive, toggleMark } from '../utils/inline-mark';
+import { FloatingToolbar, FORMATS_WITH_MARKS } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
+
+const ALL_MARKS: readonly InlineMark[] = ['bold', 'italic', 'strike', 'sup', 'sub'];
+
+// Native value setter for HTMLInputElement — required to mutate a React-managed
+// input's value while still firing React's synthetic onChange. Falls back to
+// direct assignment for environments without a descriptor.
+const INPUT_VALUE_SETTER = Object.getOwnPropertyDescriptor(
+  HTMLInputElement.prototype,
+  'value'
+)?.set;
+function setInputValue(el: HTMLInputElement, value: string) {
+  if (INPUT_VALUE_SETTER) INPUT_VALUE_SETTER.call(el, value);
+  else el.value = value;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 interface TreeEditorProps {
   editor: TreeEditorHandle;
@@ -81,6 +98,10 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     store.subscribe,
     useCallback(() => store.getEditingId(), [store])
   );
+  const editingNumberId = useSyncExternalStore(
+    store.subscribe,
+    useCallback(() => store.getEditingNumberId(), [store])
+  );
   const selectedIds = useSyncExternalStore(
     store.subscribe,
     useCallback(() => store.getSelectedIds(), [store])
@@ -130,6 +151,94 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     const selectedId = Array.from(selectedIds)[0];
     if (selectedId) changeNodeFormat(selectedId, format);
   };
+
+  const activeSelection = useActiveTextSelection();
+  const inlineMarksDerived = useMemo(() => {
+    // Recomputed whenever activeSelection.version bumps (selectionchange / focus).
+    void activeSelection.version;
+    const sel = activeSelection.get();
+    if (!sel) {
+      return {
+        target: null as null | 'contenteditable' | 'input-number',
+        format: undefined as NodeFormat | undefined,
+        active: {} as Partial<Record<InlineMark, boolean>>,
+      };
+    }
+    const target = sel.kind === 'input' ? 'input-number' : 'contenteditable';
+    const format: NodeFormat = sel.kind === 'input' ? 'MARKDOWN_MINIMAL' : sel.format;
+    const active: Partial<Record<InlineMark, boolean>> = {};
+    for (const mark of ALL_MARKS) {
+      active[mark] = isMarkActive(sel.text, sel.start, sel.end, mark);
+    }
+    return { target, format, active };
+  }, [activeSelection]);
+
+  // Google Docs–style keyboard shortcuts: Cmd/Ctrl+B/I/./, and Alt+Shift+5.
+  // Returns the matched mark, or null if no shortcut applies.
+  const matchInlineMarkShortcut = (e: KeyboardEvent): InlineMark | null => {
+    const mod = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    if (mod && !e.shiftKey && !e.altKey) {
+      if (key === 'b') return 'bold';
+      if (key === 'i') return 'italic';
+      if (key === '.') return 'sup';
+      if (key === ',') return 'sub';
+    }
+    // Strikethrough: Alt+Shift+5. Use `code` so non-US keyboard layouts still
+    // match the digit-5 key (Alt+Shift can produce non-digit `key` values).
+    if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'Digit5') {
+      return 'strike';
+    }
+    return null;
+  };
+
+  const handleToggleMark = useCallback(
+    (mark: InlineMark) => {
+      const sel = activeSelection.get();
+      if (!sel) return;
+      const next = toggleMark(sel.text, sel.start, sel.end, mark);
+      if (next.action === 'noop') return;
+      if (sel.kind === 'input') {
+        setInputValue(sel.el, next.text);
+        sel.el.setSelectionRange(next.selectionStart, next.selectionEnd);
+        // The number input is uncontrolled (defaultValue + onBlur). Commit the
+        // change to the tree directly so a toggle doesn't get lost if the user
+        // takes a non-blurring action next (e.g. undo, click another button).
+        updateNodeNumber(sel.nodeId, next.text === '' ? null : next.text);
+      } else {
+        sel.el.textContent = next.text;
+        sel.el.dispatchEvent(new Event('input', { bubbles: true }));
+        const textNode = sel.el.firstChild;
+        if (textNode) {
+          const range = window.document.createRange();
+          range.setStart(textNode, Math.min(next.selectionStart, next.text.length));
+          range.setEnd(textNode, Math.min(next.selectionEnd, next.text.length));
+          const winSel = window.getSelection();
+          winSel?.removeAllRanges();
+          winSel?.addRange(range);
+        }
+      }
+    },
+    [activeSelection, updateNodeNumber]
+  );
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mark = matchInlineMarkShortcut(e);
+      if (!mark) return;
+      const sel = activeSelection.get();
+      if (!sel) return;
+      const format: NodeFormat = sel.kind === 'input' ? 'MARKDOWN_MINIMAL' : sel.format;
+      if (!FORMATS_WITH_MARKS.includes(format)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handleToggleMark(mark);
+    };
+    document.addEventListener('keydown', handler, { capture: true });
+    return () => {
+      document.removeEventListener('keydown', handler, { capture: true });
+    };
+  }, [activeSelection, handleToggleMark]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     store.setDraggedNodeId(id);
@@ -509,13 +618,17 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       </div>
       <FloatingToolbar
         selectedCount={selectedCount}
-        isEditing={!!editingId}
+        isEditing={!!editingId || !!editingNumberId}
         selectedNodeType={selectedNodeType}
         selectedNodeFormat={selectedNodeFormat}
         onUpdateType={handleBulkUpdateType}
         onChangeFormat={handleChangeFormat}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
+        inlineMarksTarget={inlineMarksDerived.target}
+        inlineMarksFormat={inlineMarksDerived.format}
+        markActiveState={inlineMarksDerived.active}
+        onToggleMark={handleToggleMark}
       />
     </div>
   );

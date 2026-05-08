@@ -158,6 +158,8 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             type="text"
             defaultValue={currentNumber || ''}
             ref={(el) => el?.focus()}
+            data-structedit-field="number"
+            data-structedit-node-id={node.id}
             className={`w-12 text-sm border border-blue-400 rounded px-1 py-0.5 outline-none bg-white flex-shrink-0 mr-2 mt-0.5 z-10 relative ${baseClassName}`}
             onBlur={(e) => {
               const val = e.target.value.trim();
