@@ -2307,6 +2307,44 @@ describe('useTreeOperations', () => {
         expect(converted.contents.de).toBe('Article body');
       });
 
+      test('handles a list_item with no content child (empty contents, default format)', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['li1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.type).toBe('content');
+        expect(converted.id).toBe('li1');
+        expect(converted.number).toBe('1.');
+        expect(converted.contents).toEqual({});
+        expect(converted.format).toBe('TEXT');
+      });
+
       test('preserves the list_item content format when converting to content', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
@@ -2656,6 +2694,107 @@ describe('useTreeOperations', () => {
 
         expect(converted.format).toBe('MARKDOWN');
         expect(converted.contents.de).toBe('**bold**');
+      });
+
+      test('lifts a list_item with multiple content children, attaching the number to the first', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'p1',
+                      number: null,
+                      type: 'content',
+                      format: 'TEXT',
+                      contents: { de: 'First paragraph' },
+                      children: [],
+                    } as ContentDocumentNode,
+                    {
+                      id: 'p2',
+                      number: null,
+                      type: 'content',
+                      format: 'TEXT',
+                      contents: { de: 'Second paragraph' },
+                      children: [],
+                    } as ContentDocumentNode,
+                  ],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(2);
+
+        // First content carries li1's id and number
+        const c0 = newDoc.children[0] as ContentDocumentNode;
+        expect(c0.id).toBe('li1');
+        expect(c0.number).toBe('1.');
+        expect(c0.contents.de).toBe('First paragraph');
+
+        // Subsequent content is lifted as-is, keeping its own id and number
+        const c1 = newDoc.children[1] as ContentDocumentNode;
+        expect(c1.id).toBe('p2');
+        expect(c1.number).toBeNull();
+        expect(c1.contents.de).toBe('Second paragraph');
+      });
+
+      test('synthesizes a placeholder content node for a list_item with no content child', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(1);
+        const placeholder = newDoc.children[0] as ContentDocumentNode;
+        expect(placeholder.type).toBe('content');
+        expect(placeholder.id).toBe('li1');
+        expect(placeholder.number).toBe('1.');
+        expect(placeholder.contents).toEqual({});
+        expect(placeholder.format).toBe('TEXT');
       });
 
       test('preserves footnote children of the list_item content', () => {
