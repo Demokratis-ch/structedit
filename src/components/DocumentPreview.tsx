@@ -4,6 +4,7 @@ import { useResizable } from '../hooks/useResizable';
 import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
 import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
 import { DragHandle } from './DragHandle';
+import { NumberMarkup } from './NumberMarkup';
 
 interface DocumentPreviewProps {
   document: ContainerDocumentNode;
@@ -187,7 +188,7 @@ function TocListItem({
         className="block w-full text-left py-1 -my-1 px-2 rounded text-nowrap text-ellipsis overflow-hidden hover:bg-gray-200 cursor-pointer"
         onClick={() => onEntryClick(entry.id)}
       >
-        {entry.number && <strong className="mr-1">{entry.number}</strong>}
+        {entry.number && <NumberMarkup value={entry.number} className="font-bold mr-1" />}
         {entry.text}
       </button>
       {children.length > 0 && (
@@ -254,7 +255,7 @@ function HeadingNode({
   return (
     <section id={node.id} className="mb-2">
       <Tag className={className}>
-        {node.number && <span className="mr-2">{node.number}</span>}
+        {node.number && <NumberMarkup value={node.number} className="mr-2" />}
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
         <span dangerouslySetInnerHTML={{ __html: text }} />
       </Tag>
@@ -279,7 +280,7 @@ function ContentNode({
   return (
     <div className="my-1">
       <p className="leading-relaxed">
-        {node.number && <sup className="font-bold mr-1">{node.number}</sup>}
+        {node.number && <NumberMarkup value={node.number} className="font-bold mr-1" />}
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
         <span dangerouslySetInnerHTML={{ __html: text }} />
       </p>
@@ -328,7 +329,7 @@ function ListItemNode({
     : [];
 
   const marker = node.number ? (
-    <sup className="font-bold mr-1">{node.number}</sup>
+    <NumberMarkup value={node.number} className="font-bold mr-1" />
   ) : (
     <span className="mr-2">•</span>
   );
@@ -377,7 +378,7 @@ function FootnoteSection({
           const text = fn.contents[language] ?? '';
           return (
             <p key={fn.id} className="text-sm">
-              {fn.number && <sup className="font-bold mr-1">{fn.number}</sup>}
+              {fn.number && <NumberMarkup value={fn.number} className="font-bold mr-1" />}
               {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
               <span dangerouslySetInnerHTML={{ __html: text }} />
             </p>

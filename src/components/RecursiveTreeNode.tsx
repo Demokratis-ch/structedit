@@ -4,6 +4,7 @@ import { memo, useCallback, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import type { DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
+import { NumberMarkup } from './NumberMarkup';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 
 interface RecursiveTreeNodeProps {
@@ -186,7 +187,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
             title="Double-click to edit number"
           >
-            {currentNumber}
+            <NumberMarkup value={currentNumber} />
           </div>
         );
       }

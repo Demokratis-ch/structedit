@@ -300,6 +300,45 @@ describe('RecursiveTreeNode', () => {
       fireEvent.doubleClick(badge!);
       expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'fn-with-num');
     });
+
+    test('badge in display mode renders the number as MARKDOWN_MINIMAL', () => {
+      const node: HeadingDocumentNode = {
+        id: 'h-md',
+        number: '**1**',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Bold number heading' },
+        children: [],
+      };
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+
+      const badge = container.querySelector('.border-blue-200');
+      expect(badge).not.toBeNull();
+      // The asterisks are consumed by the renderer; only the inner text remains.
+      expect(badge?.textContent).toBe('1');
+      expect(badge?.querySelector('strong')?.textContent).toBe('1');
+    });
+
+    test('badge in edit mode shows the raw markdown source for editing', () => {
+      const node: HeadingDocumentNode = {
+        id: 'h-md-edit',
+        number: '**1**',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Bold number heading' },
+        children: [],
+      };
+      const store = new TreeUIStore();
+      store.setEditingNumberId('h-md-edit');
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+
+      const input = container.querySelector('input[type="text"]') as HTMLInputElement | null;
+      expect(input).not.toBeNull();
+      // The input must show the raw markdown source so the user can edit it.
+      expect(input?.value).toBe('**1**');
+    });
   });
 
   describe('add node buttons', () => {
