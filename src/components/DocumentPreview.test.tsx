@@ -81,7 +81,7 @@ describe('DocumentPreview', () => {
     expect(screen.getByText('First paragraph text.')).toBeInTheDocument();
   });
 
-  test('renders content node with superscript number', () => {
+  test('renders content node number without auto-superscript wrapper', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
@@ -101,8 +101,9 @@ describe('DocumentPreview', () => {
     });
 
     render(<DocumentPreview document={doc} language="de" />);
-    const sup = screen.getByText('1');
-    expect(sup.tagName).toBe('SUP');
+    const number = screen.getByText('1');
+    expect(number.tagName).not.toBe('SUP');
+    expect(number.closest('sup')).toBeNull();
   });
 
   test('renders list items with their number labels', () => {
@@ -154,11 +155,11 @@ describe('DocumentPreview', () => {
     });
 
     render(<DocumentPreview document={doc} language="de" />);
-    // Numbers should be rendered as superscript
+    // Numbers should NOT be auto-superscripted any more.
     const labelA = screen.getByText('a)');
-    expect(labelA.tagName).toBe('SUP');
+    expect(labelA.closest('sup')).toBeNull();
     const labelB = screen.getByText('b)');
-    expect(labelB.tagName).toBe('SUP');
+    expect(labelB.closest('sup')).toBeNull();
     expect(screen.getByText('First item text.')).toBeInTheDocument();
     expect(screen.getByText('Second item text.')).toBeInTheDocument();
   });
@@ -372,7 +373,7 @@ describe('DocumentPreview', () => {
     expect(screen.getByText('•')).toBeInTheDocument();
   });
 
-  test('list item number is rendered as superscript before content', () => {
+  test('list item number renders inline (not superscript) before content', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
@@ -406,11 +407,12 @@ describe('DocumentPreview', () => {
     });
 
     render(<DocumentPreview document={doc} language="de" />);
-    const sup = screen.getByText('1.');
-    expect(sup.tagName).toBe('SUP');
+    const marker = screen.getByText('1.');
+    expect(marker.tagName).not.toBe('SUP');
+    expect(marker.closest('sup')).toBeNull();
     // The marker and text must share the same parent so they render on one line
     const content = screen.getByText('Numbered item text.');
-    expect(sup.parentElement).toBe(content.parentElement);
+    expect(marker.parentElement).toBe(content.parentElement);
   });
 
   test('bullet and text share the same parent element', () => {
@@ -625,5 +627,158 @@ describe('DocumentPreview', () => {
     // Expand
     await user.click(within(toc).getByRole('button', { name: /expand/i }));
     expect(within(toc).getByText('First Heading')).toBeInTheDocument();
+  });
+
+  describe('number field MARKDOWN_MINIMAL rendering', () => {
+    test('renders content number with markdown bold', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: '**1**',
+        type: 'content',
+        format: 'TEXT',
+        contents: { de: 'Bold-numbered paragraph.' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const paragraph = screen.getByText('Bold-numbered paragraph.').parentElement!;
+      const strong = paragraph.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('1');
+    });
+
+    test('renders content number as superscript when markdown sup syntax is used', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: '^1^',
+        type: 'content',
+        format: 'TEXT',
+        contents: { de: 'Sup-numbered paragraph.' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const paragraph = screen.getByText('Sup-numbered paragraph.').parentElement!;
+      const sup = paragraph.querySelector('sup');
+      expect(sup).not.toBeNull();
+      expect(sup?.textContent).toBe('1');
+    });
+
+    test('renders list item number with markdown italic', () => {
+      const doc = makeDoc({
+        id: 'l1',
+        number: null,
+        type: 'list',
+        children: [
+          {
+            id: 'li1',
+            number: '*a)*',
+            type: 'list_item',
+            children: [
+              {
+                id: 'c1',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'Italic-marker item.' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const paragraph = screen.getByText('Italic-marker item.').parentElement!;
+      const em = paragraph.querySelector('em');
+      expect(em).not.toBeNull();
+      expect(em?.textContent).toBe('a)');
+    });
+
+    test('renders footnote number with markdown formatting', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: null,
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Title' },
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'Some text.' },
+            children: [
+              {
+                id: 'fn1',
+                number: '^1^',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'Footnote content.' },
+              },
+            ],
+          },
+        ],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const footnoteParagraph = screen.getByText('Footnote content.').parentElement!;
+      const sup = footnoteParagraph.querySelector('sup');
+      expect(sup).not.toBeNull();
+      expect(sup?.textContent).toBe('1');
+    });
+
+    test('renders heading number with markdown formatting', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: '**Art. 1**',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Gegenstand' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const heading = screen.getByRole('heading', { level: 1 });
+      const strong = heading.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('Art. 1');
+    });
+
+    test('renders TOC entry number with markdown formatting', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: '**I.**',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Allgemeine Bestimmungen' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" onHeadingClick={() => {}} />);
+      const toc = screen.getByRole('navigation', { name: /inhaltsverzeichnis/i });
+      const entry = within(toc).getByText('Allgemeine Bestimmungen').closest('button')!;
+      const strong = entry.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('I.');
+    });
+
+    test('escapes raw HTML in numbers', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: '<script>alert(1)</script>',
+        type: 'content',
+        format: 'TEXT',
+        contents: { de: 'Paragraph with hostile number.' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      // The hostile tag must not become a real element.
+      expect(container.querySelector('script')).toBeNull();
+      // ...but its source text is visible (escaped) in the rendered DOM.
+      expect(container.textContent).toContain('<script>alert(1)</script>');
+    });
   });
 });
