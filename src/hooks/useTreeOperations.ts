@@ -48,6 +48,61 @@ interface UseTreeOperationsProps {
   language: Language;
 }
 
+/**
+ * Flatten a list (and any nested lists inside its list_items) to a sequence of
+ * content nodes. Each list_item becomes one content node carrying the
+ * list_item's `number`; any nested list is flattened recursively and emitted
+ * after that content node. Other list_item children (extra content nodes,
+ * headings, leaves) are lifted in source order.
+ */
+function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
+  const out: DocumentNode[] = [];
+  for (const item of list.children) {
+    if (item.type !== 'list_item') continue;
+    const listItem = item as ContainerDocumentNode;
+
+    const flattenedChildren: DocumentNode[] = [];
+    let numberAttached = false;
+
+    for (const child of listItem.children) {
+      if (child.type === 'list') {
+        flattenedChildren.push(...flattenListToContents(child as ContainerDocumentNode));
+      } else if (child.type === 'content' && !numberAttached) {
+        // Promote the first content child: it carries the list_item's id/number.
+        const c = child as ContentDocumentNode;
+        flattenedChildren.push({
+          id: listItem.id,
+          number: listItem.number,
+          type: 'content',
+          format: c.format,
+          contents: c.contents,
+          children: c.children,
+        });
+        numberAttached = true;
+      } else {
+        flattenedChildren.push(child);
+      }
+    }
+
+    if (!numberAttached) {
+      // No content child to carry the list_item's id/number — synthesize a
+      // placeholder so the label survives. Place it at the start so the
+      // number appears where the list_item used to begin.
+      flattenedChildren.unshift({
+        id: listItem.id,
+        number: listItem.number,
+        type: 'content',
+        format: 'TEXT',
+        contents: {},
+        children: [],
+      });
+    }
+
+    out.push(...flattenedChildren);
+  }
+  return out;
+}
+
 /** Create a new empty sibling node appropriate for the given parent. */
 function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
   if (parent.type === 'list') {
@@ -465,7 +520,7 @@ export const useTreeOperations = ({
       return extractAndConvertListItemInDoc(doc, path, node as ContainerDocumentNode, targetType);
     }
 
-    // Handle list node - can only change list style
+    // Handle list node - can only change list style or flatten to content
     if (node.type === 'list') {
       if (targetType === 'list') {
         const style = listStyle || 'numbered';
@@ -478,6 +533,17 @@ export const useTreeOperations = ({
           ...node,
           children: newChildren,
         }));
+      }
+      if (targetType === 'content') {
+        // Hoist list_items as content nodes, preserving each number. Nested
+        // lists are flattened recursively because content nodes can't host
+        // arbitrary nesting.
+        const flattened = flattenListToContents(node as ContainerDocumentNode);
+        let newDoc = removeNodeAtPath(doc, path);
+        for (let i = 0; i < flattened.length; i++) {
+          newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + i, flattened[i]);
+        }
+        return newDoc;
       }
       return null;
     }
@@ -588,9 +654,25 @@ export const useTreeOperations = ({
     if (targetType === 'list') {
       const style = listStyle || 'numbered';
 
+      // For unordered lists we keep the source node's number on the new
+      // list_item. Numbered/lettered styles deliberately renumber: picking
+      // those styles is the user asking for a fresh sequence. The effective
+      // index for that sequence accounts for items in immediately-preceding
+      // adjacent lists, since mergeAdjacentLists below will fold those in —
+      // this is what makes batch conversions yield 1., 2., 3. instead of
+      // three '1.'s.
+      let effectiveIndex = 0;
+      for (let i = nodeIdxInParent - 1; i >= 0; i--) {
+        const sibling = parent.children[i];
+        if (sibling.type !== 'list') break;
+        effectiveIndex += (sibling as ContainerDocumentNode).children.length;
+      }
+      const itemNumber =
+        style === 'unordered' ? node.number : getNumberForStyle(style, effectiveIndex);
+
       const listItem: ContainerDocumentNode = {
         id: generateId(),
-        number: getNumberForStyle(style, 0),
+        number: itemNumber,
         type: 'list_item',
         children: [
           {
@@ -683,26 +765,33 @@ export const useTreeOperations = ({
 
     if (!list || list.type !== 'list') return null;
 
-    // Extract contents from the first child content node
+    // Extract contents and format from the first child content node
     const firstChild = item.children[0];
     const contents = firstChild && 'contents' in firstChild ? firstChild.contents : {};
+    const childFormat =
+      firstChild && 'format' in firstChild
+        ? (firstChild as { format: NodeFormat }).format
+        : undefined;
 
-    // Create the converted node
+    // Preserve the list_item's number on the new node so the visible label
+    // ("1.", "Art. 5", etc.) survives the conversion. Carry the source format
+    // when valid for the target so single-item conversions match the multi-item
+    // (list -> content) flatten path.
     const convertedNode: DocumentNode =
       targetType === 'heading'
         ? ({
             id: item.id,
-            number: null,
+            number: item.number,
             type: 'heading',
-            format: 'TEXT',
+            format: carryFormatOrDefault(childFormat, 'heading'),
             contents,
             children: [],
           } as HeadingDocumentNode)
         : ({
             id: item.id,
-            number: null,
+            number: item.number,
             type: 'content',
-            format: 'TEXT',
+            format: carryFormatOrDefault(childFormat, 'content'),
             contents,
             children: [],
           } as ContentDocumentNode);

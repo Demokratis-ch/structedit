@@ -1707,7 +1707,10 @@ describe('useTreeOperations', () => {
         expect(mockCommit).not.toHaveBeenCalled();
       });
 
-      test('cannot convert container nodes (list)', () => {
+      test('cannot convert list to footnote', () => {
+        // list -> content is valid (issue #80: flattens with number preservation),
+        // and list -> heading is a no-op (covered elsewhere). list -> footnote
+        // remains unsupported because there's no meaningful semantics for it.
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
@@ -1725,7 +1728,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'footnote');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2272,6 +2275,630 @@ describe('useTreeOperations', () => {
         expect(mockCommit).not.toHaveBeenCalled();
       });
     });
+
+    // Issue #80: lossless number preservation between lists and content nodes.
+    describe('list_item -> content (number preservation, issue #80)', () => {
+      test('preserves list_item.number on the converted content node when it is the only item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', 'Art. 5', 'Article body')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['li1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.type).toBe('content');
+        expect(converted.number).toBe('Art. 5');
+        expect(converted.contents.de).toBe('Article body');
+      });
+
+      test('preserves the list_item content format when converting to content', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'li1-content',
+                      number: null,
+                      type: 'content',
+                      format: 'MARKDOWN',
+                      contents: { de: '**bold**' },
+                      children: [],
+                    } as ContentDocumentNode,
+                  ],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['li1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.format).toBe('MARKDOWN');
+        expect(converted.contents.de).toBe('**bold**');
+      });
+
+      test('preserves list_item.number when extracted from a multi-item list', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'First'),
+                createListItem('li2', '2.', 'Second'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['li2'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        // Remaining list_item is untouched
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+
+        // Extracted content carries its old list_item number
+        const converted = newDoc.children[1] as ContentDocumentNode;
+        expect(converted.type).toBe('content');
+        expect(converted.number).toBe('2.');
+      });
+    });
+
+    describe('list_item -> heading (number preservation, issue #80)', () => {
+      test('preserves list_item.number on the converted heading node', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', 'Art. 7', 'Heading body')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['li1'], 'heading');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as HeadingDocumentNode;
+
+        expect(converted.type).toBe('heading');
+        expect(converted.number).toBe('Art. 7');
+      });
+    });
+
+    describe('list -> content (issue #80)', () => {
+      test('flattens all list_items into content nodes, preserving each number', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                createListItem('li1', '1.', 'A'),
+                createListItem('li2', '2.', 'B'),
+                createListItem('li3', '3.', 'C'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(3);
+
+        const c0 = newDoc.children[0] as ContentDocumentNode;
+        const c1 = newDoc.children[1] as ContentDocumentNode;
+        const c2 = newDoc.children[2] as ContentDocumentNode;
+
+        expect(c0.type).toBe('content');
+        expect(c0.number).toBe('1.');
+        expect(c0.contents.de).toBe('A');
+        expect(c1.type).toBe('content');
+        expect(c1.number).toBe('2.');
+        expect(c1.contents.de).toBe('B');
+        expect(c2.type).toBe('content');
+        expect(c2.number).toBe('3.');
+        expect(c2.contents.de).toBe('C');
+      });
+
+      test('preserves null number for unnumbered items', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', null, 'A'), createListItem('li2', null, 'B')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(2);
+        expect((newDoc.children[0] as ContentDocumentNode).number).toBeNull();
+        expect((newDoc.children[1] as ContentDocumentNode).number).toBeNull();
+      });
+
+      test('flattens nested list recursively, preserving inner numbers', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'li1-content',
+                      number: null,
+                      type: 'content',
+                      format: 'TEXT',
+                      contents: { de: 'Outer 1' },
+                      children: [],
+                    } as ContentDocumentNode,
+                    {
+                      id: 'sublist',
+                      number: null,
+                      type: 'list',
+                      children: [
+                        createListItem('lia', 'a.', 'Inner a'),
+                        createListItem('lib', 'b.', 'Inner b'),
+                      ],
+                    },
+                  ],
+                } as ContainerDocumentNode,
+                createListItem('li2', '2.', 'Outer 2'),
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(4);
+
+        const c0 = newDoc.children[0] as ContentDocumentNode;
+        const c1 = newDoc.children[1] as ContentDocumentNode;
+        const c2 = newDoc.children[2] as ContentDocumentNode;
+        const c3 = newDoc.children[3] as ContentDocumentNode;
+
+        expect(c0.number).toBe('1.');
+        expect(c0.contents.de).toBe('Outer 1');
+        expect(c1.number).toBe('a.');
+        expect(c1.contents.de).toBe('Inner a');
+        expect(c2.number).toBe('b.');
+        expect(c2.contents.de).toBe('Inner b');
+        expect(c3.number).toBe('2.');
+        expect(c3.contents.de).toBe('Outer 2');
+      });
+
+      test('preserves source order when nested list precedes the content child', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'sublist',
+                      number: null,
+                      type: 'list',
+                      children: [createListItem('lia', 'a.', 'Inner a')],
+                    },
+                    {
+                      id: 'li1-content',
+                      number: null,
+                      type: 'content',
+                      format: 'TEXT',
+                      contents: { de: 'Outer text' },
+                      children: [],
+                    } as ContentDocumentNode,
+                  ],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+        expect(newDoc.children.length).toBe(2);
+
+        // Source order: nested 'a.' first (it appeared before the content child),
+        // then the outer text content carrying li1's number.
+        const c0 = newDoc.children[0] as ContentDocumentNode;
+        const c1 = newDoc.children[1] as ContentDocumentNode;
+        expect(c0.number).toBe('a.');
+        expect(c0.contents.de).toBe('Inner a');
+        expect(c1.number).toBe('1.');
+        expect(c1.contents.de).toBe('Outer text');
+      });
+
+      test('preserves the source content format on the flattened content node', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'li1-content',
+                      number: null,
+                      type: 'content',
+                      format: 'MARKDOWN',
+                      contents: { de: '**bold**' },
+                      children: [],
+                    } as ContentDocumentNode,
+                  ],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.format).toBe('MARKDOWN');
+        expect(converted.contents.de).toBe('**bold**');
+      });
+
+      test('preserves footnote children of the list_item content', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [
+                {
+                  id: 'li1',
+                  number: '1.',
+                  type: 'list_item',
+                  children: [
+                    {
+                      id: 'li1-content',
+                      number: null,
+                      type: 'content',
+                      format: 'TEXT',
+                      contents: { de: 'Item with note' },
+                      children: [
+                        {
+                          id: 'fn1',
+                          number: 'i.',
+                          type: 'footnote',
+                          format: 'TEXT',
+                          contents: { de: 'Note text' },
+                        } as LeafDocumentNode,
+                      ],
+                    } as ContentDocumentNode,
+                  ],
+                } as ContainerDocumentNode,
+              ],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'content');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
+
+        expect(converted.children.length).toBe(1);
+        expect(converted.children[0].id).toBe('fn1');
+        expect(converted.children[0].type).toBe('footnote');
+      });
+
+      test('list -> heading is still a no-op', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'list1',
+              number: null,
+              type: 'list',
+              children: [createListItem('li1', '1.', 'Item')],
+            },
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['list1'], 'heading');
+        });
+
+        expect(mockCommit).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('content -> list (number preservation, issue #80)', () => {
+      test('unordered preserves the content original number on the new list_item', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'Art. 5',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Body' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
+
+        expect(item.number).toBe('Art. 5');
+      });
+
+      test('numbered overwrites the content number with the generated sequence', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'Art. 5',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Body' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
+
+        expect(item.number).toBe('1.');
+      });
+
+      test('lettered overwrites the content number with the generated sequence', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'Art. 5',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Body' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['p1'], 'list', 'lettered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
+
+        expect(item.number).toBe('a.');
+      });
+
+      test('unordered with null content number stays null', () => {
+        const doc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: null,
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Body' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        const { result } = renderTreeOperations(doc);
+
+        act(() => {
+          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+        });
+
+        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ContainerDocumentNode;
+
+        expect(item.number).toBeNull();
+      });
+    });
+
+    describe('roundtrip content <-> unordered list (issue #80)', () => {
+      test('content -> unordered list -> content preserves number', () => {
+        const startDoc: ContainerDocumentNode = {
+          id: 'root',
+          number: null,
+          type: 'document',
+          children: [
+            {
+              id: 'p1',
+              number: 'Art. 5',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Body' },
+              children: [],
+            } as ContentDocumentNode,
+          ],
+        };
+
+        // Step 1: content -> unordered list
+        const { result } = renderTreeOperations(startDoc);
+        act(() => {
+          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+        });
+        const afterToList = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const list = afterToList.children[0] as ContainerDocumentNode;
+        const listItem = list.children[0] as ContainerDocumentNode;
+        expect(listItem.number).toBe('Art. 5');
+
+        // Step 2: list_item -> content (rebuild hook over the new doc)
+        mockCommit.mockClear();
+        const { result: result2 } = renderTreeOperations(afterToList);
+        act(() => {
+          result2.current.changeNodeTypes([listItem.id], 'content');
+        });
+        const afterRoundtrip = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const finalContent = afterRoundtrip.children[0] as ContentDocumentNode;
+
+        expect(finalContent.type).toBe('content');
+        expect(finalContent.number).toBe('Art. 5');
+      });
+    });
   });
 
   describe('changeNodeTypes (batch)', () => {
@@ -2367,6 +2994,104 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('numbers a numbered-list batch sequentially (1., 2., 3.)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p2',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p3',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'C' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'list', 'numbered');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      expect(newDoc.children.length).toBe(1);
+      const list = newDoc.children[0] as ContainerDocumentNode;
+      expect(list.type).toBe('list');
+      expect(list.children.length).toBe(3);
+      expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+      expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+      expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
+    });
+
+    test('letters a lettered-list batch sequentially (a., b., c.)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'p1',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p2',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [],
+          } as ContentDocumentNode,
+          {
+            id: 'p3',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'C' },
+            children: [],
+          } as ContentDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'list', 'lettered');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+
+      const list = newDoc.children[0] as ContainerDocumentNode;
+      expect(list.children.length).toBe(3);
+      expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
+      expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
+      expect((list.children[2] as ContainerDocumentNode).number).toBe('c.');
     });
   });
 
