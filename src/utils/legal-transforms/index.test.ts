@@ -5,7 +5,7 @@ import type {
   HeadingDocumentNode,
 } from '../../types/document';
 import { applySwissLegalTransforms, composeTransforms } from './index';
-import { content, createDoc, heading } from './test-helpers';
+import { content, createDoc, heading, list } from './test-helpers';
 
 describe('composeTransforms', () => {
   it('applies transforms left to right', () => {
@@ -123,6 +123,55 @@ describe('applySwissLegalTransforms', () => {
     expect(result.children).toHaveLength(2);
     expect(result.children[0].type).toBe('content');
     expect(result.children[1].type).toBe('content');
+  });
+
+  it('merges adjacent lists by default', () => {
+    const input = createDoc([
+      list([{ number: '1.', content: 'A' }]),
+      list([{ number: '1.', content: 'B' }]),
+    ]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe('list');
+    const merged = result.children[0] as ContainerDocumentNode;
+    expect(merged.children).toHaveLength(2);
+  });
+
+  it('respects config to disable mergeAdjacentLists', () => {
+    const input = createDoc([
+      list([{ number: '1.', content: 'A' }]),
+      list([{ number: '1.', content: 'B' }]),
+    ]);
+
+    const result = applySwissLegalTransforms(input, 'de', { mergeAdjacentLists: false });
+
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe('list');
+    expect(result.children[1].type).toBe('list');
+  });
+
+  it('preserves lettered list_item numbers verbatim through the full pipeline', () => {
+    // Whole-pipeline assertion of the user's "no auto-renumber" requirement:
+    // when two adjacent lettered lists are merged, the original markers from
+    // both lists survive — even if the apparent sequence restarts.
+    const input = createDoc([
+      list([
+        { number: 'a)', content: 'A' },
+        { number: 'b)', content: 'B' },
+      ]),
+      list([
+        { number: 'a)', content: 'C' },
+        { number: 'b)', content: 'D' },
+      ]),
+    ]);
+
+    const result = applySwissLegalTransforms(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    const merged = result.children[0] as ContainerDocumentNode;
+    expect(merged.children.map((c) => c.number)).toEqual(['a)', 'b)', 'a)', 'b)']);
   });
 
   it('handles complex nested structure', () => {
