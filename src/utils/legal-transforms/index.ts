@@ -3,6 +3,7 @@ import { articleTransform } from './article';
 import { headingNumberExtractTransform } from './heading-number-extract';
 import { letteredItemsTransform } from './lettered-items';
 import { listNumberDedupTransform } from './list-number-dedup';
+import { mergeAdjacentListsTransform } from './merge-adjacent-lists';
 import { romanSectionTransform } from './roman-section';
 import type { TreeTransform } from './types';
 
@@ -10,6 +11,7 @@ export { articleTransform } from './article';
 export { headingNumberExtractTransform } from './heading-number-extract';
 export { letteredItemsTransform } from './lettered-items';
 export { listNumberDedupTransform } from './list-number-dedup';
+export { mergeAdjacentListsTransform } from './merge-adjacent-lists';
 export { LEGAL_PATTERNS } from './patterns';
 export { romanSectionTransform } from './roman-section';
 // Re-export types
@@ -19,6 +21,8 @@ export type { TreeTransform } from './types';
  * Configuration for the legal transform pipeline
  */
 export interface LegalTransformConfig {
+  /** Merge adjacent list siblings into one list (fixes Mammoth's page-split lists). Default: true */
+  mergeAdjacentLists?: boolean;
   /** Enable heading number extraction from existing headings. Default: true */
   headingNumberExtract?: boolean;
   /** Enable roman numeral section detection (I., II., etc.). Default: true */
@@ -44,11 +48,13 @@ export function composeTransforms(...transforms: TreeTransform[]): TreeTransform
  * Apply Swiss legal document transforms to a tree.
  *
  * Transform order matters:
- * 1. Heading number extract - Populates number field on existing headings
- * 2. List number dedup - Fixes duplicate numbering from Mammoth's ol/sup output
- * 3. Roman sections - Creates top-level structure (I., II., III.)
- * 4. Articles - Creates nested structure within sections (Art. 1, Art. 2)
- * 5. Lettered items last - Groups items within articles (a., b., c.)
+ * 1. Merge adjacent lists - Fixes page-split lists from Mammoth (must run before dedup so
+ *    list items end up in one container before number extraction)
+ * 2. Heading number extract - Populates number field on existing headings
+ * 3. List number dedup - Fixes duplicate numbering from Mammoth's ol/sup output
+ * 4. Roman sections - Creates top-level structure (I., II., III.)
+ * 5. Articles - Creates nested structure within sections (Art. 1, Art. 2)
+ * 6. Lettered items last - Groups items within articles (a., b., c.)
  *
  * @param root - The document tree to transform
  * @param language - The language of the document content
@@ -61,6 +67,7 @@ export function applySwissLegalTransforms(
   config: LegalTransformConfig = {}
 ): ContainerDocumentNode {
   const {
+    mergeAdjacentLists = true,
     headingNumberExtract = true,
     romanSections = true,
     articles = true,
@@ -70,6 +77,9 @@ export function applySwissLegalTransforms(
 
   const transforms: TreeTransform[] = [];
 
+  if (mergeAdjacentLists) {
+    transforms.push(mergeAdjacentListsTransform);
+  }
   if (headingNumberExtract) {
     transforms.push(headingNumberExtractTransform);
   }
