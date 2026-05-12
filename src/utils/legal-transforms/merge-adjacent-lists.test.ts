@@ -254,23 +254,23 @@ describe('mergeAdjacentListsTransform', () => {
       expect(merged.children.map((c) => c.number)).toEqual(['1.', '1.']);
     });
 
-    it('issue #67 scenario: merge + dedup yields continuous arabic numbers via <sup>', () => {
+    it('issue #67 scenario: merge runs before dedup so <sup> Absatznummern numbering is continuous', () => {
       // Mammoth-style page-split: two adjacent <ol>. The first has two items
       // (positional 1., 2.) — the second restarts positionally at 1. but its
-      // <sup> tag carries the actual Word number 3. Without the merge running
-      // BEFORE dedup, the result would be two distinct lists; with the merge,
-      // dedup operates on one list and rewrites all positional numbers from
-      // the <sup> text, yielding a single continuous list of three items.
+      // <sup> tag carries the actual Word number 3. The merge transform must
+      // run before listNumberDedup so the two lists become one before
+      // Absatznummer detection. Per issue #63, superscript-numbered items are
+      // paragraphs (content nodes), not list items, so the merged list is
+      // fully dissolved into three content nodes carrying the original numbers.
       const html =
         `<ol><li><sup>1</sup> Page-1 item one</li><li><sup>2</sup> Page-1 item two</li></ol>` +
         `<ol><li><sup>3</sup> Page-2 item one</li></ol>`;
 
       const tree = parseHtmlLegalToTree(html, 'de');
 
-      expect(tree.children).toHaveLength(1);
-      const merged = tree.children[0] as ContainerDocumentNode;
-      expect(merged.children).toHaveLength(3);
-      expect(merged.children.map((c) => c.number)).toEqual(['1', '2', '3']);
+      expect(tree.children).toHaveLength(3);
+      expect(tree.children.every((c) => c.type === 'content')).toBe(true);
+      expect(tree.children.map((c) => c.number)).toEqual(['^1^', '^2^', '^3^']);
     });
 
     it('preserves data-list-style-type markers across the merge (no overwrite)', () => {
