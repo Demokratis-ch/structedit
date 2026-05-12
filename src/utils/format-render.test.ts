@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderContent } from './format-render';
+import { hasInlineMarkdownMarks, renderContent } from './format-render';
 
 const parseHtml = (html: string): Document =>
   new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
@@ -353,6 +353,36 @@ describe('renderContent — no spurious trailing whitespace', () => {
 
   it('TEXT output has no trailing whitespace', () => {
     expect(renderContent('hello\n', 'TEXT')).not.toMatch(/\s+$/);
+  });
+});
+
+describe('hasInlineMarkdownMarks', () => {
+  it('returns false for plain text', () => {
+    expect(hasInlineMarkdownMarks('just words')).toBe(false);
+    expect(hasInlineMarkdownMarks('')).toBe(false);
+  });
+
+  it('returns true for markdown bold/italic/strike', () => {
+    expect(hasInlineMarkdownMarks('**bold**')).toBe(true);
+    expect(hasInlineMarkdownMarks('*italic*')).toBe(true);
+    expect(hasInlineMarkdownMarks('~~strike~~')).toBe(true);
+  });
+
+  it('returns true for sup/sub markdown marks', () => {
+    expect(hasInlineMarkdownMarks('x^2^ + y')).toBe(true);
+    expect(hasInlineMarkdownMarks('H~2~O')).toBe(true);
+  });
+
+  it('returns true for code spans and links', () => {
+    expect(hasInlineMarkdownMarks('see `code`')).toBe(true);
+    expect(hasInlineMarkdownMarks('see [site](https://example.com)')).toBe(true);
+  });
+
+  it('returns false for a literal newline alone (visually identical under TEXT and MARKDOWN)', () => {
+    // A bare `\n` does not render as a hard break in MARKDOWN (marked uses
+    // `breaks: false` by default) and TEXT collapses `\n` to space — so the
+    // newline is not a meaningful inline mark for downgrade decisions.
+    expect(hasInlineMarkdownMarks('line one\nline two')).toBe(false);
   });
 });
 

@@ -241,6 +241,17 @@ describe('Document Utils', () => {
       expect(content.contents.de).toBe('Plain words only');
     });
 
+    it('preserves <sup> in list item content as MARKDOWN', () => {
+      const html = '<ol><li><sup>1</sup> Dieser Erlass regelt das Bildungswesen.</li></ol>';
+      const doc = parseHtmlToTree(html);
+      const list = doc.children[0] as ContainerDocumentNode;
+      const item = list.children[0] as ContainerDocumentNode;
+      const content = item.children[0] as ContentDocumentNode;
+      expect(content.type).toBe('content');
+      expect(content.format).toBe('MARKDOWN');
+      expect(content.contents.de).toBe('^1^ Dieser Erlass regelt das Bildungswesen.');
+    });
+
     describe('format selection per spec D8 / importer scenarios', () => {
       it('Plain heading imports as TEXT format', () => {
         const doc = parseHtmlToTree('<h1>Intro</h1>');

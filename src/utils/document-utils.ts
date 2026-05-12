@@ -153,19 +153,21 @@ export const parseHtmlToTree = (
     return 'MARKDOWN';
   };
 
-  const getDirectText = (li: Node): string => {
-    let text = '';
+  // Inline HTML of an <li>, excluding nested <ol>/<ul>. Inline marks (e.g. <sup>) are
+  // kept so chooseFormat / htmlToMarkdown can decide the right format and preserve
+  // markup like Mammoth's <sup>N</sup> Absatznummer prefix.
+  const getDirectInnerHtml = (li: Node): string => {
+    let html = '';
     for (const child of Array.from(li.childNodes)) {
       const name = child.nodeName.toLowerCase();
       if (name === 'ol' || name === 'ul') continue;
       if (child.nodeType === Node.TEXT_NODE) {
-        text += child.textContent || '';
+        html += child.textContent || '';
       } else if (child instanceof HTMLElement) {
-        // Inline element — collect its text recursively (excluding nested lists)
-        text += getDirectText(child);
+        html += child.outerHTML;
       }
     }
-    return text.replace(/[\s\n]+/g, ' ').trim();
+    return html.trim();
   };
 
   const processListElement = (domNode: Node, tagName: string): ContainerDocumentNode => {
@@ -188,16 +190,20 @@ export const parseHtmlToTree = (
         children: [],
       };
 
-      const directText = getDirectText(li);
-      if (directText) {
-        listItem.children.push({
-          id: generateId(),
-          number: null,
-          type: 'content',
-          format: 'TEXT',
-          contents: { [language]: directText },
-          children: [],
-        } as ContentDocumentNode);
+      const rawHtml = getDirectInnerHtml(li);
+      if (rawHtml) {
+        const format = chooseFormat('content', rawHtml);
+        const text = htmlToMarkdown(rawHtml, format);
+        if (text) {
+          listItem.children.push({
+            id: generateId(),
+            number: null,
+            type: 'content',
+            format,
+            contents: { [language]: text },
+            children: [],
+          } as ContentDocumentNode);
+        }
       }
 
       // Recursively process nested lists

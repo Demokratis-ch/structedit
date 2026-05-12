@@ -151,7 +151,7 @@ const SANITIZE_CONFIGS: Record<NodeFormat, SanitizeConfig> = {
 const sanitize = (html: string, format: NodeFormat): string =>
   DOMPurify.sanitize(html, SANITIZE_CONFIGS[format]) as unknown as string;
 
-const INLINE_MARK_TAGS = /<\/?(?:strong|b|em|i|u|s|strike|sup|sub|code)\b[^>]*>/i;
+const INLINE_MARK_TAGS = /<\/?(?:strong|b|em|i|u|s|strike|del|sup|sub|code)\b[^>]*>/i;
 const BR_TAG = /<br\b[^>]*\/?>/i;
 const A_WITH_HREF = /<a\b[^>]*\bhref\s*=/i;
 
@@ -329,3 +329,20 @@ export const renderContent = (raw: string, format: NodeFormat): string => {
   }
   return html.replace(/\s+$/, '');
 };
+
+/**
+ * Whether a markdown source contains any inline marks (bold/italic/strike/sup/sub/code/
+ * link). Detected by rendering the source as MARKDOWN and reusing `hasInlineMarks` on
+ * the result — avoids re-deriving the mark grammar.
+ *
+ * Literal newlines are NOT treated as inline marks: a single `\n` doesn't render as a
+ * hard break in MARKDOWN (marked's default has `breaks: false`), and TEXT collapses
+ * `\n` to a space. Visually identical either way; we keep `\n` in the source so the
+ * user can upgrade the format later if they want hard breaks.
+ *
+ * Used by `listNumberDedupTransform` to decide whether a content node still needs
+ * MARKDOWN format after the only inline mark (a leading `<sup>N</sup>` Absatznummer)
+ * has been stripped.
+ */
+export const hasInlineMarkdownMarks = (source: string): boolean =>
+  hasInlineMarks(renderContent(source, 'MARKDOWN'));

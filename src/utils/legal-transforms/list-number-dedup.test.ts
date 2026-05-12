@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  ContainerDocumentNode,
-  ContentDocumentNode,
-  HeadingDocumentNode,
+import {
+  type ContainerDocumentNode,
+  type ContentDocumentNode,
+  type HeadingDocumentNode,
+  isValidDocument,
 } from '../../types/document';
-import { parseHtmlToTree } from '../document-utils';
+import { generateId, parseHtmlToTree } from '../document-utils';
 import { listNumberDedupTransform } from './list-number-dedup';
 import { content, createDoc, heading, list } from './test-helpers';
 
@@ -37,7 +38,7 @@ describe('listNumberDedupTransform', () => {
     expect(contentNode.contents.de).toBe('Dieser Erlass regelt das Bildungswesen.');
   });
 
-  it('handles the example HTML from Mammoth output', () => {
+  it('handles the example HTML from Mammoth output (superscript Absatznummern dissolve into content nodes)', () => {
     const html = `<ol>
     <li><sup>1</sup> Dieser Erlass regelt das Bildungswesen in der Volksschule.</li>
     <li><sup>2</sup> Er gilt für: ...</li>
@@ -47,24 +48,34 @@ describe('listNumberDedupTransform', () => {
     const parsed = parseHtmlToTree(html, 'de');
     const result = listNumberDedupTransform(parsed, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    expect(listNode.children).toHaveLength(3);
+    // The list is fully dissolved — three content nodes sit at the root.
+    expect(result.children).toHaveLength(3);
+    expect(result.children.every((c) => c.type === 'content')).toBe(true);
 
-    expect(listNode.children[0].number).toBe('1');
-    expect(listNode.children[1].number).toBe('2');
-    expect(listNode.children[2].number).toBe('3');
+    const c0 = result.children[0] as ContentDocumentNode;
+    const c1 = result.children[1] as ContentDocumentNode;
+    const c2 = result.children[2] as ContentDocumentNode;
 
-    const content0 = (listNode.children[0] as ContainerDocumentNode)
-      .children[0] as ContentDocumentNode;
-    expect(content0.contents.de).toBe('Dieser Erlass regelt das Bildungswesen in der Volksschule.');
+    // The Absatznummer keeps its superscript formatting in the number field.
+    expect(c0.number).toBe('^1^');
+    expect(c1.number).toBe('^2^');
+    expect(c2.number).toBe('^3^');
 
-    const content1 = (listNode.children[1] as ContainerDocumentNode)
-      .children[0] as ContentDocumentNode;
-    expect(content1.contents.de).toBe('Er gilt für: ...');
+    expect(c0.contents.de).toBe('Dieser Erlass regelt das Bildungswesen in der Volksschule.');
+    expect(c0.format).toBe('TEXT');
 
-    const content2 = (listNode.children[2] as ContainerDocumentNode)
-      .children[0] as ContentDocumentNode;
-    expect(content2.contents.de).toContain('Er regelt zudem');
+    expect(c1.contents.de).toBe('Er gilt für: ...');
+    expect(c1.format).toBe('TEXT');
+
+    // The third item's source had a <br> (now `\n` in markdown source). The bare
+    // newline isn't treated as an inline mark for downgrade purposes — visually
+    // a single `\n` is rendered the same under TEXT and MARKDOWN — so the
+    // format downgrades to TEXT alongside the other two items.
+    expect(c2.contents.de).toContain('Er regelt zudem');
+    expect(c2.contents.de).toContain('\n');
+    expect(c2.format).toBe('TEXT');
+
+    expect(isValidDocument(result)).toBe(true);
   });
 
   it('leaves list items without leading numbers unchanged', () => {
@@ -230,5 +241,326 @@ describe('listNumberDedupTransform', () => {
     const result = listNumberDedupTransform(input, 'de');
 
     expect(result.id).toBe(originalId);
+  });
+
+  describe('superscript Absatznummer conversion', () => {
+    // Build a list with content nodes that already carry MARKDOWN-formatted source
+    // (i.e. what document-utils produces for <li><sup>N</sup> ... </li>).
+    const supList = (
+      items: { itemNumber: string | null; mdContent: string; format?: 'TEXT' | 'MARKDOWN' }[]
+    ): ContainerDocumentNode => ({
+      id: generateId(),
+      number: null,
+      type: 'list' as const,
+      children: items.map((item) => ({
+        id: generateId(),
+        number: item.itemNumber,
+        type: 'list_item' as const,
+        children: [
+          {
+            id: generateId(),
+            number: null,
+            type: 'content' as const,
+            format: item.format ?? 'MARKDOWN',
+            contents: { de: item.mdContent },
+            children: [],
+          },
+        ],
+      })),
+    });
+
+    it('converts a list_item with a superscript leading number to a content node', () => {
+      const input = createDoc([
+        supList([{ itemNumber: '1.', mdContent: '^1^ Dieser Erlass regelt das Bildungswesen.' }]),
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      // The list is dissolved; a single content node sits at the root.
+      expect(result.children).toHaveLength(1);
+      expect(result.children[0].type).toBe('content');
+      const c = result.children[0] as ContentDocumentNode;
+      expect(c.number).toBe('^1^');
+      expect(c.contents.de).toBe('Dieser Erlass regelt das Bildungswesen.');
+    });
+
+    it('dissolves an all-superscript list into content nodes', () => {
+      const input = createDoc([
+        supList([
+          { itemNumber: '1.', mdContent: '^1^ A' },
+          { itemNumber: '2.', mdContent: '^2^ B' },
+          { itemNumber: '3.', mdContent: '^3^ C' },
+        ]),
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      expect(result.children).toHaveLength(3);
+      expect(result.children.every((c) => c.type === 'content')).toBe(true);
+      expect((result.children[0] as ContentDocumentNode).number).toBe('^1^');
+      expect((result.children[1] as ContentDocumentNode).number).toBe('^2^');
+      expect((result.children[2] as ContentDocumentNode).number).toBe('^3^');
+      expect((result.children[0] as ContentDocumentNode).contents.de).toBe('A');
+      expect((result.children[1] as ContentDocumentNode).contents.de).toBe('B');
+      expect((result.children[2] as ContentDocumentNode).contents.de).toBe('C');
+      expect(isValidDocument(result)).toBe(true);
+    });
+
+    it('splits a mixed list with superscript and regular items', () => {
+      const input = createDoc([
+        {
+          id: 'mixed',
+          number: null,
+          type: 'list' as const,
+          children: [
+            {
+              id: 'i1',
+              number: '1.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i1c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'TEXT',
+                  contents: { de: 'Plain list item' },
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 'i2',
+              number: '2.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i2c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'MARKDOWN',
+                  contents: { de: '^2^ Absatz text' },
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 'i3',
+              number: '3.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i3c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'TEXT',
+                  contents: { de: 'Another plain item' },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      // Expected: list(plain) → content(Absatz) → list(another plain)
+      expect(result.children).toHaveLength(3);
+      expect(result.children[0].type).toBe('list');
+      expect(result.children[1].type).toBe('content');
+      expect(result.children[2].type).toBe('list');
+
+      const firstList = result.children[0] as ContainerDocumentNode;
+      expect(firstList.children).toHaveLength(1);
+      expect((firstList.children[0] as ContainerDocumentNode).number).toBe('1.');
+
+      const absatz = result.children[1] as ContentDocumentNode;
+      expect(absatz.number).toBe('^2^');
+      expect(absatz.contents.de).toBe('Absatz text');
+
+      const secondList = result.children[2] as ContainerDocumentNode;
+      expect(secondList.children).toHaveLength(1);
+      expect((secondList.children[0] as ContainerDocumentNode).number).toBe('3.');
+      expect(isValidDocument(result)).toBe(true);
+    });
+
+    it('does not convert a list_item that also has non-footnote children', () => {
+      const input = createDoc([
+        {
+          id: 'outer',
+          number: null,
+          type: 'list' as const,
+          children: [
+            {
+              id: 'i1',
+              number: '1.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i1c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'MARKDOWN',
+                  contents: { de: '^1^ Absatz with sublist' },
+                  children: [],
+                },
+                {
+                  id: 'sub',
+                  number: null,
+                  type: 'list' as const,
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      // Stays as list with list_item; markup stripped, number set on the list_item.
+      expect(result.children).toHaveLength(1);
+      const outerList = result.children[0] as ContainerDocumentNode;
+      expect(outerList.type).toBe('list');
+      const li = outerList.children[0] as ContainerDocumentNode;
+      expect(li.type).toBe('list_item');
+      expect(li.number).toBe('1');
+      const content = li.children[0] as ContentDocumentNode;
+      expect(content.type).toBe('content');
+      expect(content.contents.de).toBe('Absatz with sublist');
+    });
+
+    it('converts a list_item whose content child has only footnote children', () => {
+      const input = createDoc([
+        {
+          id: 'outer',
+          number: null,
+          type: 'list' as const,
+          children: [
+            {
+              id: 'i1',
+              number: '1.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i1c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'MARKDOWN',
+                  contents: { de: '^1^ Text with footnote' },
+                  children: [
+                    {
+                      id: 'fn',
+                      number: 'i.',
+                      type: 'footnote' as const,
+                      contents: { de: 'A footnote' },
+                      format: 'TEXT',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      expect(result.children).toHaveLength(1);
+      expect(result.children[0].type).toBe('content');
+      const c = result.children[0] as ContentDocumentNode;
+      expect(c.number).toBe('^1^');
+      expect(c.contents.de).toBe('Text with footnote');
+      expect(c.children).toHaveLength(1);
+      expect(c.children[0].type).toBe('footnote');
+      expect(isValidDocument(result)).toBe(true);
+    });
+
+    it('extracts bis/ter suffix from a superscript leading number', () => {
+      const input = createDoc([
+        supList([
+          { itemNumber: '1.', mdContent: '^1^ First' },
+          { itemNumber: '2.', mdContent: '^1bis^ Inserted' },
+          { itemNumber: '3.', mdContent: '^2^ Second' },
+        ]),
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      expect(result.children).toHaveLength(3);
+      expect((result.children[0] as ContentDocumentNode).number).toBe('^1^');
+      expect((result.children[1] as ContentDocumentNode).number).toBe('^1bis^');
+      expect((result.children[2] as ContentDocumentNode).number).toBe('^2^');
+    });
+
+    it('preserves the original list id on the first emitted segment after a split', () => {
+      const originalId = 'original-list-id';
+      const input = createDoc([
+        {
+          id: originalId,
+          number: null,
+          type: 'list' as const,
+          children: [
+            {
+              id: 'i1',
+              number: '1.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i1c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'TEXT',
+                  contents: { de: 'Plain item' },
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 'i2',
+              number: '2.',
+              type: 'list_item' as const,
+              children: [
+                {
+                  id: 'i2c',
+                  number: null,
+                  type: 'content' as const,
+                  format: 'MARKDOWN',
+                  contents: { de: '^2^ Absatz' },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      expect(result.children[0].type).toBe('list');
+      expect((result.children[0] as ContainerDocumentNode).id).toBe(originalId);
+    });
+
+    it('downgrades format to TEXT when stripping leaves no inline marks', () => {
+      const input = createDoc([supList([{ itemNumber: '1.', mdContent: '^1^ Plain text only' }])]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      const c = result.children[0] as ContentDocumentNode;
+      expect(c.format).toBe('TEXT');
+      expect(c.contents.de).toBe('Plain text only');
+    });
+
+    it('keeps format MARKDOWN when other inline marks remain after stripping', () => {
+      const input = createDoc([
+        supList([{ itemNumber: '1.', mdContent: '^1^ With *italic* text' }]),
+      ]);
+
+      const result = listNumberDedupTransform(input, 'de');
+
+      const c = result.children[0] as ContentDocumentNode;
+      expect(c.format).toBe('MARKDOWN');
+      expect(c.contents.de).toBe('With *italic* text');
+    });
   });
 });
