@@ -1,10 +1,37 @@
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResizable } from '../hooks/useResizable';
-import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
+import type { ContainerDocumentNode, DocumentNode, Language, NodeFormat } from '../types/document';
+import { renderContent } from '../utils/format-render';
 import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
 import { DragHandle } from './DragHandle';
 import { NumberMarkup } from './NumberMarkup';
+
+/**
+ * MARKDOWN is the only format whose rendered output may contain block-level tags
+ * (<p>, <ul>, <blockquote>, …) — those can't legally nest inside a <p>, so any
+ * call site that would otherwise wrap in a <p> needs to switch to a <div>.
+ */
+const isBlockFormat = (format: NodeFormat): boolean => format === 'MARKDOWN';
+
+function MarkupSpan({ source, format }: { source: string; format: NodeFormat }) {
+  return (
+    <span
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: renderContent sanitizes via DOMPurify
+      dangerouslySetInnerHTML={{ __html: renderContent(source, format) }}
+    />
+  );
+}
+
+function MarkupBlock({ source, format }: { source: string; format: NodeFormat }) {
+  return (
+    <div
+      className="markdown-rendered"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: renderContent sanitizes via DOMPurify
+      dangerouslySetInnerHTML={{ __html: renderContent(source, format) }}
+    />
+  );
+}
 
 interface DocumentPreviewProps {
   document: ContainerDocumentNode;
@@ -256,8 +283,7 @@ function HeadingNode({
     <section id={node.id} className="mb-2">
       <Tag className={className}>
         {node.number && <NumberMarkup value={node.number} className="mr-2" />}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
-        <span dangerouslySetInnerHTML={{ __html: text }} />
+        <MarkupSpan source={text} format={node.format} />
       </Tag>
       {otherChildren.map((child) => (
         <PreviewNode key={child.id} node={child} language={language} headingDepth={depth + 1} />
@@ -276,14 +302,23 @@ function ContentNode({
 }) {
   const text = node.contents[language] ?? '';
   const footnotes = node.children.filter((c) => c.type === 'footnote');
+  const numberBadge = node.number && (
+    <NumberMarkup value={node.number} className="font-bold mr-1" />
+  );
 
   return (
     <div className="my-1">
-      <p className="leading-relaxed">
-        {node.number && <NumberMarkup value={node.number} className="font-bold mr-1" />}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
-        <span dangerouslySetInnerHTML={{ __html: text }} />
-      </p>
+      {isBlockFormat(node.format) ? (
+        <div className="leading-relaxed">
+          {numberBadge}
+          <MarkupBlock source={text} format={node.format} />
+        </div>
+      ) : (
+        <p className="leading-relaxed">
+          {numberBadge}
+          <MarkupSpan source={text} format={node.format} />
+        </p>
+      )}
       {footnotes.length > 0 && <FootnoteSection footnotes={footnotes} language={language} />}
     </div>
   );
@@ -327,6 +362,7 @@ function ListItemNode({
   const firstContentFootnotes = firstContent
     ? firstContent.children.filter((c) => c.type === 'footnote')
     : [];
+  const firstContentIsBlock = firstContent ? isBlockFormat(firstContent.format) : false;
 
   const marker = node.number ? (
     <NumberMarkup value={node.number} className="font-bold mr-1" />
@@ -336,11 +372,17 @@ function ListItemNode({
 
   return (
     <div className="my-1">
-      <p className="leading-relaxed">
-        {marker}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
-        {firstContent && <span dangerouslySetInnerHTML={{ __html: firstContentText }} />}
-      </p>
+      {firstContent && firstContentIsBlock ? (
+        <div className="leading-relaxed">
+          {marker}
+          <MarkupBlock source={firstContentText} format={firstContent.format} />
+        </div>
+      ) : (
+        <p className="leading-relaxed">
+          {marker}
+          {firstContent && <MarkupSpan source={firstContentText} format={firstContent.format} />}
+        </p>
+      )}
       {firstContentFootnotes.length > 0 && (
         <FootnoteSection footnotes={firstContentFootnotes} language={language} />
       )}
@@ -376,11 +418,21 @@ function FootnoteSection({
         {footnotes.map((fn) => {
           if (fn.type !== 'footnote') return null;
           const text = fn.contents[language] ?? '';
+          const numberBadge = fn.number && (
+            <NumberMarkup value={fn.number} className="font-bold mr-1" />
+          );
+          if (isBlockFormat(fn.format)) {
+            return (
+              <div key={fn.id} className="text-sm">
+                {numberBadge}
+                <MarkupBlock source={text} format={fn.format} />
+              </div>
+            );
+          }
           return (
             <p key={fn.id} className="text-sm">
-              {fn.number && <NumberMarkup value={fn.number} className="font-bold mr-1" />}
-              {/* biome-ignore lint/security/noDangerouslySetInnerHtml: content from user-uploaded documents */}
-              <span dangerouslySetInnerHTML={{ __html: text }} />
+              {numberBadge}
+              <MarkupSpan source={text} format={fn.format} />
             </p>
           );
         })}
