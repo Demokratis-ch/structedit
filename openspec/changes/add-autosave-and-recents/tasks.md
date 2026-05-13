@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Red: create [src/utils/document-storage.test.ts](src/utils/document-storage.test.ts) covering the spec scenarios for "Autosave writes the active document to IndexedDB", "Every upload creates a new entry", "Recents are ordered by most recent update", "Library is capped at 20 entries with LRU eviction", "Source bytes are persisted alongside the tree". Use `fake-indexeddb/auto` in [src/test/setup.ts](src/test/setup.ts) (create if missing) so the suite runs against a real-shaped IndexedDB
 - [ ] 1.2 Green: install `fake-indexeddb` as a devDependency; reference it from the Vitest setup file
-- [ ] 1.3 Green: create [src/utils/document-storage.ts](src/utils/document-storage.ts) exporting `openDb()`, `createEntry(payload)`, `updateEntryTree(id, tree)`, `listRecents()`, `loadEntry(id)`, `deleteEntry(id)`, `MAX_RECENTS = 20`. Use a single `documents` store keyed on `id` with an index on `updatedAt`. `createEntry` runs the LRU eviction in the same transaction
+- [ ] 1.3 Green: create [src/utils/document-storage.ts](src/utils/document-storage.ts) exporting `openDb()`, `createEntry(payload)`, `updateEntryTree(id, tree)`, `listRecents()`, `loadEntry(id)`, `deleteEntry(id)`, `MAX_RECENTS = 20`. Use a single `documents` store keyed on `id` with an index on `updatedAt`. Persist `byteSize` on every write (D2). `createEntry` runs the count-cap LRU eviction in the same transaction; quota-driven eviction is added in section 3
 - [ ] 1.4 Refactor: confirm one transaction per public call; confirm `MAX_RECENTS` is referenced from tests by name, not literal
 
 ## 2. Schema versioning and migrations
@@ -12,13 +12,17 @@
 - [ ] 2.3 Green: route all `loadEntry` and `listRecents` reads through `migrateEntry`; ensure incompatible entries make it into the recents list with the incompatible shape so the UI can render them as disabled
 - [ ] 2.4 Refactor: extract the validation step (`isValidDocument`) into the migration so consumers cannot bypass it
 
-## 3. Quota and private-mode handling
+## 3. Quota-driven eviction, private-mode banner, toast plumbing
 
-- [ ] 3.1 Red: extend [src/utils/document-storage.test.ts](src/utils/document-storage.test.ts) with the scenarios "Quota-exceeded surfaces a toast and leaves the in-memory document intact" and "Ephemeral storage is detected and surfaced". Use `fake-indexeddb` quota simulation (or a forced throw via a wrapper) to assert behaviour
-- [ ] 3.2 Green: add `withQuotaErrorHandling(promise)` to the storage module that catches `QuotaExceededError` (and `DOMException` with `name === 'QuotaExceededError'`) and rethrows as a typed `StorageQuotaError`
-- [ ] 3.3 Green: add `detectEphemeralStorage(): Promise<boolean>` to the storage module — write/read/delete a probe record and return whether the round-trip succeeded
-- [ ] 3.4 Green: add a minimal `<Toast>` component at [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) plus a `useToast()` hook (portal, 5 s auto-dismiss, close button, single-toast-at-a-time)
-- [ ] 3.5 Green: add `<PrivateModeBanner>` at [src/components/PrivateModeBanner.tsx](src/components/PrivateModeBanner.tsx); render it on app start if `detectEphemeralStorage()` returns true
+- [ ] 3.1 Red: extend [src/utils/document-storage.test.ts](src/utils/document-storage.test.ts) with the spec scenarios for "Eviction is silent when it would help" (quota-driven branch) and "A toast surfaces only when eviction cannot resolve a quota failure" — covering: silent eviction makes room when budget says yes; eviction stops as soon as budget is met; nothing is deleted when `pendingSize > availableSpace + evictableSpace`; post-eviction retry that still fails stops further eviction; browsers without `navigator.storage.estimate()` do not evict. Force `QuotaExceededError` via a writable mock that throws on N-th write
+- [ ] 3.2 Green: extend the `StoredDocumentEntry` shape (D2) with a required `byteSize: number` field; compute it in `createEntry` and `updateEntryTree` as `source.bytes.byteLength` (binary) or `TextEncoder.encode(source.bytes).byteLength` (text) + `TextEncoder.encode(JSON.stringify(tree)).byteLength`
+- [ ] 3.3 Green: implement the eviction-budget routine in the storage module (private helper): compute `pendingSize`, `availableSpace` via `navigator.storage.estimate()`, and `evictableSpace` from the records' `byteSize`. Skip eviction entirely if `pendingSize > availableSpace + evictableSpace`; otherwise delete entries in `updatedAt`-ascending order until the budget allows the write
+- [ ] 3.4 Green: thread the budget routine into both write paths (`createEntry`, `updateEntryTree`): wrap each `QuotaExceededError` with the routine; on post-eviction retry failure, stop and rethrow as a typed `StorageQuotaUnresolvableError`
+- [ ] 3.5 Green: feature-detect `navigator.storage?.estimate`; when absent, the budget routine returns `null` and the writes degrade to a single attempt with no eviction-on-quota — surfacing `StorageQuotaUnresolvableError` with the generic message variant
+- [ ] 3.6 Green: add `detectEphemeralStorage(): Promise<boolean>` to the storage module — write/read/delete a probe record and return whether the round-trip succeeded
+- [ ] 3.7 Green: add a minimal `<Toast>` component at [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) plus a `useToast()` hook (portal, 5 s auto-dismiss, close button, single-toast-at-a-time)
+- [ ] 3.8 Green: wire `StorageQuotaUnresolvableError` from the autosave path to the toast hook; format the size-aware message when the error carries `pendingSize` / `availableSpace`, fall back to the generic message otherwise
+- [ ] 3.9 Green: add `<PrivateModeBanner>` at [src/components/PrivateModeBanner.tsx](src/components/PrivateModeBanner.tsx); render it on app start if `detectEphemeralStorage()` returns true; hide the recents picker in this mode and skip entry creation on upload
 
 ## 4. Recents hook
 

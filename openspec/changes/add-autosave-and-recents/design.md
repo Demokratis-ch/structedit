@@ -72,8 +72,11 @@ interface StoredDocumentEntry {
   };
   createdAt: number;           // ms since epoch
   updatedAt: number;           // ms since epoch — also the LRU key
+  byteSize: number;            // approximate serialized size — used by quota-driven eviction (D8)
 }
 ```
+
+`byteSize` is computed at every write as `source.bytes.byteLength` (binary) or `new TextEncoder().encode(source.bytes).byteLength` (text), plus `new TextEncoder().encode(JSON.stringify(tree)).byteLength`. The exact value does not need to be perfect — it is used as input to the eviction-budget math in D8, which only cares about order-of-magnitude correctness.
 
 Validation on read: `isValidDocument(entry.tree)` from [src/types/document.ts](src/types/document.ts) is the source of truth. An entry whose tree fails validation after migration is flagged incompatible (D6).
 
@@ -133,16 +136,14 @@ We deliberately do NOT write on every keystroke, and we do NOT batch writes any 
 _Rejected: write on each history commit_ — history commits can lag a keystroke (e.g., during composition), making the cadence unpredictable.
 _Rejected: write on `idle`_ — too coarse, and `requestIdleCallback` is not universal.
 
-### D5. Quota and private-mode handling
+### D5. Private-mode handling and toast infrastructure
 
-Two failure modes the user must see:
+Two pieces of plumbing supporting the eviction policy (D8) and the ephemeral-storage case:
 
-1. **QuotaExceededError** on write. Caught in the storage wrapper, surfaced via a `useToast`-style hook. Message: "Storage full — delete some saved documents to continue saving." The in-memory document is unaffected; editing continues. The toast is single-shot per session — repeated quota errors do not stack.
-2. **Ephemeral storage** (private/incognito, browsers refusing to grant durable storage). Detected on app start by attempting to write and immediately read back a probe record. On failure, render a sticky banner above the upload view: "Autosave unavailable in private browsing." Editing still works; nothing is persisted; recents picker is hidden because the list is meaningless.
+1. **Ephemeral storage** (private/incognito, browsers refusing to grant durable storage). Detected on app start by attempting to write and immediately read back a probe record. On failure, render a sticky banner above the upload view: "Autosave unavailable in private browsing." Editing still works; nothing is persisted; recents picker is hidden because the list is meaningless.
+2. **Toast** infrastructure for the one quota case where eviction cannot help (defined in D8). We have no toast infrastructure today. Add a minimal one in [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) — a portal-rendered `role="status"` div with a 5-second auto-dismiss and a close button. Keep it tiny: one component, one hook (`useToast`), no queue. Multiple toasts at once is out of scope.
 
-For the toast: we have no toast infrastructure today. Add a minimal one in [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) — a portal-rendered `role="status"` div with a 5-second auto-dismiss and a close button. Keep it tiny: one component, one hook (`useToast`), no queue. Multiple toasts at once is out of scope.
-
-_Rejected: a feature-flagged storage estimator using `navigator.storage.estimate()`_ — useful but not load-bearing for v1; the on-failure toast covers the user need.
+The toast message itself is set by D8 (it includes the document size and free space when known). The toast is single-shot per session — repeated quota errors do not stack.
 
 ### D6. Schema versioning and incompatible entries
 
@@ -186,7 +187,11 @@ Date formatting is relative: "Just now" (< 1m), "X minutes ago" (< 1h), "X hours
 _Rejected: a thumbnail preview_ — out of scope; the metadata covers the picker's job.
 _Rejected: an "edit name" affordance_ — adds complexity; users can re-upload if they need a different name.
 
-### D8. 20-entry cap with LRU eviction
+### D8. Eviction policy: count cap and quota-driven, measured before destructive
+
+Eviction handles two situations with the **same mechanism** (delete oldest by `updatedAt`) but two different triggers. The earlier draft had a defensible asymmetry — silent at 20, loud on quota — but a reviewer pointed out the obvious correction (apply silent eviction to quota too) has its own failure mode: a single 60 MB DOCX that won't fit even on an empty database would happily nuke all 19 other docs trying to make room, then still fail. Worst-of-both. The fix is to **measure before evicting** so eviction only happens when it would actually succeed.
+
+#### Count-cap eviction (silent)
 
 `createEntry` runs in a single transaction:
 
@@ -194,13 +199,29 @@ _Rejected: an "edit name" affordance_ — adds complexity; users can re-upload i
 2. Count entries in the store.
 3. If count > 20, fetch entries sorted by `updatedAt` ascending, delete the oldest until count = 20.
 
-Eviction is silent — no toast, no banner. The user only sees the recents list of 20.
+Why at create-time, not on every update: an update never grows the count; only create does. The cap (`MAX_RECENTS = 20`) lives in the storage module as a named constant. Tests reference it by name, not literal.
 
-Why at create-time, not on every update: an update never grows the count; only create does.
+#### Quota-driven eviction (silent when it would help, toast when it cannot)
 
-The cap (`MAX_RECENTS = 20`) lives in the storage module as a named constant. Tests reference it by name, not literal.
+When a write would fail (or has just failed) with `QuotaExceededError`:
 
-_Rejected: size-based eviction (e.g., evict at 100 MB)_ — quota-handling covers the "too big" case; count-based eviction matches the user's stated mental model.
+1. Compute `pendingSize` — the `byteSize` of the record being written (D2).
+2. Compute `availableSpace = quota - usage` via `navigator.storage.estimate()`.
+3. Compute `evictableSpace` — the sum of `byteSize` over all entries other than the one being written, oldest-first.
+4. **If `pendingSize > availableSpace + evictableSpace`** → the write is impossible regardless of cleanup. Do **not** delete anything. Surface a single toast: *"This document is X MB; browser storage has Y MB free."* The in-memory document is unaffected; editing continues; the toast is the user's signal that they need to act (use Download JSON, switch to a smaller doc, or accept that this session won't autosave).
+5. **Otherwise** → evict entries in `updatedAt`-ascending order one at a time, recomputing `availableSpace` after each delete, until `availableSpace >= pendingSize`. Then retry the write. If the retry still throws `QuotaExceededError` (the estimate was off, or another tab consumed space concurrently), stop further eviction and fall through to the toast in step 4. This avoids runaway deletion.
+
+Eviction in step 5 is silent — same UX as the count-cap path. The toast only fires when no amount of cleanup would help.
+
+#### Browsers without `navigator.storage.estimate()`
+
+A small minority of browsers (older Safari versions, some embedded engines) do not expose `navigator.storage.estimate()`. In that environment we cannot compute the budget, so we degrade to: attempt the write once; on `QuotaExceededError`, **do not evict** (we can't tell whether it would help), surface the toast with a generic message: *"Browser storage is full. Use Download JSON to save this document, or delete some recent documents from the picker."* This is safe — no surprise data loss — and the count-cap eviction path is unaffected.
+
+Detection is feature-detection at the call site, not a separate probe: `'storage' in navigator && 'estimate' in navigator.storage`.
+
+_Rejected: size-based eviction policy (e.g., "evict at 100 MB regardless of quota")_ — duplicates browser quota tracking and would either be too eager (delete when there's room) or too lax (don't delete when the browser refuses).
+_Rejected: retry-after-evict without the budget check_ — would silently delete every other entry trying to make room for a write that can't succeed, as the reviewer flagged on the issue.
+_Rejected: a manual "free up space" UI surface_ — the bin icon on each row already covers explicit deletion; the budget math + toast covers the rare case where eviction can't help.
 
 ### D9. Object-URL lifecycle
 
@@ -252,7 +273,8 @@ The `handleConvert` callback in [App.tsx:13](src/App.tsx#L13) gains an `entryId`
 
 - **[Single browser, single profile]** → Mitigation: explicit non-goal; documented. Users who need cross-device must use Download JSON until Demokratis upload lands.
 - **[Two tabs of the same entry → clobber]** → Mitigation: documented edge case; last-writer-wins. A future enhancement could use `BroadcastChannel` to detect & warn.
-- **[Storage quotas vary by browser; a single huge DOCX can fail the first write]** → Mitigation: quota toast covers it; the user sees the failure and the editor keeps working. The 20-entry cap bounds long-term growth.
+- **[Storage quotas vary by browser; a single huge DOCX can fail the first write]** → Mitigation: D8's measure-before-evict policy. If eviction can free enough space, it happens silently. If not — including the "this doc is too big to fit at all" case — nothing is deleted and the toast tells the user what's going on. The 20-entry cap bounds long-term growth.
+- **[`byteSize` is approximate]** → Mitigation: order-of-magnitude is sufficient for the budget check. If the estimate underclaims and a post-eviction retry still fails, D8 step 5 catches the case and stops further eviction.
 - **[Schema drift]** → Mitigation: `schemaVersion` + migration chain from day 1; incompatible entries are flagged, not deleted.
 - **[Private/incognito surprises]** → Mitigation: detection probe + banner. Editing still works; nothing is lost because nothing was ever saved.
 - **[`URL.createObjectURL` allocates memory per call]** → Mitigation: D9's revoke-on-switch rule. Tested explicitly.

@@ -83,23 +83,41 @@ The system SHALL expose a "recent documents" list on the upload view containing 
 #### Scenario: Cap at 20 in the rendered list
 
 - **WHEN** IndexedDB contains exactly 20 entries
-- **THEN** the picker renders 20 rows, and a 21st autosave-induced create has caused the oldest one to be evicted (covered by the next requirement)
+- **THEN** the picker renders 20 rows; the eviction behaviour for a 21st entry is defined in the "Eviction is silent when it would help" requirement
 
-### Requirement: Library is capped at 20 entries with LRU eviction
+### Requirement: Eviction is silent when it would help, never destructive when it would not
 
-The system SHALL enforce a maximum of 20 entries in IndexedDB. When a write would cause the count to exceed 20, the system SHALL silently delete the entry with the oldest `updatedAt` in the same transaction as the new write. The cap SHALL be exposed as a named constant `MAX_RECENTS` so tests and UI reference the value by name, not literal.
+Eviction deletes the entry with the oldest `updatedAt` and has two triggers — a 20-entry cap, and a quota-driven retry — that share one rule: **eviction only happens when it would actually allow the write to succeed**. Eviction is silent in both cases. The cap SHALL be exposed as a named constant `MAX_RECENTS = 20`.
 
-#### Scenario: Creating a 21st entry evicts the oldest
+#### Scenario: Creating a 21st entry silently evicts the oldest (count cap)
 
 - **GIVEN** 20 entries in IndexedDB, with the oldest having `updatedAt = T0`
 - **WHEN** the user uploads a new file, creating a 21st entry
-- **THEN** at the end of the transaction IndexedDB contains 20 entries, the new one is present, and the entry with `updatedAt = T0` is absent
+- **THEN** at the end of the transaction IndexedDB contains 20 entries, the new one is present, the entry with `updatedAt = T0` is absent, and no toast or banner is shown
 
 #### Scenario: Updating an existing entry never evicts
 
 - **GIVEN** 20 entries in IndexedDB
 - **WHEN** an autosave updates one of them (`updateEntryTree`)
 - **THEN** the count remains 20 and no entry is deleted
+
+#### Scenario: Quota-driven eviction silently makes room when it can
+
+- **GIVEN** several stored entries and a pending write that would exceed the browser's storage quota by less than the total size of older evictable entries
+- **WHEN** the storage layer attempts the write and `QuotaExceededError` would be raised
+- **THEN** the storage layer evicts entries in `updatedAt`-ascending order — recomputing available space after each delete via `navigator.storage.estimate()` — until the pending write fits, then completes the write silently. No toast is shown.
+
+#### Scenario: Eviction stops as soon as the budget is met
+
+- **GIVEN** five entries with byte sizes `[5MB, 5MB, 5MB, 5MB, 5MB]` ordered oldest-first and a pending 8 MB write into a quota with 3 MB free
+- **WHEN** quota-driven eviction runs
+- **THEN** exactly one entry (the oldest 5 MB) is deleted, freeing enough space to write; the remaining four entries are intact
+
+#### Scenario: When eviction cannot possibly help, nothing is deleted
+
+- **GIVEN** a pending write whose `byteSize` exceeds `availableSpace + evictableSpace` (the sum of all other entries' sizes)
+- **WHEN** the storage layer evaluates the budget for a quota-driven eviction
+- **THEN** no entries are deleted, the write is not attempted, and a single toast is shown (see the next requirement). All existing entries remain in the picker, unchanged.
 
 ### Requirement: Recents can be loaded and deleted from the picker
 
@@ -144,20 +162,34 @@ Every stored entry SHALL carry a `schemaVersion: number` field. On read, the sys
 - **WHEN** the user clicks the bin icon on an incompatible row and confirms
 - **THEN** the entry is removed from IndexedDB
 
-### Requirement: Storage quota errors surface a toast without disrupting editing
+### Requirement: A toast surfaces only when eviction cannot resolve a quota failure
 
-When an IndexedDB write fails with a quota error, the system SHALL surface a single toast: "Storage full — delete some saved documents to continue saving." The in-memory document SHALL be untouched. Repeated quota errors within the same session SHALL NOT stack multiple toasts.
+The toast is the last-resort signal that **no amount of cleanup will let the write succeed**. The system SHALL show a single toast in exactly two cases: (a) the pending write is larger than `availableSpace + evictableSpace` so eviction is skipped, or (b) a post-eviction retry still throws `QuotaExceededError` (the size estimate was off, or another tab consumed space concurrently). In either case the in-memory document SHALL be untouched and editing SHALL continue. Repeated quota failures within the same session SHALL NOT stack multiple toasts.
 
-#### Scenario: Quota error shows a single toast
+The toast message SHALL include the document size and the free-space estimate when both are known (e.g. "This document is 47 MB; browser storage has 32 MB free.") and fall back to a generic message ("Browser storage is full. Use Download JSON to save this document, or delete some recent documents from the picker.") when `navigator.storage.estimate()` is unavailable.
 
-- **GIVEN** an editing session with a tree in memory
-- **WHEN** an autosave write throws `QuotaExceededError`
-- **THEN** a toast appears with the storage-full message, and the in-memory tree is unchanged
+#### Scenario: Toast fires when the write cannot possibly fit
 
-#### Scenario: Subsequent quota errors do not stack
+- **GIVEN** a pending 60 MB write into a browser context with 40 MB total quota and 18 entries currently storing a combined 12 MB
+- **WHEN** the storage layer evaluates the eviction budget
+- **THEN** a single toast is shown with the size-aware message; no entries are deleted; the in-memory tree is unchanged
 
-- **WHEN** a second autosave within the same session also throws `QuotaExceededError`
+#### Scenario: Toast fires when post-eviction retry still fails
+
+- **GIVEN** a pending write whose `byteSize` says it should fit after evicting two old entries
+- **WHEN** the storage layer evicts those two entries, retries the write, and `QuotaExceededError` is raised again
+- **THEN** further eviction stops, a single toast is shown, and the entries that were already deleted in the retry attempt remain deleted (they were valid eviction targets by the budget at the time)
+
+#### Scenario: Subsequent quota failures do not stack
+
+- **WHEN** a second quota failure occurs in the same session
 - **THEN** at most one toast is visible at a time; new toasts replace or extend the existing one rather than queueing
+
+#### Scenario: Browsers without `navigator.storage.estimate()` do not evict on quota
+
+- **GIVEN** a browser that does not expose `navigator.storage.estimate()`
+- **WHEN** an autosave write throws `QuotaExceededError`
+- **THEN** no eviction is attempted (the budget cannot be computed), a single toast is shown with the generic fallback message, and the in-memory tree is unchanged
 
 ### Requirement: Ephemeral storage is detected and surfaced
 
