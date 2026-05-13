@@ -51,6 +51,7 @@ export const useTreeEditor = (
     changeNodeTypes,
     changeNodeFormat,
     moveNodeById,
+    moveNodesToBoundary,
     getReceivingParentId,
   } = useTreeOperations({
     document,
@@ -256,6 +257,34 @@ export const useTreeEditor = (
   }, [store, nodeIdToFlatIndex, indentNodes]);
 
   /**
+   * Move selected nodes to the top or bottom of their respective parents.
+   */
+  const moveSelectedToBoundary = useCallback(
+    (position: 'top' | 'bottom') => {
+      const selectedIds = store.getSelectedIds();
+      if (selectedIds.size === 0) return;
+
+      const sortedIds = [...selectedIds]
+        .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
+        .filter((item) => item.index >= 0)
+        .sort((a, b) => a.index - b.index)
+        .map((item) => item.id);
+
+      moveNodesToBoundary(sortedIds, position);
+    },
+    [store, nodeIdToFlatIndex, moveNodesToBoundary]
+  );
+
+  const moveSelectedToTop = useCallback(
+    () => moveSelectedToBoundary('top'),
+    [moveSelectedToBoundary]
+  );
+  const moveSelectedToBottom = useCallback(
+    () => moveSelectedToBoundary('bottom'),
+    [moveSelectedToBoundary]
+  );
+
+  /**
    * Outdent selected nodes (Shift+Tab).
    */
   const outdentSelected = useCallback(() => {
@@ -304,6 +333,8 @@ export const useTreeEditor = (
     deleteSelected,
     indentSelected,
     outdentSelected,
+    moveSelectedToTop,
+    moveSelectedToBottom,
 
     // History
     undo,

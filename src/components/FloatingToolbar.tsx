@@ -1,4 +1,6 @@
 import {
+  ArrowDownToLine,
+  ArrowUpToLine,
   Asterisk,
   Bold,
   Heading,
@@ -32,6 +34,8 @@ interface FloatingToolbarProps {
   onChangeFormat?: (format: NodeFormat) => void;
   onDelete: () => void;
   onClearSelection: () => void;
+  onMoveSelectedToTop?: () => void;
+  onMoveSelectedToBottom?: () => void;
   inlineMarksTarget?: InlineMarksTarget | null;
   inlineMarksFormat?: NodeFormat;
   markActiveState?: Partial<Record<InlineMark, boolean>>;
@@ -76,6 +80,8 @@ export function FloatingToolbar({
   onChangeFormat,
   onDelete,
   onClearSelection,
+  onMoveSelectedToTop,
+  onMoveSelectedToBottom,
   inlineMarksTarget,
   inlineMarksFormat,
   markActiveState,
@@ -219,6 +225,27 @@ export function FloatingToolbar({
         </>
       )}
 
+      <div className="w-px h-6 bg-gray-700 mx-1" />
+      <button
+        type="button"
+        data-testid="move-to-top"
+        aria-label="Move to top of parent"
+        onClick={onMoveSelectedToTop}
+        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+        title="Move to top of parent"
+      >
+        <ArrowUpToLine size={18} />
+      </button>
+      <button
+        type="button"
+        data-testid="move-to-bottom"
+        aria-label="Move to bottom of parent"
+        onClick={onMoveSelectedToBottom}
+        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+        title="Move to bottom of parent"
+      >
+        <ArrowDownToLine size={18} />
+      </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
       <button
         onClick={onDelete}

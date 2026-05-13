@@ -11,6 +11,8 @@ const baseProps = {
   onDelete: vi.fn(),
   onClearSelection: vi.fn(),
   onChangeFormat: vi.fn(),
+  onMoveSelectedToTop: vi.fn(),
+  onMoveSelectedToBottom: vi.fn(),
 };
 
 describe('FloatingToolbar — format selector visibility', () => {
@@ -270,6 +272,52 @@ describe('FloatingToolbar — inline-marks buttons', () => {
       const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
       btn.dispatchEvent(md);
       expect(md.defaultPrevented, `mousedown on ${mark} should be prevented`).toBe(true);
+    }
+  });
+});
+
+describe('FloatingToolbar — move to top/bottom buttons', () => {
+  test('renders both buttons when something is selected', () => {
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="content" />);
+    expect(screen.getByTestId('move-to-top')).toBeTruthy();
+    expect(screen.getByTestId('move-to-bottom')).toBeTruthy();
+  });
+
+  test('clicking move-to-top calls onMoveSelectedToTop', () => {
+    const onMoveSelectedToTop = vi.fn();
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="content"
+        onMoveSelectedToTop={onMoveSelectedToTop}
+      />
+    );
+    fireEvent.click(screen.getByTestId('move-to-top'));
+    expect(onMoveSelectedToTop).toHaveBeenCalledTimes(1);
+  });
+
+  test('clicking move-to-bottom calls onMoveSelectedToBottom', () => {
+    const onMoveSelectedToBottom = vi.fn();
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="content"
+        onMoveSelectedToBottom={onMoveSelectedToBottom}
+      />
+    );
+    fireEvent.click(screen.getByTestId('move-to-bottom'));
+    expect(onMoveSelectedToBottom).toHaveBeenCalledTimes(1);
+  });
+
+  test('mousedown on each button IS prevented (focus preservation)', () => {
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="content" />);
+    for (const id of ['move-to-top', 'move-to-bottom']) {
+      const btn = screen.getByTestId(id);
+      const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      btn.dispatchEvent(md);
+      expect(md.defaultPrevented, `mousedown on ${id} should be prevented`).toBe(true);
     }
   });
 });

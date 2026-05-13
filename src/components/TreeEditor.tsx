@@ -83,6 +83,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     indentSelected,
     outdentSelected,
     deleteSelected,
+    moveSelectedToTop,
+    moveSelectedToBottom,
     undo,
     redo,
     lastSelectedId,
@@ -625,6 +627,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         onChangeFormat={handleChangeFormat}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
+        onMoveSelectedToTop={moveSelectedToTop}
+        onMoveSelectedToBottom={moveSelectedToBottom}
         inlineMarksTarget={inlineMarksDerived.target}
         inlineMarksFormat={inlineMarksDerived.format}
         markActiveState={inlineMarksDerived.active}

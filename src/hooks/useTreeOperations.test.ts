@@ -4320,4 +4320,215 @@ describe('useTreeOperations', () => {
       expect(c.format).toBe('NEWLINES');
     });
   });
+
+  describe('moveNodesToBoundary', () => {
+    // Flat root with four siblings, used by reordering tests.
+    const createFlatDocument = (): ContainerDocumentNode => ({
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'A',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'A' },
+          children: [],
+        } as ContentDocumentNode,
+        {
+          id: 'B',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'B' },
+          children: [],
+        } as ContentDocumentNode,
+        {
+          id: 'C',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'C' },
+          children: [],
+        } as ContentDocumentNode,
+        {
+          id: 'D',
+          number: null,
+          type: 'content',
+          format: 'TEXT',
+          contents: { de: 'D' },
+          children: [],
+        } as ContentDocumentNode,
+      ],
+    });
+
+    test('moves a single node to the top of its parent', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['C'], 'top');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['C', 'A', 'B', 'D']);
+    });
+
+    test('moves a single node to the bottom of its parent', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['A'], 'bottom');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['B', 'C', 'D', 'A']);
+    });
+
+    test('preserves relative order when moving multiple siblings to top', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['B', 'C'], 'top');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['B', 'C', 'A', 'D']);
+    });
+
+    test('preserves relative order when moving multiple siblings to bottom', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['B', 'C'], 'bottom');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['A', 'D', 'B', 'C']);
+    });
+
+    test('handles nodes in different parents independently with a single commit', () => {
+      // Default test document: root > [h1 > [p1, h2 > [p2]], h1b]
+      // Select p1 (child of h1) and h1b (child of root).
+      // 'top': p1 should move to top of h1 (already there → no change for p1),
+      //        h1b should move to top of root (before h1).
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodesToBoundary(['p1', 'h1b'], 'top');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
+      const h1 = newDoc.children[1] as HeadingDocumentNode;
+      // p1 was already first inside h1; relative order untouched.
+      expect(h1.children.map((c) => c.id)).toEqual(['p1', 'h2']);
+    });
+
+    test('does not commit when the selected node is already at the top', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['A'], 'top');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does not commit when the selected node is already at the bottom', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['D'], 'bottom');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does not commit for an empty id list', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodesToBoundary([], 'top');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('silently ignores ids not present in the index', () => {
+      const doc = createFlatDocument();
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.moveNodesToBoundary(['nonexistent', 'C'], 'top');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['C', 'A', 'B', 'D']);
+    });
+
+    test('reorders list_items within their list', () => {
+      const doc = createDocumentWithList();
+      const { result } = renderTreeOperations(doc);
+
+      // List is [li1, li2, li3]; move li3 to top.
+      act(() => {
+        result.current.moveNodesToBoundary(['li3'], 'top');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const list = h1.children[0] as ContainerDocumentNode;
+      expect(list.children.map((c) => c.id)).toEqual(['li3', 'li1', 'li2']);
+    });
+
+    test('handles a selection containing both an ancestor and its descendant', () => {
+      // Default doc: root > [h1 > [p1, h2 > [p2]], h1b].
+      // Select h1 (path [0]) and p2 (path [0, 1, 0]). Move both to top.
+      // p2 should land at the top of h2 (already there → no actual change for p2),
+      // and h1 should land at the top of root (already there → no actual change for h1).
+      // So this is effectively a no-op when both are already at top — pick 'bottom' instead
+      // to make the cross-depth move observable.
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodesToBoundary(['h1', 'p2'], 'bottom');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // h1 moved to bottom of root.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
+      // p2 is the only child of h2, so it stays put — h1's subtree is unchanged.
+      const h1 = newDoc.children[1] as HeadingDocumentNode;
+      const h2 = h1.children[1] as HeadingDocumentNode;
+      expect(h2.children.map((c) => c.id)).toEqual(['p2']);
+    });
+
+    test('mixed parents: commits once when only some parents need to change', () => {
+      // Default doc: root > [h1 > [p1, h2], h1b].
+      // Select p1 (already at top of h1) and h1b (at root, position 1 → moves to top).
+      // Only the root-level reorder should produce a change, but a single commit fires.
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.moveNodesToBoundary(['p1', 'h1b'], 'top');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
+      // p1 is still the first child of h1 — no actual change inside h1.
+      const h1 = newDoc.children[1] as HeadingDocumentNode;
+      expect(h1.children[0].id).toBe('p1');
+    });
+  });
 });
