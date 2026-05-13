@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
   ContainerDocumentNode,
+  ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
@@ -393,5 +394,84 @@ describe('useTreeEditor', () => {
     expect(result.current.document.children[1].id).toBe('p1');
     expect(result.current.document.children[2].id).toBe('p2');
     expect(result.current.document.children[3].id).toBe('h2');
+  });
+
+  describe('moveSelectedToTop / moveSelectedToBottom', () => {
+    // Flat doc: root > [a, b, c, d]
+    const createFlatDoc = (): ContainerDocumentNode => ({
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: ['a', 'b', 'c', 'd'].map(
+        (id) =>
+          ({
+            id,
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: id },
+            children: [],
+          }) as ContentDocumentNode
+      ),
+    });
+
+    test('moveSelectedToTop moves the single selected node to the top of its parent', () => {
+      const { result } = renderHook(() => useTreeEditor(createFlatDoc()));
+
+      act(() => {
+        result.current.handleNodeClick('c', { shiftKey: false, ctrlKey: false, metaKey: false });
+      });
+      act(() => {
+        result.current.moveSelectedToTop();
+      });
+
+      expect(result.current.document.children.map((c) => c.id)).toEqual(['c', 'a', 'b', 'd']);
+    });
+
+    test('moveSelectedToBottom moves the single selected node to the bottom of its parent', () => {
+      const { result } = renderHook(() => useTreeEditor(createFlatDoc()));
+
+      act(() => {
+        result.current.handleNodeClick('b', { shiftKey: false, ctrlKey: false, metaKey: false });
+      });
+      act(() => {
+        result.current.moveSelectedToBottom();
+      });
+
+      expect(result.current.document.children.map((c) => c.id)).toEqual(['a', 'c', 'd', 'b']);
+    });
+
+    test('multi-selection: moves all selected nodes to the top, preserving relative order', () => {
+      const { result } = renderHook(() => useTreeEditor(createFlatDoc()));
+
+      // Select b and c with ctrl-click for multi-select.
+      act(() => {
+        result.current.handleNodeClick('b', { shiftKey: false, ctrlKey: false, metaKey: false });
+      });
+      act(() => {
+        result.current.handleNodeClick('c', { shiftKey: false, ctrlKey: true, metaKey: false });
+      });
+      act(() => {
+        result.current.moveSelectedToTop();
+      });
+
+      expect(result.current.document.children.map((c) => c.id)).toEqual(['b', 'c', 'a', 'd']);
+    });
+
+    test('no-op when nothing is selected', () => {
+      const doc = createFlatDoc();
+      const { result } = renderHook(() => useTreeEditor(doc));
+      const originalDoc = result.current.document;
+
+      act(() => {
+        result.current.moveSelectedToTop();
+      });
+      act(() => {
+        result.current.moveSelectedToBottom();
+      });
+
+      // Reference equality: no commit fired (document object unchanged).
+      expect(result.current.document).toBe(originalDoc);
+    });
   });
 });

@@ -945,6 +945,79 @@ export const useTreeOperations = ({
   );
 
   /**
+   * Cluster the named nodes at the top or bottom of their respective parents.
+   * Nodes keep their current parent; selected siblings preserve their relative
+   * order within each parent. Different parents are reordered independently in
+   * a single commit. Skips parents where the move would be a no-op.
+   */
+  const moveNodesToBoundary = useCallback(
+    (ids: string[], position: 'top' | 'bottom') => {
+      if (ids.length === 0) return;
+
+      // Group ids by parent path.
+      const byParent = new Map<string, { parentPath: NodePath; selectedIds: Set<string> }>();
+      for (const id of ids) {
+        const path = nodeIndex.get(id);
+        if (!path || path.length === 0) continue;
+        const parentPath = path.slice(0, -1);
+        const key = parentPath.join('.');
+        let group = byParent.get(key);
+        if (!group) {
+          group = { parentPath, selectedIds: new Set() };
+          byParent.set(key, group);
+        }
+        group.selectedIds.add(id);
+      }
+
+      // Deepest-first: rewriting a parent's children doesn't disturb the path
+      // to deeper parents we still need to visit (deeper parents live inside
+      // an ancestor we haven't touched yet).
+      const groups = [...byParent.values()].sort(
+        (a, b) => b.parentPath.length - a.parentPath.length
+      );
+
+      let doc = document;
+      let changed = false;
+
+      for (const { parentPath, selectedIds } of groups) {
+        const parent = parentPath.length === 0 ? doc : getNodeAtPath(doc, parentPath);
+        if (!parent || !('children' in parent)) continue;
+
+        // Iterate the parent's children in document order so the selected ones
+        // cluster in their original relative order, regardless of how the
+        // caller ordered ids.
+        const children = parent.children;
+        const selected: DocumentNode[] = [];
+        const unselected: DocumentNode[] = [];
+        for (const child of children) {
+          if (selectedIds.has(child.id)) {
+            selected.push(child);
+          } else {
+            unselected.push(child);
+          }
+        }
+
+        const newChildren =
+          position === 'top' ? [...selected, ...unselected] : [...unselected, ...selected];
+
+        const noChange = newChildren.every((c, i) => c === children[i]);
+        if (noChange) continue;
+
+        doc = updateNodeAtPath(doc, parentPath, (n) => ({
+          ...n,
+          children: newChildren,
+        }));
+        changed = true;
+      }
+
+      if (changed) {
+        commit(doc);
+      }
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
    * Get the ID of the node that would become the parent if sourceId were dropped
    * on targetId. Returns null if the move would be invalid.
    */
@@ -985,6 +1058,7 @@ export const useTreeOperations = ({
     changeNodeTypes,
     changeNodeFormat,
     moveNodeById,
+    moveNodesToBoundary,
     getReceivingParentId,
     nodeIndex,
     parentIndex,
