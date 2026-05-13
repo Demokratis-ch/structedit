@@ -27,3 +27,5 @@ coverage/*.xml
 *.njsproj
 *.sln
 *.sw?
+
+~$*.docx
