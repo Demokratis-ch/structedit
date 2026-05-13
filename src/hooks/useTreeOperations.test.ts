@@ -453,8 +453,7 @@ describe('useTreeOperations', () => {
       expect(h1.children[0].id).toBe('h2');
     });
 
-    test.skip('moves list_item into nested list under previous item', () => {
-      // Skipped: list_item nesting requires design decision about list_item structure
+    test('moves list_item into nested list under previous item', () => {
       const listDoc = createDocumentWithList();
       const { result } = renderTreeOperations(listDoc);
 
@@ -466,9 +465,208 @@ describe('useTreeOperations', () => {
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const list = h1.children[0] as ContainerDocumentNode;
 
+      // li2 has been pulled out of the outer list, so only li1 and li3 remain.
       expect(list.children.length).toBe(2);
       expect(list.children[0].id).toBe('li1');
       expect(list.children[1].id).toBe('li3');
+
+      // li1 now ends with a nested list whose only child is li2.
+      const li1 = list.children[0] as ContainerDocumentNode;
+      const li1Last = li1.children[li1.children.length - 1];
+      expect(li1Last.type).toBe('list');
+      const nested = li1Last as ContainerDocumentNode;
+      expect(nested.children.length).toBe(1);
+      expect(nested.children[0].id).toBe('li2');
+    });
+
+    test('nests two consecutive list_items into one nested list when indented together', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.indentNodes(['li2', 'li3']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const list = h1.children[0] as ContainerDocumentNode;
+
+      // Only li1 remains at the outer level; li2 and li3 are nested under it.
+      expect(list.children.length).toBe(1);
+      expect(list.children[0].id).toBe('li1');
+
+      const li1 = list.children[0] as ContainerDocumentNode;
+      const li1Last = li1.children[li1.children.length - 1];
+      expect(li1Last.type).toBe('list');
+      const nested = li1Last as ContainerDocumentNode;
+      expect(nested.children.length).toBe(2);
+      expect(nested.children[0].id).toBe('li2');
+      expect(nested.children[1].id).toBe('li3');
+    });
+
+    test('appends list_item to existing nested list under preceding sibling', () => {
+      // li1 already has a nested list with liA inside. Indenting li2 should
+      // append it to that existing list, not create a new sibling list.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'li1-content',
+                    number: null,
+                    type: 'content',
+                    format: 'TEXT',
+                    contents: { de: 'First' },
+                    children: [],
+                  },
+                  {
+                    id: 'oldNested',
+                    number: null,
+                    type: 'list',
+                    children: [createListItem('liA', 'a.', 'Existing nested')],
+                  },
+                ],
+              } as ContainerDocumentNode,
+              createListItem('li2', '2.', 'Second'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['li2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      expect(list1.children.length).toBe(1);
+
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'list') as ContainerDocumentNode;
+      // Same nested list (same id), now with both items inside.
+      expect(nested.id).toBe('oldNested');
+      expect(nested.children.length).toBe(2);
+      expect(nested.children[0].id).toBe('liA');
+      expect(nested.children[1].id).toBe('li2');
+    });
+
+    test('batch-indenting [li1, li2] in a flat list skips li1 and nests li2', () => {
+      // li1 can't be indented (no preceding sibling) so the batch should still
+      // succeed for li2, nesting it under li1.
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.indentNodes(['li1', 'li2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const list = h1.children[0] as ContainerDocumentNode;
+
+      // li1 stays at outer level, li2 is now nested under it, li3 still at outer level.
+      expect(list.children.map((c) => c.id)).toEqual(['li1', 'li3']);
+      const li1 = list.children[0] as ContainerDocumentNode;
+      const nested = li1.children[li1.children.length - 1] as ContainerDocumentNode;
+      expect(nested.type).toBe('list');
+      expect(nested.children.map((c) => c.id)).toEqual(['li2']);
+    });
+
+    test('does nothing when list_item has no preceding sibling', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [createListItem('li1', '1.', 'Only item')],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['li1']);
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test("preserves the list_item's own nested children when indenting", () => {
+      // li2 carries its own nested list (with liA). After indenting li2, the
+      // new sublist under li1 should contain li2 unchanged — including liA.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              createListItem('li1', '1.', 'First'),
+              {
+                id: 'li2',
+                number: '2.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'li2-content',
+                    number: null,
+                    type: 'content',
+                    format: 'TEXT',
+                    contents: { de: 'Second' },
+                    children: [],
+                  },
+                  {
+                    id: 'li2-nested',
+                    number: null,
+                    type: 'list',
+                    children: [createListItem('liA', 'a.', 'Nested child of li2')],
+                  },
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['li2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      const newSublist = li1.children[li1.children.length - 1] as ContainerDocumentNode;
+      expect(newSublist.type).toBe('list');
+
+      const movedLi2 = newSublist.children[0] as ContainerDocumentNode;
+      expect(movedLi2.id).toBe('li2');
+      // li2 still has its content + its own nested list
+      const movedNested = movedLi2.children.find((c) => c.id === 'li2-nested');
+      expect(movedNested).toBeDefined();
+      expect((movedNested as ContainerDocumentNode).children[0].id).toBe('liA');
     });
 
     test('indents multiple sibling nodes under previous heading', () => {
@@ -640,8 +838,8 @@ describe('useTreeOperations', () => {
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const list1 = newDoc.children[0] as ContainerDocumentNode;
 
-      // li2 should now be in list1, after the nested-list
-      expect(list1.children.some((c) => c.id === 'li2')).toBe(true);
+      // li2 is hoisted into list1 and the (now-empty) malformed inner list is dropped.
+      expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2']);
     });
 
     test('does nothing when outdenting list_item would place it outside any list', () => {
@@ -702,6 +900,217 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('outdents list_item out of a properly nested list under preceding sibling', () => {
+      // list1[li1{content, nested[li2]}, li3] → shift-tab on li2 →
+      // list1[li1{content}, li2, li3]  (empty nested list is dropped)
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'li1-content',
+                    number: null,
+                    type: 'content',
+                    format: 'TEXT',
+                    contents: { de: 'First' },
+                    children: [],
+                  },
+                  {
+                    id: 'nested',
+                    number: null,
+                    type: 'list',
+                    children: [createListItem('li2', 'a.', 'Nested item')],
+                  },
+                ],
+              } as ContainerDocumentNode,
+              createListItem('li3', '2.', 'Third'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['li2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+
+      // list1 now has [li1, li2, li3] in order
+      expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2', 'li3']);
+
+      // li1's nested list is gone (it became empty after li2 left)
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      expect(li1.children.some((c) => c.type === 'list')).toBe(false);
+    });
+
+    test('keeps nested list when other items remain after outdent', () => {
+      // list1[li1{nested[li2, li3]}] → shift-tab on li2 →
+      // list1[li1{nested[li3]}, li2]
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'nested',
+                    number: null,
+                    type: 'list',
+                    children: [createListItem('li2', 'a.', 'A'), createListItem('li3', 'b.', 'B')],
+                  },
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['li2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2']);
+
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'list') as ContainerDocumentNode;
+      expect(nested).toBeDefined();
+      expect(nested.children.map((c) => c.id)).toEqual(['li3']);
+    });
+
+    test('outdents from a doubly-nested list one level at a time', () => {
+      // list1[li1{nested1[li2{nested2[li3]}]}] → shift-tab on li3 →
+      // list1[li1{nested1[li2, li3]}]   (li3 moves up one level, into nested1)
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'nested1',
+                    number: null,
+                    type: 'list',
+                    children: [
+                      {
+                        id: 'li2',
+                        number: 'a.',
+                        type: 'list_item',
+                        children: [
+                          {
+                            id: 'nested2',
+                            number: null,
+                            type: 'list',
+                            children: [createListItem('li3', 'i.', 'Deepest')],
+                          },
+                        ],
+                      } as ContainerDocumentNode,
+                    ],
+                  },
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['li3']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      const nested1 = li1.children[0] as ContainerDocumentNode;
+
+      // li3 sits next to li2 in nested1; nested2 is gone (it became empty).
+      expect(nested1.children.map((c) => c.id)).toEqual(['li2', 'li3']);
+      const li2 = nested1.children[0] as ContainerDocumentNode;
+      expect(li2.children.some((c) => c.type === 'list')).toBe(false);
+    });
+
+    test('outdents two list_items from nested list, dropping empty list', () => {
+      // list1[li1{nested[li2, li3]}] → shift-tab on [li2, li3] →
+      // list1[li1, li2, li3]  (no nested list left)
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'list_item',
+                children: [
+                  {
+                    id: 'nested',
+                    number: null,
+                    type: 'list',
+                    children: [createListItem('li2', 'a.', 'A'), createListItem('li3', 'b.', 'B')],
+                  },
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['li2', 'li3']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2', 'li3']);
+
+      const li1 = list1.children[0] as ContainerDocumentNode;
+      expect(li1.children.some((c) => c.type === 'list')).toBe(false);
     });
 
     test('outdents multiple nested nodes', () => {
