@@ -281,9 +281,42 @@ export const useTreeOperations = ({
 
     if (!parent || !node || !('children' in parent)) return null;
 
-    // Special case: list items - for now, skip this complex case
+    // Nest a list_item under its preceding sibling list_item. If that sibling
+    // already ends with a nested list, append to it; otherwise create one.
     if (node.type === 'list_item') {
-      return null;
+      if (parent.type !== 'list' || childIndex === 0) return null;
+      const prevSibling = parent.children[childIndex - 1];
+      if (prevSibling.type !== 'list_item') return null;
+      const listItem = node as ContainerDocumentNode;
+
+      const prevSiblingPath = [...parentPath, childIndex - 1];
+      const prevChildren = (prevSibling as ContainerDocumentNode).children;
+      const lastChild = prevChildren[prevChildren.length - 1];
+
+      // Remove first; prevSibling's path and its own children are unaffected
+      // because the removal touches the outer list, not prevSibling itself —
+      // so prevChildren stays accurate for indexing into the nested list below.
+      let newDoc = removeNodeAtPath(doc, path);
+
+      if (lastChild && lastChild.type === 'list') {
+        const nestedListPath = [...prevSiblingPath, prevChildren.length - 1];
+        newDoc = updateNodeAtPath(newDoc, nestedListPath, (n) => ({
+          ...n,
+          children: [...(n as ContainerDocumentNode).children, listItem],
+        }));
+      } else {
+        const newList: ContainerDocumentNode = {
+          id: generateId(),
+          number: null,
+          type: 'list',
+          children: [listItem],
+        };
+        newDoc = updateNodeAtPath(newDoc, prevSiblingPath, (n) => ({
+          ...n,
+          children: [...(n as ContainerDocumentNode).children, newList],
+        }));
+      }
+      return newDoc;
     }
 
     // Find previous sibling that can accept this node as child
@@ -365,11 +398,38 @@ export const useTreeOperations = ({
 
       if (!grandparent || !('children' in grandparent)) return null;
 
+      // Proper nested case: a list inside a list_item. Pop the list_item out
+      // to be a sibling of the enclosing list_item in the outer list. If that
+      // empties the nested list, drop it.
+      if (grandparent.type === 'list_item') {
+        const greatGrandparentPath = grandparentPath.slice(0, -1);
+        const grandparentIdxInGGP = grandparentPath[grandparentPath.length - 1];
+        const greatGrandparent =
+          greatGrandparentPath.length === 0 ? doc : getNodeAtPath(doc, greatGrandparentPath);
+        if (!greatGrandparent || greatGrandparent.type !== 'list') return null;
+
+        let newDoc = removeNodeAtPath(doc, path);
+        const parentAfter = getNodeAtPath(newDoc, parentPath);
+        if (parentAfter && 'children' in parentAfter && parentAfter.children.length === 0) {
+          newDoc = removeNodeAtPath(newDoc, parentPath);
+        }
+        newDoc = insertNodeAtPath(newDoc, greatGrandparentPath, grandparentIdxInGGP + 1, node);
+        return newDoc;
+      }
+
+      // Fallback for malformed `list > list` structures (which the schema
+      // forbids, but Mammoth occasionally produces). Insert as sibling of the
+      // parent list inside its grandparent and drop the now-empty inner list
+      // — repairing the structure as a side effect of the user's outdent.
       if (!canBeChildOf(node.type, grandparent.type as ParentType)) {
         return null;
       }
 
       let newDoc = removeNodeAtPath(doc, path);
+      const parentAfter = getNodeAtPath(newDoc, parentPath);
+      if (parentAfter && 'children' in parentAfter && parentAfter.children.length === 0) {
+        newDoc = removeNodeAtPath(newDoc, parentPath);
+      }
       newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
       return newDoc;
     }
@@ -393,7 +453,10 @@ export const useTreeOperations = ({
       let doc = document;
       let changed = false;
 
-      // Process in reverse order to avoid index shifting issues
+      // Process in reverse order to avoid index shifting issues. This is also
+      // load-bearing for outdenting multiple list_items out of a nested list:
+      // the last one to leave drops the now-empty nested list, and an earlier
+      // (forward) pass would invalidate the second item's path.
       const reversed = [...ids].reverse();
 
       for (const id of reversed) {
