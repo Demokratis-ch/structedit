@@ -97,12 +97,30 @@ export function matchLetteredItem(text: string): LetteredItemMatchResult {
 }
 
 /**
- * Extract clean text from HTML content for pattern matching.
- * Strips HTML tags and converts &nbsp; to spaces.
+ * Strip well-formed pairs of inline markdown delimiters and link syntax.
+ * Long-form delimiters run first so `**bold**` is not mis-parsed as two italics.
+ *
+ * Assumes well-formed Mammoth-emitted markdown: backslash escapes are not honored
+ * and stray asterisks/tildes in math-like text (`5 * 3`) collapse. The legal
+ * matchers all anchor at `^`, so collapses mid-string can't introduce a false
+ * heading match.
+ */
+function stripInlineMarkdownMarks(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/~([^~]+)~/g, '$1')
+    .replace(/\^([^^]+)\^/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+}
+
+/**
+ * Extract clean text from HTML/markdown content for pattern matching.
+ * Strips HTML tags, well-formed inline markdown delimiters, and converts &nbsp; to spaces.
  */
 export function extractCleanText(htmlContent: string): string {
-  return htmlContent
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
+  return stripInlineMarkdownMarks(
+    htmlContent.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')
+  ).trim();
 }

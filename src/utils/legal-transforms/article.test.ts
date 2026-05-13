@@ -76,6 +76,19 @@ describe('articleTransform', () => {
     expect(art1.children[0].type).toBe('content');
   });
 
+  // Issue #89: italics wrapping the whole article line kept it from matching after PR #75.
+  it('promotes a content node with italic markdown wrapping the whole article line', () => {
+    const input = createDoc([content('*Art. 1 Lorem ipsum*'), content('Body')]);
+
+    const result = articleTransform(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe('heading');
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.number).toBe('Art. 1');
+    expect(h.contents.de).toBe('Lorem ipsum');
+  });
+
   it('handles § pattern', () => {
     const input = createDoc([content('§ 5 Some title'), content('Content')]);
 

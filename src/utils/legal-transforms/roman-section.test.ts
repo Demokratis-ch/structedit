@@ -125,6 +125,40 @@ describe('romanSectionTransform', () => {
     expect(section.children[0].type).toBe('heading');
   });
 
+  // Issue #89: bold/italic wrapping of the numeral kept it from matching after PR #75.
+  it('promotes a content node with bold markdown around the numeral and title', () => {
+    const input = createDoc([content('**I.** First Section'), content('Body')]);
+
+    const result = romanSectionTransform(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe('heading');
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.number).toBe('I.');
+    expect(h.contents.de).toBe('First Section');
+  });
+
+  it('still anchors at start: a bold Roman numeral mid-sentence is not promoted', () => {
+    const input = createDoc([content('Siehe **I.** weiter unten')]);
+
+    const result = romanSectionTransform(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe('content');
+  });
+
+  it('promotes a content node that is just a bold Roman numeral', () => {
+    const input = createDoc([content('**I.**'), content('Body')]);
+
+    const result = romanSectionTransform(input, 'de');
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].type).toBe('heading');
+    const h = result.children[0] as HeadingDocumentNode;
+    expect(h.number).toBe('I.');
+    expect(h.contents.de).toBe('');
+  });
+
   it('handles empty document', () => {
     const input = createDoc([]);
 

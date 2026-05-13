@@ -112,6 +112,7 @@ describe('file-processing integration', () => {
   describe('real DOCX: numbering_example (issue #63 — <sup> Absatznummern)', () => {
     let allNodes: DocumentNode[];
     let contentNodes: DocumentNode[];
+    let headings: DocumentNode[];
     let warnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeAll(async () => {
@@ -119,6 +120,7 @@ describe('file-processing integration', () => {
       const result = await importFixture('numbering_example.docx');
       allNodes = flattenTree(result.doc);
       contentNodes = allNodes.filter((n) => n.type === 'content');
+      headings = allNodes.filter((n) => n.type === 'heading');
     });
 
     afterAll(() => {
@@ -188,6 +190,19 @@ describe('file-processing integration', () => {
       );
       expect(plainAbsatz).toBeDefined();
       expect('format' in plainAbsatz! && plainAbsatz.format).toBe('TEXT');
+    });
+
+    // Issue #89: the bold `**I.**` and italic `*Art. 1 Lorem ipsum*` paragraphs
+    // in the fixture must be promoted to headings by the legal transforms.
+    it('detects the top-level Roman numeral section `I.` as a heading', () => {
+      const romanSection = headings.find((h) => h.number === 'I.');
+      expect(romanSection).toBeDefined();
+    });
+
+    it('detects `Art. 1 Lorem ipsum` as an article heading', () => {
+      const article = headings.find((h) => h.number === 'Art. 1');
+      expect(article).toBeDefined();
+      expect(textOf(article!)).toBe('Lorem ipsum');
     });
   });
 });

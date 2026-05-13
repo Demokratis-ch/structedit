@@ -24,10 +24,13 @@ function getLetterMatch(node: DocumentNode): { letter: string; content: string }
 }
 
 /**
- * Strip the letter prefix from content, preserving HTML
+ * Strip the letter prefix from content. Inline markdown delimiters around the
+ * prefix (e.g. `**a. First**`) are stripped first so the produced list_item —
+ * whose content is stored as TEXT — doesn't keep both a duplicated letter and
+ * literal markdown source.
  */
 function stripLetterPrefix(htmlContent: string): string {
-  return htmlContent.replace(/^[a-z]\.\s+/, '');
+  return extractCleanText(htmlContent).replace(/^[a-z]\.\s+/, '');
 }
 
 /**
