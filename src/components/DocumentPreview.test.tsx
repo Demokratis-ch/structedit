@@ -781,4 +781,239 @@ describe('DocumentPreview', () => {
       expect(container.textContent).toContain('<script>alert(1)</script>');
     });
   });
+
+  describe('body rendering — markdown marks', () => {
+    test('renders MARKDOWN_MINIMAL bold inside heading', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: null,
+        type: 'heading',
+        format: 'MARKDOWN_MINIMAL',
+        contents: { de: '**Important** topic' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const heading = screen.getByRole('heading', { level: 1 });
+      const strong = heading.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('Important');
+    });
+
+    test('renders MARKDOWN_MINIMAL sup inside heading', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: null,
+        type: 'heading',
+        format: 'MARKDOWN_MINIMAL',
+        contents: { de: 'Note^*^' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const heading = screen.getByRole('heading', { level: 1 });
+      const sup = heading.querySelector('sup');
+      expect(sup).not.toBeNull();
+      expect(sup?.textContent).toBe('*');
+    });
+
+    test('does not show raw asterisks for MARKDOWN_MINIMAL heading', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: null,
+        type: 'heading',
+        format: 'MARKDOWN_MINIMAL',
+        contents: { de: '**Important**' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      const heading = screen.getByRole('heading', { level: 1 });
+      expect(heading.textContent).not.toContain('**');
+    });
+
+    test('renders MARKDOWN content with bold mark', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: '**bold body** rest' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      const strong = container.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('bold body');
+      expect(container.textContent).not.toContain('**');
+    });
+
+    test('renders MARKDOWN content with paragraph breaks', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: 'first para\n\nsecond para' },
+        children: [],
+      });
+
+      render(<DocumentPreview document={doc} language="de" />);
+      expect(screen.getByText('first para')).toBeInTheDocument();
+      expect(screen.getByText('second para')).toBeInTheDocument();
+    });
+
+    test('renders MARKDOWN content with bulleted list', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: '- alpha\n- beta\n- gamma' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      const ul = container.querySelector('ul');
+      expect(ul).not.toBeNull();
+      const items = ul?.querySelectorAll('li') ?? [];
+      expect(items).toHaveLength(3);
+      expect(items[0].textContent).toBe('alpha');
+      expect(items[1].textContent).toBe('beta');
+      expect(items[2].textContent).toBe('gamma');
+    });
+
+    test('renders NEWLINES content with <br>', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'NEWLINES',
+        contents: { de: 'line one\nline two' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      expect(container.querySelector('br')).not.toBeNull();
+    });
+
+    test('renders MARKDOWN inline mark inside list_item first content', () => {
+      const doc = makeDoc({
+        id: 'l1',
+        number: null,
+        type: 'list',
+        children: [
+          {
+            id: 'li1',
+            number: 'a)',
+            type: 'list_item',
+            children: [
+              {
+                id: 'c1',
+                number: null,
+                type: 'content',
+                format: 'MARKDOWN',
+                contents: { de: '**bold** item body' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      const strong = container.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('bold');
+      expect(container.textContent).not.toContain('**');
+    });
+
+    test('renders MARKDOWN inline mark inside footnote', () => {
+      const doc = makeDoc({
+        id: 'h1',
+        number: null,
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Title' },
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'Body' },
+            children: [
+              {
+                id: 'fn1',
+                number: '1',
+                type: 'footnote',
+                format: 'MARKDOWN',
+                contents: { de: '**bold note** body' },
+              },
+            ],
+          },
+        ],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      const details = container.querySelector('details');
+      expect(details).not.toBeNull();
+      const strong = details?.querySelector('strong');
+      expect(strong).not.toBeNull();
+      expect(strong?.textContent).toBe('bold note');
+    });
+
+    test('escapes raw HTML in TEXT content', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'TEXT',
+        contents: { de: '<script>alert(1)</script>' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      expect(container.querySelector('script')).toBeNull();
+      expect(container.textContent).toContain('<script>alert(1)</script>');
+    });
+
+    test('strips XSS payloads in MARKDOWN content', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: '<img src=x onerror=alert(1)>' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.querySelector('script')).toBeNull();
+      for (const el of Array.from(container.querySelectorAll('*'))) {
+        for (const attr of Array.from(el.attributes)) {
+          expect(attr.name.startsWith('on')).toBe(false);
+        }
+      }
+    });
+
+    test('rejects javascript: links in MARKDOWN content', () => {
+      const doc = makeDoc({
+        id: 'c1',
+        number: null,
+        type: 'content',
+        format: 'MARKDOWN',
+        contents: { de: '[click](javascript:alert(1))' },
+        children: [],
+      });
+
+      const { container } = render(<DocumentPreview document={doc} language="de" />);
+      for (const a of Array.from(container.querySelectorAll('a'))) {
+        const href = a.getAttribute('href') ?? '';
+        expect(href).not.toMatch(/^javascript:/i);
+      }
+    });
+  });
 });
