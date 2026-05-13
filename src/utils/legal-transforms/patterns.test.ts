@@ -180,5 +180,28 @@ describe('patterns', () => {
     ])('extracts clean text from %j → %j', (input, expected) => {
       expect(extractCleanText(input)).toBe(expected);
     });
+
+    // Issue #89: inline marks are now preserved as markdown source in content
+    // nodes (from PR #75). The legal-transform matchers feed text through this
+    // function, so well-formed markdown delimiters must be stripped here too —
+    // otherwise headings like `**I.**` and `*Art. 1 Lorem ipsum*` never match.
+    it.each([
+      ['**bold**', 'bold'],
+      ['*italic*', 'italic'],
+      ['~~strike~~', 'strike'],
+      ['~sub~', 'sub'],
+      ['^sup^', 'sup'],
+      ['**I.**', 'I.'],
+      ['*Art. 1 Lorem ipsum*', 'Art. 1 Lorem ipsum'],
+      ['**bold** and *italic*', 'bold and italic'],
+      ['[label](https://example.com)', 'label'],
+      ['<p><strong>**Mixed**</strong></p>', 'Mixed'],
+    ])('strips markdown inline marks from %j → %j', (input, expected) => {
+      expect(extractCleanText(input)).toBe(expected);
+    });
+
+    it('preserves unmatched delimiters (no false stripping)', () => {
+      expect(extractCleanText('**unclosed')).toBe('**unclosed');
+    });
   });
 });

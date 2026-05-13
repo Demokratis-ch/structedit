@@ -38,6 +38,25 @@ describe('letteredItemsTransform', () => {
     expect(contentNode.contents.de).toBe('First item text');
   });
 
+  // Issue #89: once extractCleanText strips markdown delimiters, the matcher
+  // accepts `**a. First**` — but the prefix-stripping step also needs to ignore
+  // wrapping marks, otherwise the produced list_item's content keeps both the
+  // duplicated letter and the literal markdown source.
+  it('strips letter prefix from content wrapped in markdown delimiters', () => {
+    const input = createDoc([content('**a. First item**'), content('*b. Second item*')]);
+
+    const result = letteredItemsTransform(input, 'de');
+
+    const listNode = result.children[0] as ContainerDocumentNode;
+    expect(listNode.type).toBe('list');
+    const first = (listNode.children[0] as ContainerDocumentNode)
+      .children[0] as ContentDocumentNode;
+    const second = (listNode.children[1] as ContainerDocumentNode)
+      .children[0] as ContentDocumentNode;
+    expect(first.contents.de).toBe('First item');
+    expect(second.contents.de).toBe('Second item');
+  });
+
   it('breaks list on non-lettered content', () => {
     const input = createDoc([
       content('a. First'),
