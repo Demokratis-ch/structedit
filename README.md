@@ -8,4 +8,4 @@ StructEdit is an importer and editor of **tree-structured documents**.
 5. After manual editing, StructEdit serialises the tree to JSON and (THIS IS NOT IMPLEMENTED YET:) optionally imports it into the [Demokratis](https://demokratis.ch) platform.
 
 
-The current `main` branch is always deployed at https://demokratis-ch.github.io/structedit/.
+The current `main` branch is always deployed at https://structedit.demokratis.ch/.

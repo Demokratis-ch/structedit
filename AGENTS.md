@@ -42,3 +42,5 @@ React 19, TypeScript, Vite, TailwindCSS + DaisyUI, Vitest
 
 ### Commands
 `npm run dev` (port 3000), `npm run build`, `npm run test`
+
+The app runs at http://localhost:3000/. You almost never need to start or stop the dev server yourself because the human operator is usually running it already.
