@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { ContainerDocumentNode } from '../types/document';
 import { EditorInterface } from './EditorInterface';
@@ -56,12 +56,13 @@ describe('EditorInterface layout', () => {
     expect(screen.getByTestId('tree-editor-pane')).toBeInTheDocument();
   });
 
-  test('calls onBack when Close Editor is clicked', () => {
+  test('calls onBack when Close Editor is clicked', async () => {
     const onBack = vi.fn();
     renderEditorInterface({ onBack });
 
     fireEvent.click(screen.getByText('Close Editor'));
-    expect(onBack).toHaveBeenCalledOnce();
+    // The handler awaits the autosave flush before calling onBack — give it a tick.
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce());
   });
 
   test('renders Download JSON button', () => {

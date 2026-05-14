@@ -11,8 +11,7 @@ Working through a complex document in StructEdit can take a long time, but the a
 - **Every upload creates a new entry.** Re-uploading the same file makes a fresh entry; users disambiguate via timestamps and the bin icon.
 - **Pasted-text entries** get an auto-name of the form `"Untitled (YYYY-MM-DD HH:mm)"` plus a subtitle showing the first ~40 characters of the source.
 - **Schema versioning:** each stored entry carries a `schemaVersion` field. On read, entries that fail validation after migration are surfaced in the picker as disabled with a "⚠ incompatible" badge — never silently discarded.
-- **Quota exceeded:** if IndexedDB rejects a write (private mode, full disk, browser policy), the editor continues to work in memory and a toast surfaces: "Storage full — delete some saved documents to continue saving." No silent failure.
-- **Private/incognito browsing:** detect ephemeral storage on app start and show a single banner: "Autosave unavailable in private browsing."
+- **Quota exceeded:** if IndexedDB rejects a write (full disk, browser policy), the editor continues to work in memory and a toast surfaces: "Storage full — delete some saved documents to continue saving." No silent failure.
 - **Drop the existing "you will lose unsaved changes" confirm** on the Close-Editor button ([App.tsx:26](src/App.tsx#L26)) — with autosave there are no unsaved changes.
 - **Fix the existing object-URL leak** ([App.tsx:32](src/App.tsx#L32)): the prior `documentUrl` is never `revokeObjectURL`'d. Since this change cycles object URLs on resume/switch, revoke them centrally.
 - **Out of scope:** server-side sync, multi-tab conflict resolution, persisting undo history, importing a previously-downloaded JSON via the upload view, sharing/collaboration, on-the-fly compression of stored sources, and any Demokratis platform integration.
@@ -39,7 +38,6 @@ Working through a complex document in StructEdit can take a long time, but the a
 - **Recents components (new):** [src/components/RecentDocumentsList.tsx](src/components/RecentDocumentsList.tsx) and a small `DeleteConfirmDialog`.
 - **Entry creation on upload:** the existing `onConvert` flow in [App.tsx:13](src/App.tsx#L13) generates an entry id client-side and immediately writes the initial entry (tree + source bytes + mime + filename) to IndexedDB.
 - **Toolbar:** [src/components/Toolbar.tsx](src/components/Toolbar.tsx) — no functional change, but the "Close Editor" affordance no longer routes through `window.confirm`.
-- **Private-mode banner (new):** [src/components/PrivateModeBanner.tsx](src/components/PrivateModeBanner.tsx) and a `detectEphemeralStorage` probe in the storage module.
 - **Quota toast:** lightweight in-app toast (no existing toast system — add a minimal one in [src/components/ui/](src/components/ui/) or co-locate; see design D4).
 - **Tests:** every file above gains a corresponding `*.test.*`. IndexedDB code is exercised against `fake-indexeddb`, which is a new dev dependency. No production deps added — `marked`, `dompurify`, `mammoth`, and IDB primitives cover the surface.
 - **Dependencies (new):** `fake-indexeddb` (devDependency).

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoadDocument } from './LoadDocument';
 
@@ -10,60 +10,47 @@ describe('LoadDocument', () => {
   });
 
   describe('drag-and-drop', () => {
-    it('shows drop overlay when dragging files over the page', () => {
+    it('renders the drop zone with the click-or-drop prompt', () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
-
-      // Drop overlay should not be visible initially
-      expect(screen.queryByText(/drop your document here/i)).not.toBeInTheDocument();
-
-      // Simulate drag enter on the container
-      const container = screen.getByTestId('drop-zone');
-      fireEvent.dragEnter(container, {
-        dataTransfer: { types: ['Files'] },
-      });
-
-      // Drop overlay should be visible and mention HTML
-      expect(screen.getByText(/drop your document here/i)).toBeInTheDocument();
+      expect(screen.getByText(/click or drop a document to upload/i)).toBeInTheDocument();
       expect(screen.getByText(/DOCX.*HTML.*supported/i)).toBeInTheDocument();
     });
 
-    it('hides drop overlay when drag leaves the page', () => {
+    it('marks the drop zone as dragging while a file is hovering over it', () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
+      const zone = screen.getByTestId('drop-zone');
+      expect(zone.dataset.dragging).toBeUndefined();
 
-      const container = screen.getByTestId('drop-zone');
-
-      // Enter then leave
-      fireEvent.dragEnter(container, {
-        dataTransfer: { types: ['Files'] },
-      });
-      expect(screen.getByText(/drop your document here/i)).toBeInTheDocument();
-
-      fireEvent.dragLeave(container);
-
-      expect(screen.queryByText(/drop your document here/i)).not.toBeInTheDocument();
+      fireEvent.dragEnter(zone, { dataTransfer: { types: ['Files'] } });
+      expect(zone.dataset.dragging).toBe('true');
     });
 
-    it('hides drop overlay after file is dropped', async () => {
+    it('clears the dragging state when the cursor leaves the drop zone', () => {
+      render(<LoadDocument onConvert={mockOnConvert} />);
+      const zone = screen.getByTestId('drop-zone');
+
+      fireEvent.dragEnter(zone, { dataTransfer: { types: ['Files'] } });
+      expect(zone.dataset.dragging).toBe('true');
+
+      fireEvent.dragLeave(zone);
+      expect(zone.dataset.dragging).toBeUndefined();
+    });
+
+    it('clears the dragging state after a drop', async () => {
       // Suppress expected error from mock File lacking arrayBuffer()
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(<LoadDocument onConvert={mockOnConvert} />);
 
-      const container = screen.getByTestId('drop-zone');
+      const zone = screen.getByTestId('drop-zone');
+      fireEvent.dragEnter(zone, { dataTransfer: { types: ['Files'] } });
+      expect(zone.dataset.dragging).toBe('true');
 
-      // Show overlay first
-      fireEvent.dragEnter(container, {
-        dataTransfer: { types: ['Files'] },
-      });
-      expect(screen.getByText(/drop your document here/i)).toBeInTheDocument();
-
-      // Create a mock DOCX file
       const file = new File(['test content'], 'test.docx', {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      // Drop the file — handleFile is async, so wrap in act to flush state updates
       await act(async () => {
-        fireEvent.drop(container, {
+        fireEvent.drop(zone, {
           dataTransfer: {
             files: [file],
             types: ['Files'],
@@ -71,20 +58,18 @@ describe('LoadDocument', () => {
         });
       });
 
-      // Overlay should be hidden
-      expect(screen.queryByText(/drop your document here/i)).not.toBeInTheDocument();
+      expect(zone.dataset.dragging).toBeUndefined();
       errorSpy.mockRestore();
     });
 
     it('prevents default browser behavior on drag over', () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
 
-      const container = screen.getByTestId('drop-zone');
-
+      const zone = screen.getByTestId('drop-zone');
       const dragOverEvent = new Event('dragover', { bubbles: true, cancelable: true });
       const preventDefaultSpy = vi.spyOn(dragOverEvent, 'preventDefault');
 
-      container.dispatchEvent(dragOverEvent);
+      zone.dispatchEvent(dragOverEvent);
 
       expect(preventDefaultSpy).toHaveBeenCalled();
     });
@@ -92,12 +77,8 @@ describe('LoadDocument', () => {
     it('prevents default browser behavior on drop', async () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
 
-      const container = screen.getByTestId('drop-zone');
-
-      // First trigger dragEnter to show the overlay
-      fireEvent.dragEnter(container, {
-        dataTransfer: { types: ['Files'] },
-      });
+      const zone = screen.getByTestId('drop-zone');
+      fireEvent.dragEnter(zone, { dataTransfer: { types: ['Files'] } });
 
       const dropEvent = new Event('drop', { bubbles: true, cancelable: true });
       Object.defineProperty(dropEvent, 'dataTransfer', {
@@ -106,7 +87,7 @@ describe('LoadDocument', () => {
       const preventDefaultSpy = vi.spyOn(dropEvent, 'preventDefault');
 
       await act(async () => {
-        container.dispatchEvent(dropEvent);
+        zone.dispatchEvent(dropEvent);
       });
 
       expect(preventDefaultSpy).toHaveBeenCalled();
@@ -167,20 +148,21 @@ describe('LoadDocument', () => {
   });
 
   describe('text convert', () => {
-    it('calls onConvert with null filename when converting pasted text', () => {
+    it('calls onConvert with a generated Untitled name when converting pasted text', async () => {
       render(<LoadDocument onConvert={mockOnConvert} />);
       const textarea = screen.getByPlaceholderText(/paste unstructured text/i);
       fireEvent.change(textarea, { target: { value: 'Hello world' } });
       fireEvent.click(screen.getByRole('button', { name: /convert text/i }));
-      expect(mockOnConvert).toHaveBeenCalledWith(
-        expect.anything(), // doc
-        null, // url
-        undefined, // html
-        null // filename
-      );
+
+      await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
+      const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
+      expect(doc.type).toBe('document');
+      expect(sourceUrl).toBeNull();
+      expect(html).toBeUndefined();
+      expect(name).toMatch(/^Untitled \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/);
     });
 
-    it('calls onConvert with source URL and HTML when pasting HTML content', () => {
+    it('calls onConvert with source URL and HTML when pasting HTML content', async () => {
       URL.createObjectURL = vi.fn(() => 'blob:http://localhost/fake-blob-url');
       render(<LoadDocument onConvert={mockOnConvert} />);
       const htmlContent = '<h1>Title</h1><p>Some content</p>';
@@ -188,12 +170,13 @@ describe('LoadDocument', () => {
       fireEvent.change(textarea, { target: { value: htmlContent } });
       fireEvent.click(screen.getByRole('button', { name: /convert text/i }));
 
-      const [doc, sourceUrl, html, filename] = mockOnConvert.mock.calls[0];
+      await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
+      const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
       expect(doc.type).toBe('document');
       expect(doc.children.length).toBeGreaterThan(0);
       expect(sourceUrl).toBe('blob:http://localhost/fake-blob-url');
       expect(html).toBe(htmlContent);
-      expect(filename).toBeNull();
+      expect(name).toMatch(/^Untitled \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/);
     });
   });
 });

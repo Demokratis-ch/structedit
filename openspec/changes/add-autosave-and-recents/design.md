@@ -22,7 +22,7 @@ The user has set the following constraints (see proposal):
 - The user can delete any saved entry from the picker.
 - The storage layer is bounded (≤ 20 entries) and self-pruning; the user is never asked to "manage storage" outside of explicit deletes.
 - The storage layer is forward-compatible: schema changes can land without losing data, and entries that fail to migrate stay visible and flagged rather than silently disappearing.
-- The storage layer fails loudly when it cannot save (quota, private mode), never silently.
+- The storage layer fails loudly when it cannot save (quota, storage policy), never silently.
 - Every behavioural change is introduced via a failing test first (red), then minimal code to pass (green), per [CLAUDE.md](CLAUDE.md) and the precedent in `add-per-node-formatting-mode`.
 
 **Non-Goals:**
@@ -136,14 +136,13 @@ We deliberately do NOT write on every keystroke, and we do NOT batch writes any 
 _Rejected: write on each history commit_ — history commits can lag a keystroke (e.g., during composition), making the cadence unpredictable.
 _Rejected: write on `idle`_ — too coarse, and `requestIdleCallback` is not universal.
 
-### D5. Private-mode handling and toast infrastructure
+### D5. Toast infrastructure
 
-Two pieces of plumbing supporting the eviction policy (D8) and the ephemeral-storage case:
-
-1. **Ephemeral storage** (private/incognito, browsers refusing to grant durable storage). Detected on app start by attempting to write and immediately read back a probe record. On failure, render a sticky banner above the upload view: "Autosave unavailable in private browsing." Editing still works; nothing is persisted; recents picker is hidden because the list is meaningless.
-2. **Toast** infrastructure for the one quota case where eviction cannot help (defined in D8). We have no toast infrastructure today. Add a minimal one in [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) — a portal-rendered `role="status"` div with a 5-second auto-dismiss and a close button. Keep it tiny: one component, one hook (`useToast`), no queue. Multiple toasts at once is out of scope.
+Toast infrastructure supports the one quota case where eviction cannot help (defined in D8). We have no toast infrastructure today. Add a minimal one in [src/components/ui/Toast.tsx](src/components/ui/Toast.tsx) — built on `@radix-ui/react-toast` for accessibility (aria-live, focus management, pause-on-hover) with a 5-second auto-dismiss, close button, and single-slot semantics. One component, one hook (`useToast`), no queue.
 
 The toast message itself is set by D8 (it includes the document size and free space when known). The toast is single-shot per session — repeated quota errors do not stack.
+
+_Out of scope: private/incognito browsing detection._ Modern browsers permit IndexedDB in private mode but wipe it on session end. There is no standard API to detect this reliably, and the heuristic alternatives (small quota threshold, `navigator.storage.persisted()`) trade false-negatives for false-positives. We accept the same trust model as any locally-cached web app: users who deliberately use private mode also accept that local state is ephemeral.
 
 ### D6. Schema versioning and incompatible entries
 
@@ -240,7 +239,7 @@ Per project standing instructions, each task in tasks.md follows: write failing 
 3. `useRecentDocuments` hook.
 4. `useAutosave` hook.
 5. Recents UI (list + delete dialog).
-6. Quota toast + private-mode banner.
+6. Quota toast.
 7. App-level wiring: id generation on upload, autosave subscription, object-URL revoke, drop the unsaved-changes confirm.
 
 ### D11. Tests against `fake-indexeddb`
@@ -276,9 +275,9 @@ The `handleConvert` callback in [App.tsx:13](src/App.tsx#L13) gains an `entryId`
 - **[Storage quotas vary by browser; a single huge DOCX can fail the first write]** → Mitigation: D8's measure-before-evict policy. If eviction can free enough space, it happens silently. If not — including the "this doc is too big to fit at all" case — nothing is deleted and the toast tells the user what's going on. The 20-entry cap bounds long-term growth.
 - **[`byteSize` is approximate]** → Mitigation: order-of-magnitude is sufficient for the budget check. If the estimate underclaims and a post-eviction retry still fails, D8 step 5 catches the case and stops further eviction.
 - **[Schema drift]** → Mitigation: `schemaVersion` + migration chain from day 1; incompatible entries are flagged, not deleted.
-- **[Private/incognito surprises]** → Mitigation: detection probe + banner. Editing still works; nothing is lost because nothing was ever saved.
+- **[Private/incognito surprises]** → Accepted, not mitigated. Modern browsers keep IDB working in private mode but wipe everything when the tab closes; there is no standard API to detect this reliably. Users in private mode get the same UX as normal mode within the session and lose their work on close. See D5 for the reasoning.
 - **[`URL.createObjectURL` allocates memory per call]** → Mitigation: D9's revoke-on-switch rule. Tested explicitly.
-- **[The picker reveals work to anyone on the same browser profile]** → Mitigation: out of scope here; same trust model as any locally-cached web app. Users who share a profile use private mode (and accept no autosave).
+- **[The picker reveals work to anyone on the same browser profile]** → Mitigation: out of scope here; same trust model as any locally-cached web app.
 - **[`document.execCommand` and other browser APIs in the editor]** → Unchanged by this work; called out only because the editor's existing reliance on browser quirks is independent of the storage layer.
 
 ## Migration Plan

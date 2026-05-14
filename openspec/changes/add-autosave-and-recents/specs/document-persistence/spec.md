@@ -23,10 +23,11 @@ The system SHALL persist the active document tree to IndexedDB whenever it chang
 
 For each saved entry the system SHALL persist the original source bytes (the uploaded DOCX/HTML or the pasted text) together with their MIME type and original filename. On resume, the system SHALL rebuild the side-by-side source preview from those bytes — the user SHALL NOT need to re-attach the original file.
 
-#### Scenario: DOCX upload persists its bytes
+#### Scenario: DOCX upload persists the renderable HTML produced by mammoth
 
 - **WHEN** the user uploads a `.docx` file and an entry is created
-- **THEN** the stored entry's `source.bytes` is an `ArrayBuffer` containing the file's bytes, `source.mime` is the DOCX MIME type, `source.kind` is `'docx'`, and `source.originalFilename` is the uploaded filename
+- **THEN** the stored entry's `source.bytes` is the converted HTML string produced by mammoth, `source.mime` is `'text/html'`, `source.kind` is `'docx'` (origin tracking), and `source.originalFilename` is the uploaded filename
+- **NOTE** The original DOCX bytes are not persisted because no browser renders `application/vnd.openxmlformats-officedocument.wordprocessingml.document` inline — a `blob:` URL with that MIME would be offered for download instead of showing the preview on resume. The converted HTML is exactly what the preview pane renders on fresh upload, so the resumed preview is bit-identical.
 
 #### Scenario: Pasted text persists as text
 
@@ -190,20 +191,6 @@ The toast message SHALL include the document size and the free-space estimate wh
 - **GIVEN** a browser that does not expose `navigator.storage.estimate()`
 - **WHEN** an autosave write throws `QuotaExceededError`
 - **THEN** no eviction is attempted (the budget cannot be computed), a single toast is shown with the generic fallback message, and the in-memory tree is unchanged
-
-### Requirement: Ephemeral storage is detected and surfaced
-
-On app start the system SHALL probe IndexedDB by writing and reading back a small record. When the probe fails (e.g. private browsing, storage policy), the system SHALL render a sticky banner above the upload view: "Autosave unavailable in private browsing." The picker SHALL be hidden in this mode, and entry creation on upload SHALL be skipped (no writes are attempted).
-
-#### Scenario: Private browsing shows the banner and hides the picker
-
-- **WHEN** the user opens the app in a context where IndexedDB writes do not persist
-- **THEN** the upload view renders the private-mode banner and no recents picker
-
-#### Scenario: Editing still works in private mode
-
-- **WHEN** the user uploads a file in private mode
-- **THEN** the editor opens and the in-memory tree is fully editable; no IndexedDB writes are attempted; closing the tab loses the work as today
 
 ### Requirement: Object URLs are revoked when the active document changes
 
