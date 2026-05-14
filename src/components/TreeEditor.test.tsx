@@ -162,6 +162,52 @@ describe('TreeEditor keyboard shortcuts', () => {
       expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
 
+    test('M key merges contiguous same-type siblings', () => {
+      renderTreeEditor();
+      // Select both headings: click first, shift-click second to extend the range.
+      const firstHeading = getTreePane().getByText('First Heading');
+      fireEvent.click(firstHeading);
+      fireEvent.click(getTreePane().getByText('Second Heading'), { shiftKey: true });
+
+      const container = getContainer();
+      fireEvent.keyDown(container, { key: 'm' });
+
+      // The two heading nodes should be merged: only one heading text remains, joined with a space.
+      expect(getTreePane().getByText('First Heading Second Heading')).toBeInTheDocument();
+      expect(getTreePane().queryByText('Second Heading')).toBeNull();
+      // Floating toolbar's selection count should collapse to the survivor.
+      expect(screen.queryByText(/2 selected/)).toBeNull();
+    });
+
+    test('M key is a no-op when the selection cannot be merged', () => {
+      renderTreeEditor();
+      // Only one node selected — merge shouldn't fire.
+      selectFirstNode();
+      const container = getContainer();
+      fireEvent.keyDown(container, { key: 'm' });
+
+      // Both headings still present, unchanged.
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
+    });
+
+    test('Cmd+Z restores the pre-merge state', () => {
+      renderTreeEditor();
+      const firstHeading = getTreePane().getByText('First Heading');
+      fireEvent.click(firstHeading);
+      fireEvent.click(getTreePane().getByText('Second Heading'), { shiftKey: true });
+
+      const container = getContainer();
+      fireEvent.keyDown(container, { key: 'm' });
+      // Sanity: merge happened.
+      expect(getTreePane().getByText('First Heading Second Heading')).toBeInTheDocument();
+
+      // Undo: both originals should reappear.
+      fireEvent.keyDown(container, { key: 'z', metaKey: true });
+      expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
+      expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
+    });
+
     test('type shortcuts do not fire while in edit mode', async () => {
       vi.useFakeTimers();
       renderTreeEditor();

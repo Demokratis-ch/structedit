@@ -321,3 +321,75 @@ describe('FloatingToolbar — move to top/bottom buttons', () => {
     }
   });
 });
+
+describe('FloatingToolbar — merge button', () => {
+  test('hidden when selectedCount < 2', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="content"
+        canMerge={false}
+        onMerge={vi.fn()}
+      />
+    );
+    expect(screen.queryByTestId('merge-selected')).toBeNull();
+  });
+
+  test('hidden while editing', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={3}
+        selectedNodeType="content"
+        isEditing={true}
+        canMerge={true}
+        onMerge={vi.fn()}
+      />
+    );
+    expect(screen.queryByTestId('merge-selected')).toBeNull();
+  });
+
+  test('disabled when canMerge is false', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={3}
+        selectedNodeType="content"
+        canMerge={false}
+        onMerge={vi.fn()}
+      />
+    );
+    const btn = screen.getByTestId('merge-selected') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+  });
+
+  test('enabled when canMerge is true', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={3}
+        selectedNodeType="content"
+        canMerge={true}
+        onMerge={vi.fn()}
+      />
+    );
+    const btn = screen.getByTestId('merge-selected') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+  });
+
+  test('clicking the enabled merge button calls onMerge', () => {
+    const onMerge = vi.fn();
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={3}
+        selectedNodeType="content"
+        canMerge={true}
+        onMerge={onMerge}
+      />
+    );
+    fireEvent.click(screen.getByTestId('merge-selected'));
+    expect(onMerge).toHaveBeenCalledTimes(1);
+  });
+});

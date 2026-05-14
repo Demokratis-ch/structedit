@@ -24,6 +24,146 @@ import {
   updateNodeAtPath,
 } from '../utils/tree-utils';
 
+const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
+  'content',
+  'footnote',
+  'heading',
+  'list',
+  'list_item',
+]);
+
+// Most → least permissive. Used to pick the resulting format when merging.
+const FORMAT_RANK: Record<NodeFormat, number> = {
+  TEXT: 0,
+  NEWLINES: 1,
+  MARKDOWN_MINIMAL: 2,
+  MARKDOWN_INLINE: 3,
+  MARKDOWN: 4,
+};
+
+const isStrictPathPrefix = (a: NodePath, b: NodePath): boolean => {
+  if (a.length >= b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
+/**
+ * Resolve the canonical merge targets for the given ids, sorted in document
+ * order. Returns null when the selection doesn't qualify.
+ *
+ * Filters out ids whose ancestor is also selected ("outermost wins"). This
+ * matters for shift-click selections over containers like list_items: the
+ * range typically picks up nested content children too, which would otherwise
+ * mix node types and block the merge. The descendants are not lost — they
+ * stay inside the merged container.
+ */
+export const resolveMergeTargets = (
+  ids: readonly string[],
+  doc: ContainerDocumentNode,
+  nodeIndex: Map<string, NodePath>
+): NodePath[] | null => {
+  if (ids.length < 2) return null;
+
+  const paths: NodePath[] = [];
+  for (const id of ids) {
+    const path = nodeIndex.get(id);
+    if (!path || path.length === 0) return null;
+    paths.push(path);
+  }
+
+  const outermost = paths.filter(
+    (p) => !paths.some((other) => other !== p && isStrictPathPrefix(other, p))
+  );
+  if (outermost.length < 2) return null;
+
+  const parentKey = outermost[0].slice(0, -1).join('.');
+  for (const p of outermost) {
+    if (p.slice(0, -1).join('.') !== parentKey) return null;
+  }
+
+  const sorted = [...outermost].sort((a, b) => a[a.length - 1] - b[b.length - 1]);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i][sorted[i].length - 1] !== sorted[i - 1][sorted[i - 1].length - 1] + 1) {
+      return null;
+    }
+  }
+
+  const firstNode = getNodeAtPath(doc, sorted[0]);
+  if (!firstNode || !MERGEABLE_TYPES.has(firstNode.type)) return null;
+  for (const p of sorted) {
+    const n = getNodeAtPath(doc, p);
+    if (!n || n.type !== firstNode.type) return null;
+  }
+
+  return sorted;
+};
+
+/**
+ * Check whether a merge of the given ids is valid. See `resolveMergeTargets`
+ * for the full set of rules.
+ */
+export const canMergeIdsInDoc = (
+  ids: readonly string[],
+  doc: ContainerDocumentNode,
+  nodeIndex: Map<string, NodePath>
+): boolean => resolveMergeTargets(ids, doc, nodeIndex) !== null;
+
+/** Per-language join. Empty strings on either side don't introduce stray separators. */
+const mergeContentsFromNodes = (
+  nodes: ReadonlyArray<HeadingDocumentNode | ContentDocumentNode | LeafDocumentNode>,
+  separator: string
+): Partial<Record<Language, string>> => {
+  const languages = new Set<Language>();
+  for (const n of nodes) {
+    for (const k of Object.keys(n.contents)) {
+      languages.add(k as Language);
+    }
+  }
+  const out: Partial<Record<Language, string>> = {};
+  for (const lang of languages) {
+    const parts: string[] = [];
+    for (const n of nodes) {
+      const value = n.contents[lang];
+      if (value && value.length > 0) parts.push(value);
+    }
+    if (parts.length > 0) out[lang] = parts.join(separator);
+  }
+  return out;
+};
+
+/**
+ * Pick the merged format: max by rank among sources. For content/footnote we
+ * floor to NEWLINES because the join inserts literal `\n`s; for heading we
+ * never floor (whitespace separator) so TEXT stays valid.
+ */
+const mergeFormatOf = (
+  formats: readonly NodeFormat[],
+  type: ContentBearingNodeType
+): NodeFormat => {
+  let best: NodeFormat = formats[0];
+  for (const f of formats) {
+    if (FORMAT_RANK[f] > FORMAT_RANK[best]) best = f;
+  }
+  if ((type === 'content' || type === 'footnote') && best === 'TEXT') {
+    best = 'NEWLINES';
+  }
+  // Defense against pre-existing data corruption: if a source carried a format
+  // not allowed for its type, fall back to the default rather than propagate.
+  return canHaveFormat(type, best) ? best : DEFAULT_FORMAT[type];
+};
+
+/**
+ * The paragraph break required by a given format for content/footnote merges.
+ * Markdown collapses a single `\n` to a space at render time, so paragraph
+ * boundaries need a blank line. Plain NEWLINES keeps a single `\n`.
+ */
+const paragraphSeparatorFor = (format: NodeFormat): string => {
+  if (format === 'MARKDOWN' || format === 'MARKDOWN_INLINE') return '\n\n';
+  return '\n';
+};
+
 /**
  * Decide which format the converted node should carry: keep the previous one if it's
  * still allowed for the new node type, otherwise fall back to the type's default.
@@ -1047,6 +1187,99 @@ export const useTreeOperations = ({
     [document, nodeIndex]
   );
 
+  /**
+   * Curried form of `canMergeIdsInDoc` over the current document/index. Useful
+   * for driving UI affordances (e.g. disabling the merge button).
+   */
+  const canMergeIds = useCallback(
+    (ids: readonly string[]) => canMergeIdsInDoc(ids, document, nodeIndex),
+    [document, nodeIndex]
+  );
+
+  /**
+   * Merge a contiguous run of same-parent, same-type siblings into a single
+   * node. The first node keeps its id and number; trailing siblings are
+   * removed. Content-bearing nodes have their text joined per language
+   * (`"\n"` for content/footnote, `" "` for heading) and their children
+   * appended in source order. Container nodes (list, list_item) just
+   * concatenate their children.
+   *
+   * No-op when the selection doesn't qualify — see `resolveMergeTargets`.
+   */
+  const mergeNodes = useCallback(
+    (ids: readonly string[]) => {
+      const paths = resolveMergeTargets(ids, document, nodeIndex);
+      if (!paths) return;
+
+      const nodes = paths.map((p) => getNodeAtPath(document, p)!) as DocumentNode[];
+      const firstPath = paths[0];
+      const firstNode = nodes[0];
+
+      let mergedNode: DocumentNode;
+
+      if (firstNode.type === 'heading') {
+        const headings = nodes as HeadingDocumentNode[];
+        mergedNode = {
+          id: firstNode.id,
+          number: firstNode.number,
+          type: 'heading',
+          format: mergeFormatOf(
+            headings.map((n) => n.format),
+            'heading'
+          ),
+          contents: mergeContentsFromNodes(headings, ' '),
+          children: headings.flatMap((n) => n.children),
+        };
+      } else if (firstNode.type === 'content') {
+        const contents = nodes as ContentDocumentNode[];
+        const format = mergeFormatOf(
+          contents.map((n) => n.format),
+          'content'
+        );
+        mergedNode = {
+          id: firstNode.id,
+          number: firstNode.number,
+          type: 'content',
+          format,
+          contents: mergeContentsFromNodes(contents, paragraphSeparatorFor(format)),
+          children: contents.flatMap((n) => n.children),
+        };
+      } else if (firstNode.type === 'footnote') {
+        const footnotes = nodes as LeafDocumentNode[];
+        const format = mergeFormatOf(
+          footnotes.map((n) => n.format),
+          'footnote'
+        );
+        mergedNode = {
+          id: firstNode.id,
+          number: firstNode.number,
+          type: 'footnote',
+          format,
+          contents: mergeContentsFromNodes(footnotes, paragraphSeparatorFor(format)),
+        };
+      } else if (firstNode.type === 'list' || firstNode.type === 'list_item') {
+        const containers = nodes as ContainerDocumentNode[];
+        mergedNode = {
+          id: firstNode.id,
+          number: firstNode.number,
+          type: firstNode.type,
+          children: containers.flatMap((n) => n.children),
+        };
+      } else {
+        // Unreachable: canMergeNodes already rejected non-mergeable types.
+        return;
+      }
+
+      let newDoc = updateNodeAtPath(document, firstPath, () => mergedNode);
+      // Remove trailing sources in reverse index order so paths stay valid.
+      for (let i = paths.length - 1; i >= 1; i--) {
+        newDoc = removeNodeAtPath(newDoc, paths[i]);
+      }
+      commit(newDoc);
+    },
+    [document, nodeIndex, commit]
+  );
+
   return {
     addNodeAfter,
     addNodeBefore,
@@ -1057,6 +1290,8 @@ export const useTreeOperations = ({
     outdentNodes,
     changeNodeTypes,
     changeNodeFormat,
+    mergeNodes,
+    canMergeIds,
     moveNodeById,
     moveNodesToBoundary,
     getReceivingParentId,

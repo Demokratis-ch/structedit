@@ -85,6 +85,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     deleteSelected,
     moveSelectedToTop,
     moveSelectedToBottom,
+    mergeSelected,
+    canMergeIds,
     undo,
     redo,
     lastSelectedId,
@@ -138,6 +140,14 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     }
     return null;
   }, [selectedCount, selectedIds, flattenedNodes]);
+
+  // True when the current selection qualifies for the merge operation.
+  // canMergeIds is order-independent (it sorts indices internally for the
+  // contiguity check), so we don't need to pre-sort the ids here.
+  const canMergeSelected = useMemo(() => {
+    if (selectedIds.size < 2) return false;
+    return canMergeIds([...selectedIds]);
+  }, [selectedIds, canMergeIds]);
 
   // Format of the single selected content-bearing node, if any.
   const selectedNodeFormat = useMemo<NodeFormat | undefined>(() => {
@@ -452,6 +462,17 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       e.preventDefault();
       clearSelection();
     } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'm') {
+        // Swallow `m` whether or not the merge runs: prevents accidental
+        // fallthrough into the type-change shortcut map (where it has no entry)
+        // and reserves the key for this operation.
+        if (canMergeSelected) {
+          e.preventDefault();
+          mergeSelected();
+        }
+        return;
+      }
       const shortcutMap: Record<string, string> = {
         h: 'heading',
         t: 'content',
@@ -461,7 +482,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         a: 'abc',
         f: 'footnote',
       };
-      const toolbarType = shortcutMap[e.key.toLowerCase()];
+      const toolbarType = shortcutMap[key];
       if (toolbarType) {
         e.preventDefault();
         handleBulkUpdateType(toolbarType);
@@ -629,6 +650,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         onClearSelection={clearSelection}
         onMoveSelectedToTop={moveSelectedToTop}
         onMoveSelectedToBottom={moveSelectedToBottom}
+        canMerge={canMergeSelected}
+        onMerge={mergeSelected}
         inlineMarksTarget={inlineMarksDerived.target}
         inlineMarksFormat={inlineMarksDerived.format}
         markActiveState={inlineMarksDerived.active}
