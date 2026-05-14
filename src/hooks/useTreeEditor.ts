@@ -50,6 +50,8 @@ export const useTreeEditor = (
     outdentNodes,
     changeNodeTypes,
     changeNodeFormat,
+    mergeNodes,
+    canMergeIds,
     moveNodeById,
     moveNodesToBoundary,
     getReceivingParentId,
@@ -301,6 +303,33 @@ export const useTreeEditor = (
     outdentNodes(sortedIds);
   }, [store, nodeIdToFlatIndex, outdentNodes]);
 
+  /**
+   * Merge currently selected nodes into one. Caller is expected to gate on
+   * `canMergeSelected` for UI feedback; the underlying op no-ops on invalid
+   * selections too. On success, narrow the selection to the surviving merged
+   * node so the toolbar count and follow-up actions are coherent.
+   */
+  const mergeSelected = useCallback(() => {
+    const selectedIds = store.getSelectedIds();
+    if (selectedIds.size < 2) return;
+
+    const sortedIds = [...selectedIds]
+      .map((id) => ({ id, index: nodeIdToFlatIndex.get(id) ?? -1 }))
+      .filter((item) => item.index >= 0)
+      .sort((a, b) => a.index - b.index)
+      .map((item) => item.id);
+
+    if (sortedIds.length < 2) return;
+    if (!canMergeIds(sortedIds)) return;
+
+    mergeNodes(sortedIds);
+    // The merged node retains the first source's id; the rest are gone.
+    const survivorId = sortedIds[0];
+    store.setSelection(new Set([survivorId]));
+    lastSelectedId.current = survivorId;
+    anchorId.current = survivorId;
+  }, [store, nodeIdToFlatIndex, mergeNodes, canMergeIds]);
+
   return {
     // Document state
     document,
@@ -335,6 +364,8 @@ export const useTreeEditor = (
     outdentSelected,
     moveSelectedToTop,
     moveSelectedToBottom,
+    mergeSelected,
+    canMergeIds,
 
     // History
     undo,

@@ -4531,4 +4531,668 @@ describe('useTreeOperations', () => {
       expect(h1.children[0].id).toBe('p1');
     });
   });
+
+  describe('mergeNodes', () => {
+    // Doc with two adjacent content nodes (p1, p1b) sharing parent h1, plus a heading sibling.
+    const createMergeDoc = (): ContainerDocumentNode => ({
+      id: 'root',
+      number: null,
+      type: 'document',
+      children: [
+        {
+          id: 'h1',
+          number: '1',
+          type: 'heading',
+          format: 'TEXT',
+          contents: { de: 'Heading' },
+          children: [
+            {
+              id: 'p1',
+              number: 'a',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'Hello' },
+              children: [],
+            },
+            {
+              id: 'p1b',
+              number: 'b',
+              type: 'content',
+              format: 'TEXT',
+              contents: { de: 'world' },
+              children: [],
+            },
+            {
+              id: 'h2',
+              number: '1.1',
+              type: 'heading',
+              format: 'TEXT',
+              contents: { de: 'Sub' },
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    test('does nothing when fewer than two ids are passed', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      act(() => {
+        result.current.mergeNodes(['p1']);
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when ids span different parents', () => {
+      const { result } = renderTreeOperations();
+      // p1 is under h1, h1b is at root level.
+      act(() => {
+        result.current.mergeNodes(['p1', 'h1b']);
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when selected siblings are non-contiguous', () => {
+      // Build doc with three content siblings under h1 (p1, pmid, p1b) so we can pick non-adjacent ones.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'h1',
+            number: null,
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'H' },
+            children: [
+              {
+                id: 'p1',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'a' },
+                children: [],
+              },
+              {
+                id: 'pmid',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'b' },
+                children: [],
+              },
+              {
+                id: 'p1b',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'c' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['p1', 'p1b']);
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when ids have different node types', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      // p1b (content) and h2 (heading) are adjacent siblings of different types.
+      act(() => {
+        result.current.mergeNodes(['p1b', 'h2']);
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('does nothing for image nodes', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'img1',
+            number: null,
+            type: 'image',
+            format: 'TEXT',
+            contents: { de: 'a' },
+          },
+          {
+            id: 'img2',
+            number: null,
+            type: 'image',
+            format: 'TEXT',
+            contents: { de: 'b' },
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['img1', 'img2']);
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('merging two content nodes joins contents with newlines, keeps first id/number', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      act(() => {
+        result.current.mergeNodes(['p1', 'p1b']);
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      // p1b should be removed; p1 should now hold the joined content.
+      expect(h1.children.map((c) => c.id)).toEqual(['p1', 'h2']);
+      const merged = h1.children[0] as ContentDocumentNode;
+      expect(merged.number).toBe('a');
+      expect(merged.contents.de).toBe('Hello\nworld');
+    });
+
+    test('merging content nodes preserves per-language text — empty languages are skipped', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'pA',
+            number: null,
+            type: 'content',
+            format: 'NEWLINES',
+            contents: { de: 'D-A', en: 'E-A' },
+            children: [],
+          },
+          {
+            id: 'pB',
+            number: null,
+            type: 'content',
+            format: 'NEWLINES',
+            contents: { de: '', en: 'E-B', fr: 'F-B' },
+            children: [],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['pA', 'pB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as ContentDocumentNode;
+      // de: pB is empty so result is just 'D-A' (no leading/trailing newline).
+      expect(merged.contents.de).toBe('D-A');
+      expect(merged.contents.en).toBe('E-A\nE-B');
+      // fr only exists on pB.
+      expect(merged.contents.fr).toBe('F-B');
+    });
+
+    test('merging TEXT+TEXT content nodes floors the result format to NEWLINES', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      act(() => {
+        result.current.mergeNodes(['p1', 'p1b']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      const merged = h1.children[0] as ContentDocumentNode;
+      expect(merged.format).toBe('NEWLINES');
+    });
+
+    test('merging NEWLINES+MARKDOWN content nodes uses MARKDOWN and joins with a blank line', () => {
+      // A single `\n` renders as a space in markdown, so paragraph breaks need
+      // `\n\n` — otherwise the merge would visually concatenate the prose.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'pA',
+            number: null,
+            type: 'content',
+            format: 'NEWLINES',
+            contents: { de: 'a' },
+            children: [],
+          },
+          {
+            id: 'pB',
+            number: null,
+            type: 'content',
+            format: 'MARKDOWN',
+            contents: { de: 'b' },
+            children: [],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['pA', 'pB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as ContentDocumentNode;
+      expect(merged.format).toBe('MARKDOWN');
+      expect(merged.contents.de).toBe('a\n\nb');
+    });
+
+    test('merging content nodes concatenates footnote children in source order', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'pA',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [
+              {
+                id: 'fnA1',
+                number: 'i',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'fnA1' },
+              },
+            ],
+          },
+          {
+            id: 'pB',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [
+              {
+                id: 'fnB1',
+                number: 'ii',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'fnB1' },
+              },
+              {
+                id: 'fnB2',
+                number: 'iii',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'fnB2' },
+              },
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['pA', 'pB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as ContentDocumentNode;
+      expect(merged.children.map((c) => c.id)).toEqual(['fnA1', 'fnB1', 'fnB2']);
+    });
+
+    test('merging two heading nodes joins contents with a single space', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'hA',
+            number: '1',
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'Foo' },
+            children: [],
+          },
+          {
+            id: 'hB',
+            number: '2',
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'Bar' },
+            children: [],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['hA', 'hB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as HeadingDocumentNode;
+      expect(merged.id).toBe('hA');
+      expect(merged.number).toBe('1');
+      expect(merged.contents.de).toBe('Foo Bar');
+    });
+
+    test('merging heading nodes does not promote format above its allowed set (TEXT stays TEXT)', () => {
+      // Headings join with whitespace, so there's no need to floor to NEWLINES — TEXT must remain valid.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'hA',
+            number: null,
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [],
+          },
+          {
+            id: 'hB',
+            number: null,
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['hA', 'hB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as HeadingDocumentNode;
+      expect(merged.format).toBe('TEXT');
+    });
+
+    test('merging heading nodes appends children in source order', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'hA',
+            number: null,
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [
+              {
+                id: 'pA1',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'aa' },
+                children: [],
+              },
+            ],
+          },
+          {
+            id: 'hB',
+            number: null,
+            type: 'heading',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [
+              {
+                id: 'pB1',
+                number: null,
+                type: 'content',
+                format: 'TEXT',
+                contents: { de: 'bb' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['hA', 'hB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as HeadingDocumentNode;
+      expect(merged.children.map((c) => c.id)).toEqual(['pA1', 'pB1']);
+    });
+
+    test('merging two footnote nodes joins contents with newlines and floors format to NEWLINES', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'pHolder',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: '' },
+            children: [
+              {
+                id: 'fnA',
+                number: 'i',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'first' },
+              },
+              {
+                id: 'fnB',
+                number: 'ii',
+                type: 'footnote',
+                format: 'TEXT',
+                contents: { de: 'second' },
+              },
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['fnA', 'fnB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const holder = newDoc.children[0] as ContentDocumentNode;
+      expect(holder.children.map((c) => c.id)).toEqual(['fnA']);
+      const merged = holder.children[0] as LeafDocumentNode;
+      expect(merged.contents.de).toBe('first\nsecond');
+      expect(merged.format).toBe('NEWLINES');
+    });
+
+    test('merging two list_items concatenates their children', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              createListItem('liA', '1.', 'A'),
+              createListItem('liB', '2.', 'B'),
+              createListItem('liC', '3.', 'C'),
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['liA', 'liB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list = newDoc.children[0] as ContainerDocumentNode;
+      // liB removed; liA absorbed liB's child content.
+      expect(list.children.map((c) => c.id)).toEqual(['liA', 'liC']);
+      const merged = list.children[0] as ContainerDocumentNode;
+      expect(merged.children.map((c) => c.id)).toEqual(['liA-content', 'liB-content']);
+    });
+
+    test('merging two lists concatenates list_item children', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'listA',
+            number: null,
+            type: 'list',
+            children: [createListItem('liA1', '1.', 'A1')],
+          },
+          {
+            id: 'listB',
+            number: null,
+            type: 'list',
+            children: [createListItem('liB1', '1.', 'B1'), createListItem('liB2', '2.', 'B2')],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['listA', 'listB']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['listA']);
+      const merged = newDoc.children[0] as ContainerDocumentNode;
+      expect(merged.children.map((c) => c.id)).toEqual(['liA1', 'liB1', 'liB2']);
+    });
+
+    test('commits exactly once on success', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      act(() => {
+        result.current.mergeNodes(['p1', 'p1b']);
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+    });
+
+    test('merges three contiguous content nodes in flat order', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'pA',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'A' },
+            children: [],
+          },
+          {
+            id: 'pB',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'B' },
+            children: [],
+          },
+          {
+            id: 'pC',
+            number: null,
+            type: 'content',
+            format: 'TEXT',
+            contents: { de: 'C' },
+            children: [],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.mergeNodes(['pA', 'pB', 'pC']);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['pA']);
+      const merged = newDoc.children[0] as ContentDocumentNode;
+      expect(merged.contents.de).toBe('A\nB\nC');
+    });
+
+    test('returns canMergeIds(true) for a valid 2-node selection and false otherwise', () => {
+      const { result } = renderTreeOperations(createMergeDoc());
+      expect(result.current.canMergeIds(['p1', 'p1b'])).toBe(true);
+      // h2 is the sibling after p1b — same parent, but different type.
+      expect(result.current.canMergeIds(['p1b', 'h2'])).toBe(false);
+      // Single id — too few.
+      expect(result.current.canMergeIds(['p1'])).toBe(false);
+    });
+
+    test('tolerates descendants in the selection: merges list_items even when their content children are also selected', () => {
+      // Shift-click over list_items typically picks up nested content children too.
+      // Those children shouldn't block the merge — they come along inside the merged container.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [
+              createListItem('liA', '1.', 'A'),
+              createListItem('liB', '2.', 'B'),
+              createListItem('liC', '3.', 'C'),
+            ],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      // Mirror a shift-click range over three list_items: rows are
+      // [liA, liA-content, liB, liB-content, liC, liC-content].
+      const selection = ['liA', 'liA-content', 'liB', 'liB-content', 'liC', 'liC-content'];
+      expect(result.current.canMergeIds(selection)).toBe(true);
+      act(() => {
+        result.current.mergeNodes(selection);
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const list = newDoc.children[0] as ContainerDocumentNode;
+      // liB and liC are gone; liA absorbed their content children in order.
+      expect(list.children.map((c) => c.id)).toEqual(['liA']);
+      const merged = list.children[0] as ContainerDocumentNode;
+      expect(merged.children.map((c) => c.id)).toEqual([
+        'liA-content',
+        'liB-content',
+        'liC-content',
+      ]);
+    });
+
+    test('rejects when the selection has no qualifying ancestors (only descendants of different parents)', () => {
+      // Selecting only content children of two different list_items should still fail —
+      // those children have different parents and aren't siblings to each other.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [createListItem('liA', '1.', 'A'), createListItem('liB', '2.', 'B')],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      expect(result.current.canMergeIds(['liA-content', 'liB-content'])).toBe(false);
+    });
+
+    test('rejects when ancestor and lone descendant collapse to a single id', () => {
+      // {li, li-content} → filter drops li-content → only li remains → too few to merge.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'document',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'list',
+            children: [createListItem('li1', '1.', 'A')],
+          },
+        ],
+      };
+      const { result } = renderTreeOperations(doc);
+      expect(result.current.canMergeIds(['li1', 'li1-content'])).toBe(false);
+    });
+  });
 });

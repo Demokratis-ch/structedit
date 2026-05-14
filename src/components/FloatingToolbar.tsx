@@ -7,6 +7,7 @@ import {
   Italic,
   List,
   ListOrdered,
+  Merge,
   SortAsc,
   Strikethrough,
   Subscript,
@@ -36,6 +37,8 @@ interface FloatingToolbarProps {
   onClearSelection: () => void;
   onMoveSelectedToTop?: () => void;
   onMoveSelectedToBottom?: () => void;
+  canMerge?: boolean;
+  onMerge?: () => void;
   inlineMarksTarget?: InlineMarksTarget | null;
   inlineMarksFormat?: NodeFormat;
   markActiveState?: Partial<Record<InlineMark, boolean>>;
@@ -82,6 +85,8 @@ export function FloatingToolbar({
   onClearSelection,
   onMoveSelectedToTop,
   onMoveSelectedToBottom,
+  canMerge = false,
+  onMerge,
   inlineMarksTarget,
   inlineMarksFormat,
   markActiveState,
@@ -246,6 +251,28 @@ export function FloatingToolbar({
       >
         <ArrowDownToLine size={18} />
       </button>
+
+      {selectedCount >= 2 && !isEditing && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <button
+            type="button"
+            data-testid="merge-selected"
+            aria-label="Merge selected"
+            onClick={onMerge}
+            disabled={!canMerge}
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title={
+              canMerge
+                ? 'Merge selected (M)'
+                : 'Merge selected — requires 2+ contiguous siblings of the same type'
+            }
+          >
+            <Merge size={18} />
+          </button>
+        </>
+      )}
+
       <div className="w-px h-6 bg-gray-700 mx-1" />
       <button
         onClick={onDelete}
