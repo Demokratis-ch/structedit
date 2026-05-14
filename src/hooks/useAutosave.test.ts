@@ -177,17 +177,19 @@ describe('useAutosave', () => {
     const input = makeInput();
     await createEntry(input);
 
+    // Tiny available (10 bytes) and no other entries to evict — any non-trivial
+    // pending tree blows the budget. Keeping the tree small avoids the
+    // 100 MB-string allocation that was making CI flake on the wait window.
     __setStorageEstimatorForTesting(async () => ({
-      available: 100,
+      available: 10,
       totalQuota: 60_000_000,
     }));
     __setWriteFailHookForTesting(() => new DOMException('quota', 'QuotaExceededError'));
 
-    // A "huge" pending tree means the projected byteSize blows past available + evictable.
-    const newTree = makeTree('e'.repeat(100_000_000));
+    const newTree = makeTree('a moderately sized but cheap string');
     renderHook(() => useAutosave(input.id, newTree));
 
-    await wait(DEBOUNCE_MS + 200);
+    await wait(DEBOUNCE_MS + 500);
 
     expect(showToastSpy).toHaveBeenCalledTimes(1);
     const msg = showToastSpy.mock.calls[0][0] as string;
