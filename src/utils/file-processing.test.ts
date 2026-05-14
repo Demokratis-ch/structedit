@@ -80,6 +80,34 @@ describe('file-processing', () => {
       // Should not throw, should produce a document
       expect(result.doc.type).toBe('document');
     });
+
+    it('generates an Untitled (timestamp) name and a 40+-char subtitle for pasted text', () => {
+      const fixedNow = new Date(2026, 4, 12, 18, 4, 0); // 2026-05-12 18:04 local time
+      vi.useFakeTimers();
+      vi.setSystemTime(fixedNow);
+
+      const source = 'Sehr geehrte Damen und Herren, hiermit teile ich Ihnen mit ...';
+      const result = processTextInput(source);
+
+      expect(result.name).toBe('Untitled (2026-05-12 18:04)');
+      // Subtitle: first 40 chars (rounded to next word boundary) + " ..."
+      expect(result.subtitle).toBe('Sehr geehrte Damen und Herren, hiermit teile ...');
+
+      vi.useRealTimers();
+    });
+
+    it('subtitle is the trimmed source when it is short enough', () => {
+      const result = processTextInput('Short.');
+      expect(result.subtitle).toBe('Short.');
+    });
+
+    it('source.kind is "pasted-text" with text/plain mime and null filename', () => {
+      const result = processTextInput('Some plain text');
+      expect(result.source.kind).toBe('pasted-text');
+      expect(result.source.mime).toBe('text/plain');
+      expect(result.source.originalFilename).toBeNull();
+      expect(result.source.bytes).toBe('Some plain text');
+    });
   });
 
   describe('processHtmlFile', () => {
@@ -151,6 +179,28 @@ describe('file-processing', () => {
       expect(result.doc.children.length).toBeGreaterThan(0);
       expect(result.sourceUrl).toBe('blob:fake-url');
       expect(result.html).toBe(generatedHtml);
+    });
+
+    it('stores the converted HTML (not the original DOCX bytes) so resumed previews render inline', async () => {
+      // Background: storing the raw DOCX ArrayBuffer with the DOCX MIME caused
+      // Firefox to offer the blob URL for download instead of rendering it
+      // inline when an entry was resumed. The converted HTML *is* what the
+      // preview pane shows on fresh upload, so persist the same form.
+      const generatedHtml = '<h1>Title</h1><p>Body</p>';
+      vi.mocked(mammoth.convertToHtml).mockResolvedValue({
+        value: generatedHtml,
+        messages: [],
+      });
+      const file = new File(['fake-docx-bytes'], 'test.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      const result = await processDocxFile(file);
+
+      expect(result.source.kind).toBe('docx');
+      expect(result.source.mime).toBe('text/html');
+      expect(result.source.bytes).toBe(generatedHtml);
+      expect(result.source.originalFilename).toBe('test.docx');
     });
 
     it('logs warnings from mammoth conversion', async () => {

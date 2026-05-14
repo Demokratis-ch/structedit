@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useAutosave } from '../hooks/useAutosave';
 import { useResizable } from '../hooks/useResizable';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
@@ -13,6 +14,7 @@ interface EditorInterfaceProps {
   documentUrl: string | null;
   documentName?: string | null;
   language?: Language;
+  currentEntryId?: string | null;
   onBack: () => void;
 }
 
@@ -21,9 +23,18 @@ export function EditorInterface({
   documentUrl,
   documentName,
   language = 'de',
+  currentEntryId = null,
   onBack,
 }: EditorInterfaceProps) {
   const editor = useTreeEditor(initialDocument, language);
+  const { flush: flushAutosave } = useAutosave(currentEntryId, editor.document);
+
+  // Flush any pending autosave before returning to upload so the recents picker
+  // reflects the freshest `updatedAt` on the entry the user just edited.
+  const handleBack = useCallback(async () => {
+    await flushAutosave();
+    onBack();
+  }, [flushAutosave, onBack]);
   const resizable = useResizable({ defaultSize: 0, minSize: 300 });
   const initializedRef = useRef(false);
 
@@ -62,7 +73,7 @@ export function EditorInterface({
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <Toolbar
-        onBack={onBack}
+        onBack={handleBack}
         onUndo={editor.undo}
         onRedo={editor.redo}
         canUndo={editor.canUndo}

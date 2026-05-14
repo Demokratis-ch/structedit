@@ -1,11 +1,36 @@
 import * as mammoth from 'mammoth';
 import type { ContainerDocumentNode } from '../types/document';
+import type { StoredEntrySource } from './document-storage';
 import { generateId, parseHtmlLegalToTree } from './document-utils';
 
 export interface ProcessedDocument {
   doc: ContainerDocumentNode;
   sourceUrl: string | null;
   html?: string;
+  /** Bytes + metadata needed to persist the entry and rebuild the preview later. */
+  source: StoredEntrySource;
+  /** Display name: filename for uploads, generated "Untitled (...)" for pasted text. */
+  name: string;
+  /** First ~40 chars of the source for pasted text; null for files. */
+  subtitle: string | null;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+export function generateUntitledName(at: Date = new Date()): string {
+  return `Untitled (${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())} ${pad2(at.getHours())}:${pad2(at.getMinutes())})`;
+}
+
+export function makePastedSubtitle(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= 40) return trimmed;
+  // Take the first 40 chars then extend to the next word boundary so we don't
+  // truncate mid-word. Append " ..." to signal the truncation.
+  let cut = 40;
+  while (cut < trimmed.length && /\S/.test(trimmed[cut])) cut++;
+  return `${trimmed.slice(0, cut)} ...`;
 }
 
 export function createPlainTextDocument(text: string): ContainerDocumentNode {
@@ -41,21 +66,42 @@ const HTML_DETECT_REGEX = /<(?=.*? .*?\/?>|br|hr|input|!--|!DOCTYPE)[a-z]+.*?>|<
 
 export function processTextInput(text: string): ProcessedDocument {
   const isHtml = HTML_DETECT_REGEX.test(text);
+  const name = generateUntitledName();
+  const subtitle = makePastedSubtitle(text);
 
   if (isHtml) {
     try {
       const doc = parseHtmlLegalToTree(text);
       const blob = new Blob([text], { type: 'text/html' });
       const sourceUrl = URL.createObjectURL(blob);
-      return { doc, sourceUrl, html: text };
+      return {
+        doc,
+        sourceUrl,
+        html: text,
+        source: { kind: 'pasted-text', mime: 'text/html', bytes: text, originalFilename: null },
+        name,
+        subtitle,
+      };
     } catch (e) {
       console.error('Failed to parse HTML', e);
       // Fallback to plain text if HTML parsing fails
-      return { doc: createPlainTextDocument(text), sourceUrl: null };
+      return {
+        doc: createPlainTextDocument(text),
+        sourceUrl: null,
+        source: { kind: 'pasted-text', mime: 'text/plain', bytes: text, originalFilename: null },
+        name,
+        subtitle,
+      };
     }
   }
 
-  return { doc: createPlainTextDocument(text), sourceUrl: null };
+  return {
+    doc: createPlainTextDocument(text),
+    sourceUrl: null,
+    source: { kind: 'pasted-text', mime: 'text/plain', bytes: text, originalFilename: null },
+    name,
+    subtitle,
+  };
 }
 
 export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
@@ -63,7 +109,14 @@ export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
   const blob = new Blob([html], { type: 'text/html' });
   const sourceUrl = URL.createObjectURL(blob);
   const doc = parseHtmlLegalToTree(html);
-  return { doc, sourceUrl, html };
+  return {
+    doc,
+    sourceUrl,
+    html,
+    source: { kind: 'html', mime: 'text/html', bytes: html, originalFilename: file.name },
+    name: file.name,
+    subtitle: null,
+  };
 }
 
 const MAMMOTH_STYLE_MAP = [
@@ -98,7 +151,24 @@ export async function processDocxFile(file: File): Promise<ProcessedDocument> {
   const blob = new Blob([html], { type: 'text/html' });
   const sourceUrl = URL.createObjectURL(blob);
   const doc = parseHtmlLegalToTree(html);
-  return { doc, sourceUrl, html };
+  return {
+    doc,
+    sourceUrl,
+    html,
+    // Store the *converted HTML*, not the original DOCX bytes: the preview pane
+    // renders the persisted blob inline, and browsers won't render
+    // application/vnd.openxmlformats-officedocument.wordprocessingml.document —
+    // Firefox offers it for download instead. `kind: 'docx'` still records that
+    // the origin was DOCX. The original .docx is not used anywhere else.
+    source: {
+      kind: 'docx',
+      mime: 'text/html',
+      bytes: html,
+      originalFilename: file.name,
+    },
+    name: file.name,
+    subtitle: null,
+  };
 }
 
 export async function processPdfFile(_file: File): Promise<ProcessedDocument> {
