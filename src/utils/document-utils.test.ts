@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  ContainerDocumentNode,
-  ContentDocumentNode,
-  DocumentNode,
-  HeadingDocumentNode,
-  LeafDocumentNode,
+import {
+  type ContainerDocumentNode,
+  type ContentDocumentNode,
+  DOC_TREE_VERSION,
+  type DocumentNode,
+  type HeadingDocumentNode,
+  isValidDocTreeEnvelope,
+  type LeafDocumentNode,
 } from '../types/document';
 import {
+  buildDocTreeEnvelope,
   deriveJsonFilename,
   detectLanguage,
   generateId,
@@ -25,6 +28,66 @@ describe('deriveJsonFilename', () => {
   it('returns document.json when filename is null or undefined', () => {
     expect(deriveJsonFilename(null)).toBe('document.json');
     expect(deriveJsonFilename(undefined)).toBe('document.json');
+  });
+});
+
+describe('buildDocTreeEnvelope', () => {
+  const tree: ContainerDocumentNode = {
+    id: 'root',
+    number: null,
+    type: 'document',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'heading',
+        format: 'TEXT',
+        contents: { de: 'Einleitung' },
+        children: [],
+      },
+    ],
+  };
+
+  it('wraps the tree with DocTreeVersion and the unchanged document', () => {
+    const envelope = buildDocTreeEnvelope(tree, { language: 'de', filename: 'entwurf.docx' });
+    expect(envelope.DocTreeVersion).toBe(DOC_TREE_VERSION);
+    expect(envelope.document).toBe(tree);
+  });
+
+  it('strips the extension and stores the title under the current language', () => {
+    expect(buildDocTreeEnvelope(tree, { language: 'de', filename: 'entwurf.docx' })).toMatchObject({
+      metadata: { title: { de: 'entwurf' } },
+    });
+    expect(buildDocTreeEnvelope(tree, { language: 'en', filename: 'my file.pdf' })).toMatchObject({
+      metadata: { title: { en: 'my file' } },
+    });
+  });
+
+  it('strips only the final extension (matching deriveJsonFilename semantics)', () => {
+    expect(
+      buildDocTreeEnvelope(tree, { language: 'de', filename: 'archive.tar.gz' })
+    ).toMatchObject({ metadata: { title: { de: 'archive.tar' } } });
+  });
+
+  it('emits an empty title map when filename is null, undefined, or empty', () => {
+    expect(buildDocTreeEnvelope(tree, { language: 'de', filename: null }).metadata.title).toEqual(
+      {}
+    );
+    expect(
+      buildDocTreeEnvelope(tree, { language: 'de', filename: undefined }).metadata.title
+    ).toEqual({});
+    expect(buildDocTreeEnvelope(tree, { language: 'de', filename: '' }).metadata.title).toEqual({});
+  });
+
+  it('emits an empty title map when the stripped filename is whitespace-only', () => {
+    expect(
+      buildDocTreeEnvelope(tree, { language: 'de', filename: '   .docx' }).metadata.title
+    ).toEqual({});
+  });
+
+  it('produces an envelope that passes isValidDocTreeEnvelope', () => {
+    const envelope = buildDocTreeEnvelope(tree, { language: 'de', filename: 'entwurf.docx' });
+    expect(isValidDocTreeEnvelope(envelope)).toBe(true);
   });
 });
 

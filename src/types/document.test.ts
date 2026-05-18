@@ -4,7 +4,9 @@ import {
   canBeChildOf,
   canHaveFormat,
   DEFAULT_FORMAT,
+  DOC_TREE_VERSION,
   exampleDocument,
+  isValidDocTreeEnvelope,
   isValidDocument,
   isValidNode,
   type NodeFormat,
@@ -777,6 +779,77 @@ describe('canHaveFormat', () => {
     expect(canHaveFormat('list', 'TEXT')).toBe(false);
     // @ts-expect-error
     expect(canHaveFormat('list_item', 'TEXT')).toBe(false);
+  });
+});
+
+describe('DocTreeEnvelope', () => {
+  const envelopeFor = (overrides: Record<string, unknown> = {}) => ({
+    DocTreeVersion: DOC_TREE_VERSION,
+    metadata: { title: { de: 'Beispieldokument' } },
+    document: exampleDocument,
+    ...overrides,
+  });
+
+  it('exports DOC_TREE_VERSION as 1', () => {
+    expect(DOC_TREE_VERSION).toBe(1);
+  });
+
+  it('accepts a well-formed envelope around exampleDocument', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor())).toBe(true);
+  });
+
+  it('accepts an envelope with an empty title map', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: {} } }))).toBe(true);
+  });
+
+  it('rejects an envelope with a missing DocTreeVersion', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.DocTreeVersion;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope with an unsupported DocTreeVersion', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ DocTreeVersion: 2 }))).toBe(false);
+  });
+
+  it('rejects an envelope with missing metadata', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.metadata;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title is missing', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: {} }))).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title uses an invalid language key', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: { xyz: 'Hi' } } }))).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title has a non-string value', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: { de: 42 } } }))).toBe(false);
+  });
+
+  it('rejects an envelope with a missing document', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.document;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope whose document is not a valid document tree', () => {
+    expect(
+      isValidDocTreeEnvelope(
+        envelopeFor({
+          document: { id: '1', number: null, type: 'heading', contents: {}, children: [] },
+        })
+      )
+    ).toBe(false);
+  });
+
+  it('rejects non-object inputs', () => {
+    expect(isValidDocTreeEnvelope(null)).toBe(false);
+    expect(isValidDocTreeEnvelope(undefined)).toBe(false);
+    expect(isValidDocTreeEnvelope('envelope')).toBe(false);
   });
 });
 

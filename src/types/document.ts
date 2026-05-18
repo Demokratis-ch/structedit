@@ -249,3 +249,35 @@ export const isValidNode = (obj: unknown): obj is DocumentNode => {
 export const isValidDocument = (obj: unknown): obj is DocumentNode => {
   return (obj as any)?.type === 'document' && isValidNodeInternal(obj, null, new Set());
 };
+
+/**
+ * ================================ DocTree envelope ================================
+ *
+ * Versioned wrapper around an exported document tree. Lets the export format
+ * evolve (and later carry attachments or other metadata) without breaking
+ * downstream consumers.
+ */
+
+export const DOC_TREE_VERSION = 1 as const;
+
+export interface DocTreeMetadata {
+  title: Partial<{ [K in Language]: string }>;
+}
+
+export interface DocTreeEnvelope {
+  DocTreeVersion: typeof DOC_TREE_VERSION;
+  metadata: DocTreeMetadata;
+  document: ContainerDocumentNode;
+}
+
+export const isValidDocTreeEnvelope = (obj: unknown): obj is DocTreeEnvelope => {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const env = obj as Record<string, unknown>;
+  if (env.DocTreeVersion !== DOC_TREE_VERSION) return false;
+  if (typeof env.metadata !== 'object' || env.metadata === null) return false;
+  const metadata = env.metadata as Record<string, unknown>;
+  // Title shares the language-keyed shape of node `contents`, so we reuse the same validator.
+  if (!isValidContents(metadata.title)) return false;
+  if (!isValidDocument(env.document)) return false;
+  return true;
+};

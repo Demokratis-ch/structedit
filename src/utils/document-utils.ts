@@ -1,11 +1,13 @@
 import DOMPurify from 'dompurify';
-import type {
-  ContainerDocumentNode,
-  ContentDocumentNode,
-  DocumentNode,
-  HeadingDocumentNode,
-  Language,
-  NodeFormat,
+import {
+  type ContainerDocumentNode,
+  type ContentDocumentNode,
+  DOC_TREE_VERSION,
+  type DocTreeEnvelope,
+  type DocumentNode,
+  type HeadingDocumentNode,
+  type Language,
+  type NodeFormat,
 } from '../types/document';
 import {
   hasInlineMarks,
@@ -17,9 +19,30 @@ import { applySwissLegalTransforms } from './legal-transforms';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 
+// Strips only the final extension (e.g. "archive.tar.gz" -> "archive.tar"), so
+// the JSON filename and the envelope title agree on what the "base name" is.
+const stripFileExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
+
 export const deriveJsonFilename = (filename: string | null | undefined): string => {
   if (!filename) return 'document.json';
-  return `${filename.replace(/\.[^/.]+$/, '')}.json`;
+  return `${stripFileExtension(filename)}.json`;
+};
+
+/**
+ * Wrap a document tree in a versioned envelope for export. The title is derived
+ * from the source filename (extension stripped) and keyed by `language`.
+ */
+export const buildDocTreeEnvelope = (
+  document: ContainerDocumentNode,
+  options: { language: Language; filename?: string | null }
+): DocTreeEnvelope => {
+  const stripped = options.filename ? stripFileExtension(options.filename).trim() : '';
+  const title = stripped ? { [options.language]: stripped } : {};
+  return {
+    DocTreeVersion: DOC_TREE_VERSION,
+    metadata: { title },
+    document,
+  };
 };
 
 export const DEFAULT_LANGUAGE: Language = 'de';
