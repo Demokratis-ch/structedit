@@ -26,7 +26,7 @@ describe('FloatingToolbar — format selector visibility', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={3}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
       />
     );
@@ -34,7 +34,7 @@ describe('FloatingToolbar — format selector visibility', () => {
   });
 
   test('hides selector when the single selected node is container-only (list)', () => {
-    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType={'list' as never} />);
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType={'LIST' as never} />);
     expect(screen.queryByTestId('format-selector')).toBeNull();
   });
 
@@ -43,7 +43,7 @@ describe('FloatingToolbar — format selector visibility', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
       />
     );
@@ -57,7 +57,7 @@ describe('FloatingToolbar — format selector options', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="heading"
+        selectedNodeType="HEADING"
         selectedNodeFormat="TEXT"
       />
     );
@@ -71,7 +71,7 @@ describe('FloatingToolbar — format selector options', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
       />
     );
@@ -85,7 +85,7 @@ describe('FloatingToolbar — format selector options', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="image"
+        selectedNodeType="IMAGE"
         selectedNodeFormat="TEXT"
       />
     );
@@ -102,7 +102,7 @@ describe('FloatingToolbar — onChangeFormat', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
         onChangeFormat={onChangeFormat}
       />
@@ -118,7 +118,7 @@ describe('FloatingToolbar — onChangeFormat', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="MARKDOWN"
       />
     );
@@ -131,7 +131,7 @@ describe('FloatingToolbar — onChangeFormat', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
       />
     );
@@ -146,7 +146,7 @@ describe('FloatingToolbar — onChangeFormat', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
       />
     );
@@ -163,7 +163,7 @@ describe('FloatingToolbar — inline-marks group visibility', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="MARKDOWN"
         isEditing
       />
@@ -176,7 +176,7 @@ describe('FloatingToolbar — inline-marks group visibility', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         selectedNodeFormat="TEXT"
         isEditing
         inlineMarksTarget="contenteditable"
@@ -278,7 +278,7 @@ describe('FloatingToolbar — inline-marks buttons', () => {
 
 describe('FloatingToolbar — move to top/bottom buttons', () => {
   test('renders both buttons when something is selected', () => {
-    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="content" />);
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="CONTENT" />);
     expect(screen.getByTestId('move-to-top')).toBeTruthy();
     expect(screen.getByTestId('move-to-bottom')).toBeTruthy();
   });
@@ -289,7 +289,7 @@ describe('FloatingToolbar — move to top/bottom buttons', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         onMoveSelectedToTop={onMoveSelectedToTop}
       />
     );
@@ -303,7 +303,7 @@ describe('FloatingToolbar — move to top/bottom buttons', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         onMoveSelectedToBottom={onMoveSelectedToBottom}
       />
     );
@@ -312,7 +312,7 @@ describe('FloatingToolbar — move to top/bottom buttons', () => {
   });
 
   test('mousedown on each button IS prevented (focus preservation)', () => {
-    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="content" />);
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="CONTENT" />);
     for (const id of ['move-to-top', 'move-to-bottom']) {
       const btn = screen.getByTestId(id);
       const md = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
@@ -328,7 +328,7 @@ describe('FloatingToolbar — merge button', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={1}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         canMerge={false}
         onMerge={vi.fn()}
       />
@@ -341,7 +341,7 @@ describe('FloatingToolbar — merge button', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={3}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         isEditing={true}
         canMerge={true}
         onMerge={vi.fn()}
@@ -355,7 +355,7 @@ describe('FloatingToolbar — merge button', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={3}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         canMerge={false}
         onMerge={vi.fn()}
       />
@@ -369,7 +369,7 @@ describe('FloatingToolbar — merge button', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={3}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         canMerge={true}
         onMerge={vi.fn()}
       />
@@ -384,7 +384,7 @@ describe('FloatingToolbar — merge button', () => {
       <FloatingToolbar
         {...baseProps}
         selectedCount={3}
-        selectedNodeType="content"
+        selectedNodeType="CONTENT"
         canMerge={true}
         onMerge={onMerge}
       />

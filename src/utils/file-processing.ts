@@ -38,13 +38,13 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
   return {
     id: generateId(),
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children:
       lines.length > 0
         ? lines.map((line) => ({
             id: generateId(),
             number: null,
-            type: 'content' as const,
+            type: 'CONTENT' as const,
             format: 'TEXT' as const,
             contents: { de: line.trim() },
             children: [],
@@ -53,7 +53,7 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
             {
               id: generateId(),
               number: null,
-              type: 'content' as const,
+              type: 'CONTENT' as const,
               format: 'TEXT' as const,
               contents: { de: '' },
               children: [],

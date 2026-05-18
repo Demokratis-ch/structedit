@@ -18,7 +18,7 @@ import {
 const createTestNode = (): HeadingDocumentNode => ({
   id: 'h1',
   number: '1',
-  type: 'heading',
+  type: 'HEADING',
   format: 'TEXT',
   contents: { de: 'Test Heading' },
   children: [],
@@ -138,7 +138,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-no-num',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
@@ -154,7 +154,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-no-num',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
@@ -183,7 +183,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContainerDocumentNode = {
         id: 'li-no-num',
         number: null,
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
@@ -201,7 +201,7 @@ describe('RecursiveTreeNode', () => {
       const node: LeafDocumentNode = {
         id: 'fn-no-num',
         number: null,
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: 'TEXT',
         contents: { de: 'A footnote' },
       };
@@ -215,7 +215,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'c-no-num',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Some paragraph' },
         children: [],
@@ -231,7 +231,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'c-with-num',
         number: '2.',
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Numbered paragraph' },
         children: [],
@@ -252,7 +252,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContainerDocumentNode = {
         id: 'list-no-num',
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
@@ -266,7 +266,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContainerDocumentNode = {
         id: 'list-with-num',
         number: 'A.',
-        type: 'list',
+        type: 'LIST',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
@@ -286,7 +286,7 @@ describe('RecursiveTreeNode', () => {
       const node: LeafDocumentNode = {
         id: 'fn-with-num',
         number: 'i.',
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: 'TEXT',
         contents: { de: 'A footnote' },
       };
@@ -305,7 +305,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-md',
         number: '**1**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Bold number heading' },
         children: [],
@@ -323,7 +323,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-md-edit',
         number: '**1**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Bold number heading' },
         children: [],
@@ -344,7 +344,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-attr',
         number: '1',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'x' },
         children: [],
@@ -477,34 +477,34 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'p',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '**bold**' },
         children: [],
       };
       const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
-      expect(getByText('content · MARKDOWN')).toBeTruthy();
+      expect(getByText('CONTENT · MARKDOWN')).toBeTruthy();
     });
 
-    test('heading with TEXT format shows "heading · TEXT"', () => {
+    test('heading with TEXT format shows "HEADING · TEXT"', () => {
       const node = createTestNode(); // heading + TEXT
       const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
-      expect(getByText('heading · TEXT')).toBeTruthy();
+      expect(getByText('HEADING · TEXT')).toBeTruthy();
     });
 
-    test('container-only node (list_item) shows just the type, no format', () => {
+    test('container-only node (LIST_ITEM) shows just the type, no format', () => {
       const node: ContainerDocumentNode = {
         id: 'li',
         number: '1.',
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
       const { getByText, queryByText } = renderWithContext(
         <RecursiveTreeNode node={node} depth={1} />
       );
-      expect(getByText('list_item')).toBeTruthy();
+      expect(getByText('LIST_ITEM')).toBeTruthy();
       // No "·" separator and no format token in the indicator
-      expect(queryByText(/list_item ·/)).toBeNull();
+      expect(queryByText(/LIST_ITEM ·/)).toBeNull();
     });
   });
 });

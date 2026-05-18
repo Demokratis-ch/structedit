@@ -10,19 +10,19 @@ import { useTreeHistory } from './useTreeHistory';
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -218,7 +218,7 @@ describe('useTreeHistory', () => {
         {
           id: 'h2',
           number: '2',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'New Heading' },
           children: [],
@@ -254,7 +254,7 @@ describe('useTreeHistory', () => {
             {
               id: 'p2',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'New paragraph' },
               children: [],
@@ -313,7 +313,7 @@ describe('useTreeHistory', () => {
     const newDoc: ContainerDocumentNode = {
       id: 'new-root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [],
     };
 

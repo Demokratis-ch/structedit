@@ -40,8 +40,8 @@ interface DocumentPreviewProps {
 }
 
 export function DocumentPreview({ document, language, onHeadingClick }: DocumentPreviewProps) {
-  const footnotes = document.children.filter((c) => c.type === 'footnote');
-  const otherChildren = document.children.filter((c) => c.type !== 'footnote');
+  const footnotes = document.children.filter((c) => c.type === 'FOOTNOTE');
+  const otherChildren = document.children.filter((c) => c.type !== 'FOOTNOTE');
   const outline = useMemo(() => getDocumentOutline(document, language), [document, language]);
   const resizable = useResizable({ defaultSize: 512, minSize: 200, maxSize: 800 });
 
@@ -238,17 +238,17 @@ interface PreviewNodeProps {
 
 function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) {
   switch (node.type) {
-    case 'heading':
+    case 'HEADING':
       return <HeadingNode node={node} language={language} depth={headingDepth} />;
-    case 'content':
+    case 'CONTENT':
       return <ContentNode node={node} language={language} />;
-    case 'list':
+    case 'LIST':
       return <ListNode node={node} language={language} headingDepth={headingDepth} />;
-    case 'list_item':
+    case 'LIST_ITEM':
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
-    case 'footnote':
+    case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
-    case 'image':
+    case 'IMAGE':
       return null;
     default:
       return null;
@@ -267,7 +267,7 @@ function HeadingNode({
   language,
   depth,
 }: {
-  node: Extract<DocumentNode, { type: 'heading' }>;
+  node: Extract<DocumentNode, { type: 'HEADING' }>;
   language: Language;
   depth: number;
 }) {
@@ -276,8 +276,8 @@ function HeadingNode({
   const text = node.contents[language] ?? '';
   const className = HEADING_STYLES[level];
 
-  const footnotes = node.children.filter((c) => c.type === 'footnote');
-  const otherChildren = node.children.filter((c) => c.type !== 'footnote');
+  const footnotes = node.children.filter((c) => c.type === 'FOOTNOTE');
+  const otherChildren = node.children.filter((c) => c.type !== 'FOOTNOTE');
 
   return (
     <section id={node.id} className="mb-2">
@@ -297,11 +297,11 @@ function ContentNode({
   node,
   language,
 }: {
-  node: Extract<DocumentNode, { type: 'content' }>;
+  node: Extract<DocumentNode, { type: 'CONTENT' }>;
   language: Language;
 }) {
   const text = node.contents[language] ?? '';
-  const footnotes = node.children.filter((c) => c.type === 'footnote');
+  const footnotes = node.children.filter((c) => c.type === 'FOOTNOTE');
   const numberBadge = node.number && (
     <NumberMarkup value={node.number} className="font-bold mr-1" />
   );
@@ -351,16 +351,16 @@ function ListItemNode({
   language: Language;
   headingDepth: number;
 }) {
-  const footnotes = node.children.filter((c) => c.type === 'footnote');
-  const otherChildren = node.children.filter((c) => c.type !== 'footnote');
+  const footnotes = node.children.filter((c) => c.type === 'FOOTNOTE');
+  const otherChildren = node.children.filter((c) => c.type !== 'FOOTNOTE');
 
   // Find the first content child to render inline with the marker
   const firstContent =
-    otherChildren.length > 0 && otherChildren[0].type === 'content' ? otherChildren[0] : null;
+    otherChildren.length > 0 && otherChildren[0].type === 'CONTENT' ? otherChildren[0] : null;
   const remainingChildren = firstContent ? otherChildren.slice(1) : otherChildren;
   const firstContentText = firstContent ? (firstContent.contents[language] ?? '') : '';
   const firstContentFootnotes = firstContent
-    ? firstContent.children.filter((c) => c.type === 'footnote')
+    ? firstContent.children.filter((c) => c.type === 'FOOTNOTE')
     : [];
   const firstContentIsBlock = firstContent ? isBlockFormat(firstContent.format) : false;
 
@@ -416,7 +416,7 @@ function FootnoteSection({
       <summary className="text-sm font-semibold text-green-700 cursor-pointer">{label}</summary>
       <div className="flex flex-col gap-2 my-2 pl-4 border-l-2 border-gray-300">
         {footnotes.map((fn) => {
-          if (fn.type !== 'footnote') return null;
+          if (fn.type !== 'FOOTNOTE') return null;
           const text = fn.contents[language] ?? '';
           const numberBadge = fn.number && (
             <NumberMarkup value={fn.number} className="font-bold mr-1" />

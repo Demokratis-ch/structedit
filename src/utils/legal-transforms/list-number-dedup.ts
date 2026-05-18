@@ -41,19 +41,19 @@ function downgradeFormatIfPlain(source: string, format: NodeFormat): NodeFormat 
  * because the leading <sup>N</sup> marks it as an Absatznummer.
  */
 type ProcessedListItem =
-  | { kind: 'list_item'; node: ContainerDocumentNode }
-  | { kind: 'content'; node: ContentDocumentNode };
+  | { kind: 'LIST_ITEM'; node: ContainerDocumentNode }
+  | { kind: 'CONTENT'; node: ContentDocumentNode };
 
 function processListItem(listItem: ContainerDocumentNode, language: Language): ProcessedListItem {
   if (listItem.children.length === 0) {
-    return { kind: 'list_item', node: listItem };
+    return { kind: 'LIST_ITEM', node: listItem };
   }
 
   const firstChild = listItem.children[0];
 
-  if (firstChild.type !== 'content') {
+  if (firstChild.type !== 'CONTENT') {
     return {
-      kind: 'list_item',
+      kind: 'LIST_ITEM',
       node: {
         ...listItem,
         children: processChildren(listItem.children, language),
@@ -75,7 +75,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
     // sibling structure (e.g. nested lists) and the content node itself only carries
     // footnote children — both are legal children of a content node.
     const hasSiblings = listItem.children.length > 1;
-    const contentHasNonFootnoteChildren = contentNode.children.some((c) => c.type !== 'footnote');
+    const contentHasNonFootnoteChildren = contentNode.children.some((c) => c.type !== 'FOOTNOTE');
 
     if (!hasSiblings && !contentHasNonFootnoteChildren) {
       // Preserve the superscript formatting on the converted content node's
@@ -83,7 +83,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       // NumberMarkup renders the `number` field via MARKDOWN_MINIMAL, so the
       // `^N^` source round-trips to `<sup>N</sup>` in the UI.
       return {
-        kind: 'content',
+        kind: 'CONTENT',
         node: {
           ...contentNode,
           number: `^${supMatch[1]}^`,
@@ -100,7 +100,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       contents: newContents,
     };
     return {
-      kind: 'list_item',
+      kind: 'LIST_ITEM',
       node: {
         ...listItem,
         number: supMatch[1],
@@ -117,7 +117,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       contents: { ...contentNode.contents, [language]: text.slice(numMatch[0].length) },
     };
     return {
-      kind: 'list_item',
+      kind: 'LIST_ITEM',
       node: {
         ...listItem,
         number: numMatch[1],
@@ -128,7 +128,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
 
   // No leading number — just recurse into the rest of the item.
   return {
-    kind: 'list_item',
+    kind: 'LIST_ITEM',
     node: {
       ...listItem,
       children: processChildren(listItem.children, language),
@@ -143,8 +143,8 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
  */
 function processList(listNode: ContainerDocumentNode, language: Language): DocumentNode[] {
   const processed = listNode.children.map((item): ProcessedListItem => {
-    if (item.type !== 'list_item') {
-      return { kind: 'list_item', node: item as ContainerDocumentNode };
+    if (item.type !== 'LIST_ITEM') {
+      return { kind: 'LIST_ITEM', node: item as ContainerDocumentNode };
     }
     return processListItem(item as ContainerDocumentNode, language);
   });
@@ -165,7 +165,7 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
   };
 
   for (const item of processed) {
-    if (item.kind === 'list_item') {
+    if (item.kind === 'LIST_ITEM') {
       buffer.push(item.node);
     } else {
       flush();
@@ -189,7 +189,7 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
 function processChildren(children: DocumentNode[], language: Language): DocumentNode[] {
   const result: DocumentNode[] = [];
   for (const child of children) {
-    if (child.type === 'list') {
+    if (child.type === 'LIST') {
       result.push(...processList(child as ContainerDocumentNode, language));
     } else {
       result.push(processNode(child, language));

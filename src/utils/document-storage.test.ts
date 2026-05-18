@@ -19,12 +19,12 @@ function makeTree(text = 'hello'): ContainerDocumentNode {
   return {
     id: 'root',
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'n1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: text },
         children: [],
@@ -94,7 +94,7 @@ describe('document-storage', () => {
 
       expect(stored.id).toBe(input.id);
       expect(stored.name).toBe('bill.docx');
-      expect(stored.schemaVersion).toBe(1);
+      expect(stored.schemaVersion).toBe(2);
       expect(stored.createdAt).toBeGreaterThanOrEqual(before);
       expect(stored.createdAt).toBeLessThanOrEqual(after);
       expect(stored.updatedAt).toBe(stored.createdAt);
@@ -294,8 +294,8 @@ describe('document-storage', () => {
       expect(loaded).not.toBeNull();
       if (!loaded || 'status' in loaded) throw new Error('expected valid entry');
       expect(loaded.id).toBe(input.id);
-      expect(loaded.tree.type).toBe('document');
-      expect(loaded.schemaVersion).toBe(1);
+      expect(loaded.tree.type).toBe('DOCUMENT');
+      expect(loaded.schemaVersion).toBe(2);
     });
 
     it('flags an entry with an invalid tree as incompatible (not deleted)', async () => {
@@ -341,7 +341,7 @@ describe('document-storage', () => {
         name: 'futuristic.docx',
         subtitle: null,
         language: 'de',
-        tree: { id: 'r', number: null, type: 'document', children: [] },
+        tree: { id: 'r', number: null, type: 'DOCUMENT', children: [] },
         source: {
           kind: 'docx',
           mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -371,7 +371,7 @@ describe('document-storage', () => {
         name: 'futuristic.docx',
         subtitle: null,
         language: 'de',
-        tree: { id: 'r', number: null, type: 'document', children: [] },
+        tree: { id: 'r', number: null, type: 'DOCUMENT', children: [] },
         source: {
           kind: 'docx',
           mime: 'application/octet-stream',

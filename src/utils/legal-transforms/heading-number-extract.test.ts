@@ -88,7 +88,7 @@ describe('headingNumberExtractTransform', () => {
     const h: HeadingDocumentNode = {
       id: 'test',
       number: 'existing',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'I. Allgemeine Bestimmungen' },
       children: [],
@@ -121,7 +121,7 @@ describe('headingNumberExtractTransform', () => {
 
     const result = headingNumberExtractTransform(input, 'de');
 
-    expect(result.children[0].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
     expect(result.children[0].number).toBeNull();
   });
 });

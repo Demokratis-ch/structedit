@@ -39,7 +39,7 @@ function tryExtractNumber(text: string): { number: string; rest: string } | null
  * Process a single node, extracting number from headings and recursing into children.
  */
 function processNode(node: DocumentNode, language: Language): DocumentNode {
-  if (node.type === 'heading') {
+  if (node.type === 'HEADING') {
     const heading = node as HeadingDocumentNode;
     const processedChildren = heading.children.map((child) => processNode(child, language));
 

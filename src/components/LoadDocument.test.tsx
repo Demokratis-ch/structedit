@@ -139,7 +139,7 @@ describe('LoadDocument', () => {
       });
 
       const [doc, sourceUrl, html, filename] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(doc.children.length).toBeGreaterThan(0);
       expect(sourceUrl).toBe('blob:http://localhost/fake-blob-url');
       expect(html).toBe(htmlContent);
@@ -156,7 +156,7 @@ describe('LoadDocument', () => {
 
       await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
       const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(sourceUrl).toBeNull();
       expect(html).toBeUndefined();
       expect(name).toMatch(/^Untitled \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/);
@@ -172,7 +172,7 @@ describe('LoadDocument', () => {
 
       await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
       const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(doc.children.length).toBeGreaterThan(0);
       expect(sourceUrl).toBe('blob:http://localhost/fake-blob-url');
       expect(html).toBe(htmlContent);

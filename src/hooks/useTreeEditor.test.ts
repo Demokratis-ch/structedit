@@ -11,19 +11,19 @@ import { useTreeEditor } from './useTreeEditor';
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -31,7 +31,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
         {
           id: 'p2',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Second paragraph' },
           children: [],
@@ -41,7 +41,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -314,12 +314,12 @@ describe('useTreeEditor', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Heading' },
           children: [],
@@ -327,7 +327,7 @@ describe('useTreeEditor', () => {
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First' },
           children: [],
@@ -335,7 +335,7 @@ describe('useTreeEditor', () => {
         {
           id: 'p2',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Second' },
           children: [],
@@ -401,13 +401,13 @@ describe('useTreeEditor', () => {
     const createFlatDoc = (): ContainerDocumentNode => ({
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: ['a', 'b', 'c', 'd'].map(
         (id) =>
           ({
             id,
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: id },
             children: [],

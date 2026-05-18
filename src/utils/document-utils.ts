@@ -123,7 +123,7 @@ export const parseHtmlToTree = (
   const root: ContainerDocumentNode = {
     id: generateId(),
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [],
   };
 
@@ -163,12 +163,12 @@ export const parseHtmlToTree = (
    *   image → always TEXT.
    */
   const chooseFormat = (
-    nodeType: 'heading' | 'content' | 'footnote' | 'image',
+    nodeType: 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE',
     rawHtml: string
   ): NodeFormat => {
-    if (nodeType === 'image') return 'TEXT';
+    if (nodeType === 'IMAGE') return 'TEXT';
     if (!hasInlineMarks(rawHtml)) return 'TEXT';
-    if (nodeType === 'heading') {
+    if (nodeType === 'HEADING') {
       if (hasOnlyAnchorMarks(rawHtml)) return 'TEXT';
       if (hasOnlyBreakMarks(rawHtml)) return 'NEWLINES';
       return 'MARKDOWN_MINIMAL';
@@ -197,7 +197,7 @@ export const parseHtmlToTree = (
     const list: ContainerDocumentNode = {
       id: generateId(),
       number: null,
-      type: 'list',
+      type: 'LIST',
       children: [],
     };
 
@@ -209,19 +209,19 @@ export const parseHtmlToTree = (
       const listItem: ContainerDocumentNode = {
         id: generateId(),
         number: customStyle || (tagName === 'ol' ? `${index + 1}.` : null),
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
 
       const rawHtml = getDirectInnerHtml(li);
       if (rawHtml) {
-        const format = chooseFormat('content', rawHtml);
+        const format = chooseFormat('CONTENT', rawHtml);
         const text = htmlToMarkdown(rawHtml, format);
         if (text) {
           listItem.children.push({
             id: generateId(),
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format,
             contents: { [language]: text },
             children: [],
@@ -253,7 +253,7 @@ export const parseHtmlToTree = (
     if (/^h[1-6]$/.test(tagName)) {
       const level = parseInt(tagName[1], 10); // 1-6
       const rawHtml = getInnerHtml(domNode);
-      const format = chooseFormat('heading', rawHtml);
+      const format = chooseFormat('HEADING', rawHtml);
       const content = htmlToMarkdown(rawHtml, format);
 
       // Pop stack to appropriate level (heading level becomes index in stack)
@@ -264,7 +264,7 @@ export const parseHtmlToTree = (
       const heading: HeadingDocumentNode = {
         id: generateId(),
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format,
         contents: { [language]: content },
         children: [],
@@ -292,13 +292,13 @@ export const parseHtmlToTree = (
     if (tagName === 'p') {
       const rawHtml = getInnerHtml(domNode);
       if (rawHtml) {
-        const format = chooseFormat('content', rawHtml);
+        const format = chooseFormat('CONTENT', rawHtml);
         const content = htmlToMarkdown(rawHtml, format);
         if (content) {
           const contentNode: ContentDocumentNode = {
             id: generateId(),
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format,
             contents: { [language]: content },
             children: [],

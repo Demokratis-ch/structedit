@@ -67,8 +67,8 @@ describe('file-processing integration', () => {
       const result = await importFixture('entwurf_zurich_2025.docx');
       html = result.html!;
       allNodes = flattenTree(result.doc);
-      headings = allNodes.filter((n) => n.type === 'heading');
-      contentNodes = allNodes.filter((n) => n.type === 'content');
+      headings = allNodes.filter((n) => n.type === 'HEADING');
+      contentNodes = allNodes.filter((n) => n.type === 'CONTENT');
     });
 
     afterAll(() => {
@@ -119,8 +119,8 @@ describe('file-processing integration', () => {
       warnSpy = setupBrowserShims();
       const result = await importFixture('numbering_example.docx');
       allNodes = flattenTree(result.doc);
-      contentNodes = allNodes.filter((n) => n.type === 'content');
-      headings = allNodes.filter((n) => n.type === 'heading');
+      contentNodes = allNodes.filter((n) => n.type === 'CONTENT');
+      headings = allNodes.filter((n) => n.type === 'HEADING');
     });
 
     afterAll(() => {
@@ -168,16 +168,16 @@ describe('file-processing integration', () => {
       // Art. 1 Abs. 2 "Er gilt für:" + sublist a/b/c/d cannot collapse to a content
       // node because it has non-footnote children.
       const erGiltFuer = allNodes
-        .filter((n) => n.type === 'list_item')
+        .filter((n) => n.type === 'LIST_ITEM')
         .find((li) => {
           if (!('children' in li)) return false;
-          const firstContent = li.children.find((c) => c.type === 'content');
+          const firstContent = li.children.find((c) => c.type === 'CONTENT');
           return firstContent !== undefined && textOf(firstContent).includes('Er gilt für');
         });
       expect(erGiltFuer).toBeDefined();
       // Number is extracted plain (per the non-conversion path), and the nested list survives.
       expect(erGiltFuer?.number).toBe('2');
-      expect('children' in erGiltFuer! && erGiltFuer.children.some((c) => c.type === 'list')).toBe(
+      expect('children' in erGiltFuer! && erGiltFuer.children.some((c) => c.type === 'LIST')).toBe(
         true
       );
     });

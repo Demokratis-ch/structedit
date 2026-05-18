@@ -22,12 +22,12 @@ function makeTree(text = 'hello'): ContainerDocumentNode {
   return {
     id: 'root',
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'n1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: text },
         children: [],

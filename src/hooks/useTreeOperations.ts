@@ -25,11 +25,11 @@ import {
 } from '../utils/tree-utils';
 
 const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
-  'content',
-  'footnote',
-  'heading',
-  'list',
-  'list_item',
+  'CONTENT',
+  'FOOTNOTE',
+  'HEADING',
+  'LIST',
+  'LIST_ITEM',
 ]);
 
 // Most → least permissive. Used to pick the resulting format when merging.
@@ -146,7 +146,7 @@ const mergeFormatOf = (
   for (const f of formats) {
     if (FORMAT_RANK[f] > FORMAT_RANK[best]) best = f;
   }
-  if ((type === 'content' || type === 'footnote') && best === 'TEXT') {
+  if ((type === 'CONTENT' || type === 'FOOTNOTE') && best === 'TEXT') {
     best = 'NEWLINES';
   }
   // Defense against pre-existing data corruption: if a source carried a format
@@ -198,22 +198,22 @@ interface UseTreeOperationsProps {
 function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
   const out: DocumentNode[] = [];
   for (const item of list.children) {
-    if (item.type !== 'list_item') continue;
+    if (item.type !== 'LIST_ITEM') continue;
     const listItem = item as ContainerDocumentNode;
 
     const flattenedChildren: DocumentNode[] = [];
     let numberAttached = false;
 
     for (const child of listItem.children) {
-      if (child.type === 'list') {
+      if (child.type === 'LIST') {
         flattenedChildren.push(...flattenListToContents(child as ContainerDocumentNode));
-      } else if (child.type === 'content' && !numberAttached) {
+      } else if (child.type === 'CONTENT' && !numberAttached) {
         // Promote the first content child: it carries the list_item's id/number.
         const c = child as ContentDocumentNode;
         flattenedChildren.push({
           id: listItem.id,
           number: listItem.number,
-          type: 'content',
+          type: 'CONTENT',
           format: c.format,
           contents: c.contents,
           children: c.children,
@@ -231,7 +231,7 @@ function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
       flattenedChildren.unshift({
         id: listItem.id,
         number: listItem.number,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: {},
         children: [],
@@ -245,16 +245,16 @@ function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
 
 /** Create a new empty sibling node appropriate for the given parent. */
 function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
-  if (parent.type === 'list') {
+  if (parent.type === 'LIST') {
     return {
       id: generateId(),
       number: null,
-      type: 'list_item',
+      type: 'LIST_ITEM',
       children: [
         {
           id: generateId(),
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { [language]: '' },
           children: [],
@@ -266,7 +266,7 @@ function createNewSiblingNode(parent: DocumentNode, language: Language): Documen
   return {
     id: generateId(),
     number: null,
-    type: 'content',
+    type: 'CONTENT',
     format: 'TEXT',
     contents: { [language]: '' },
     children: [],
@@ -391,11 +391,11 @@ export const useTreeOperations = ({
 
     for (let i = childIndex - 1; i >= 0; i--) {
       const sibling = parent.children[i];
-      if (sibling.type === 'heading') {
+      if (sibling.type === 'HEADING') {
         return { node: sibling as HeadingDocumentNode, index: i };
       }
       // Footnotes can also be nested under content nodes
-      if (nodeType === 'footnote' && sibling.type === 'content') {
+      if (nodeType === 'FOOTNOTE' && sibling.type === 'CONTENT') {
         return { node: sibling as ContentDocumentNode, index: i };
       }
     }
@@ -423,10 +423,10 @@ export const useTreeOperations = ({
 
     // Nest a list_item under its preceding sibling list_item. If that sibling
     // already ends with a nested list, append to it; otherwise create one.
-    if (node.type === 'list_item') {
-      if (parent.type !== 'list' || childIndex === 0) return null;
+    if (node.type === 'LIST_ITEM') {
+      if (parent.type !== 'LIST' || childIndex === 0) return null;
       const prevSibling = parent.children[childIndex - 1];
-      if (prevSibling.type !== 'list_item') return null;
+      if (prevSibling.type !== 'LIST_ITEM') return null;
       const listItem = node as ContainerDocumentNode;
 
       const prevSiblingPath = [...parentPath, childIndex - 1];
@@ -438,7 +438,7 @@ export const useTreeOperations = ({
       // so prevChildren stays accurate for indexing into the nested list below.
       let newDoc = removeNodeAtPath(doc, path);
 
-      if (lastChild && lastChild.type === 'list') {
+      if (lastChild && lastChild.type === 'LIST') {
         const nestedListPath = [...prevSiblingPath, prevChildren.length - 1];
         newDoc = updateNodeAtPath(newDoc, nestedListPath, (n) => ({
           ...n,
@@ -448,7 +448,7 @@ export const useTreeOperations = ({
         const newList: ContainerDocumentNode = {
           id: generateId(),
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [listItem],
         };
         newDoc = updateNodeAtPath(newDoc, prevSiblingPath, (n) => ({
@@ -527,11 +527,11 @@ export const useTreeOperations = ({
 
     if (!parent || !node) return null;
 
-    if (parent.type !== 'heading' && parent.type !== 'list' && parent.type !== 'content')
+    if (parent.type !== 'HEADING' && parent.type !== 'LIST' && parent.type !== 'CONTENT')
       return null;
 
     // Special case: if parent is list and node is list_item
-    if (parent.type === 'list' && node.type === 'list_item') {
+    if (parent.type === 'LIST' && node.type === 'LIST_ITEM') {
       const grandparentPath = parentPath.slice(0, -1);
       const parentIndexInGrandparent = parentPath[parentPath.length - 1];
       const grandparent = grandparentPath.length === 0 ? doc : getNodeAtPath(doc, grandparentPath);
@@ -541,12 +541,12 @@ export const useTreeOperations = ({
       // Proper nested case: a list inside a list_item. Pop the list_item out
       // to be a sibling of the enclosing list_item in the outer list. If that
       // empties the nested list, drop it.
-      if (grandparent.type === 'list_item') {
+      if (grandparent.type === 'LIST_ITEM') {
         const greatGrandparentPath = grandparentPath.slice(0, -1);
         const grandparentIdxInGGP = grandparentPath[grandparentPath.length - 1];
         const greatGrandparent =
           greatGrandparentPath.length === 0 ? doc : getNodeAtPath(doc, greatGrandparentPath);
-        if (!greatGrandparent || greatGrandparent.type !== 'list') return null;
+        if (!greatGrandparent || greatGrandparent.type !== 'LIST') return null;
 
         let newDoc = removeNodeAtPath(doc, path);
         const parentAfter = getNodeAtPath(newDoc, parentPath);
@@ -626,7 +626,7 @@ export const useTreeOperations = ({
 
       const node = getNodeAtPath(document, path);
       if (!node) return;
-      const contentBearing: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
+      const contentBearing: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
       if (!contentBearing.includes(node.type as ContentBearingNodeType)) return;
       if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return;
 
@@ -689,7 +689,7 @@ export const useTreeOperations = ({
     doc: ContainerDocumentNode,
     idx: Map<string, NodePath>,
     id: string,
-    targetType: 'heading' | 'content' | 'list' | 'footnote',
+    targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
     listStyle?: ListStyle
   ): ContainerDocumentNode | null => {
     const path = idx.get(id);
@@ -705,8 +705,8 @@ export const useTreeOperations = ({
     if (!parent || !('children' in parent)) return null;
 
     // Handle list_item specially - it requires extraction from list
-    if (node.type === 'list_item') {
-      if (targetType === 'list') {
+    if (node.type === 'LIST_ITEM') {
+      if (targetType === 'LIST') {
         // Change only this item's number (not all siblings)
         const style = listStyle || 'numbered';
         const indexInParent = path[path.length - 1];
@@ -715,7 +715,7 @@ export const useTreeOperations = ({
           number: getNumberForStyle(style, indexInParent),
         }));
       }
-      if (targetType === 'footnote') {
+      if (targetType === 'FOOTNOTE') {
         // list_item cannot be converted to footnote directly
         return null;
       }
@@ -724,8 +724,8 @@ export const useTreeOperations = ({
     }
 
     // Handle list node - can only change list style or flatten to content
-    if (node.type === 'list') {
-      if (targetType === 'list') {
+    if (node.type === 'LIST') {
+      if (targetType === 'LIST') {
         const style = listStyle || 'numbered';
         const listNode = node as ContainerDocumentNode;
         const newChildren = listNode.children.map((child, i) => ({
@@ -737,7 +737,7 @@ export const useTreeOperations = ({
           children: newChildren,
         }));
       }
-      if (targetType === 'content') {
+      if (targetType === 'CONTENT') {
         // Hoist list_items as content nodes, preserving each number. Nested
         // lists are flattened recursively because content nodes can't host
         // arbitrary nesting.
@@ -755,19 +755,19 @@ export const useTreeOperations = ({
     if (!hasContents(node)) return null;
 
     // Handle conversion to footnote
-    if (targetType === 'footnote') {
-      if (node.type === 'footnote') return null; // Already a footnote
+    if (targetType === 'FOOTNOTE') {
+      if (node.type === 'FOOTNOTE') return null; // Already a footnote
 
       const carryFormat = carryFormatOrDefault(
         (node as { format?: NodeFormat }).format,
-        'footnote'
+        'FOOTNOTE'
       );
 
       // Create footnote node (leaf - no children)
       const footnoteNode: LeafDocumentNode = {
         id: node.id,
         number: node.number,
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: carryFormat,
         contents: node.contents,
       };
@@ -776,7 +776,7 @@ export const useTreeOperations = ({
       let newDoc = updateNodeAtPath(doc, path, () => footnoteNode);
 
       // If converting from heading or content with children, lift children as siblings
-      if (node.type === 'heading') {
+      if (node.type === 'HEADING') {
         const headingChildren = (node as HeadingDocumentNode).children;
         for (let i = 0; i < headingChildren.length; i++) {
           newDoc = insertNodeAtPath(
@@ -786,7 +786,7 @@ export const useTreeOperations = ({
             headingChildren[i]
           );
         }
-      } else if (node.type === 'content') {
+      } else if (node.type === 'CONTENT') {
         const contentChildren = (node as ContentDocumentNode).children;
         for (let i = 0; i < contentChildren.length; i++) {
           newDoc = insertNodeAtPath(
@@ -802,15 +802,15 @@ export const useTreeOperations = ({
     }
 
     // Handle conversion to heading
-    if (targetType === 'heading') {
-      if (node.type === 'heading') return null; // Already a heading
+    if (targetType === 'HEADING') {
+      if (node.type === 'HEADING') return null; // Already a heading
 
-      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'heading');
+      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'HEADING');
 
       const newNode: HeadingDocumentNode = {
         id: node.id,
         number: node.number,
-        type: 'heading',
+        type: 'HEADING',
         format: carryFormat,
         contents: node.contents,
         children: [],
@@ -820,15 +820,15 @@ export const useTreeOperations = ({
     }
 
     // Handle conversion to content
-    if (targetType === 'content') {
-      if (node.type === 'content') return null; // Already content
+    if (targetType === 'CONTENT') {
+      if (node.type === 'CONTENT') return null; // Already content
 
-      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'content');
+      const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'CONTENT');
 
       const contentNode: ContentDocumentNode = {
         id: node.id,
         number: node.number,
-        type: 'content',
+        type: 'CONTENT',
         format: carryFormat,
         contents: node.contents,
         children: [],
@@ -837,7 +837,7 @@ export const useTreeOperations = ({
       let newDoc = updateNodeAtPath(doc, path, () => contentNode);
 
       // If converting from heading, lift children as siblings
-      if (node.type === 'heading') {
+      if (node.type === 'HEADING') {
         const headingChildren = (node as HeadingDocumentNode).children;
         for (let i = 0; i < headingChildren.length; i++) {
           newDoc = insertNodeAtPath(
@@ -854,7 +854,7 @@ export const useTreeOperations = ({
     }
 
     // Handle conversion to list
-    if (targetType === 'list') {
+    if (targetType === 'LIST') {
       const style = listStyle || 'numbered';
 
       // For unordered lists we keep the source node's number on the new
@@ -867,7 +867,7 @@ export const useTreeOperations = ({
       let effectiveIndex = 0;
       for (let i = nodeIdxInParent - 1; i >= 0; i--) {
         const sibling = parent.children[i];
-        if (sibling.type !== 'list') break;
+        if (sibling.type !== 'LIST') break;
         effectiveIndex += (sibling as ContainerDocumentNode).children.length;
       }
       const itemNumber =
@@ -876,12 +876,12 @@ export const useTreeOperations = ({
       const listItem: ContainerDocumentNode = {
         id: generateId(),
         number: itemNumber,
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [
           {
             id: node.id,
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: node.contents,
             children: [],
@@ -892,14 +892,14 @@ export const useTreeOperations = ({
       const list: ContainerDocumentNode = {
         id: generateId(),
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [listItem],
       };
 
       let newDoc = updateNodeAtPath(doc, path, () => list);
 
       // If it was a heading, lift its children after the new list
-      if (node.type === 'heading') {
+      if (node.type === 'HEADING') {
         const headingChildren = (node as HeadingDocumentNode).children;
         for (let i = 0; i < headingChildren.length; i++) {
           newDoc = insertNodeAtPath(
@@ -927,7 +927,7 @@ export const useTreeOperations = ({
   const changeNodeTypes = useCallback(
     (
       ids: string[],
-      targetType: 'heading' | 'content' | 'list' | 'footnote',
+      targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
       listStyle?: ListStyle
     ) => {
       let doc = document;
@@ -960,13 +960,13 @@ export const useTreeOperations = ({
     doc: ContainerDocumentNode,
     itemPath: NodePath,
     item: ContainerDocumentNode,
-    targetType: 'heading' | 'content'
+    targetType: 'HEADING' | 'CONTENT'
   ): ContainerDocumentNode | null => {
     const listPath = itemPath.slice(0, -1);
     const itemIndexInList = itemPath[itemPath.length - 1];
     const list = getNodeAtPath(doc, listPath) as ContainerDocumentNode;
 
-    if (!list || list.type !== 'list') return null;
+    if (!list || list.type !== 'LIST') return null;
 
     // Extract contents and format from the first child content node
     const firstChild = item.children[0];
@@ -981,20 +981,20 @@ export const useTreeOperations = ({
     // when valid for the target so single-item conversions match the multi-item
     // (list -> content) flatten path.
     const convertedNode: DocumentNode =
-      targetType === 'heading'
+      targetType === 'HEADING'
         ? ({
             id: item.id,
             number: item.number,
-            type: 'heading',
-            format: carryFormatOrDefault(childFormat, 'heading'),
+            type: 'HEADING',
+            format: carryFormatOrDefault(childFormat, 'HEADING'),
             contents,
             children: [],
           } as HeadingDocumentNode)
         : ({
             id: item.id,
             number: item.number,
-            type: 'content',
-            format: carryFormatOrDefault(childFormat, 'content'),
+            type: 'CONTENT',
+            format: carryFormatOrDefault(childFormat, 'CONTENT'),
             contents,
             children: [],
           } as ContentDocumentNode);
@@ -1217,47 +1217,47 @@ export const useTreeOperations = ({
 
       let mergedNode: DocumentNode;
 
-      if (firstNode.type === 'heading') {
+      if (firstNode.type === 'HEADING') {
         const headings = nodes as HeadingDocumentNode[];
         mergedNode = {
           id: firstNode.id,
           number: firstNode.number,
-          type: 'heading',
+          type: 'HEADING',
           format: mergeFormatOf(
             headings.map((n) => n.format),
-            'heading'
+            'HEADING'
           ),
           contents: mergeContentsFromNodes(headings, ' '),
           children: headings.flatMap((n) => n.children),
         };
-      } else if (firstNode.type === 'content') {
+      } else if (firstNode.type === 'CONTENT') {
         const contents = nodes as ContentDocumentNode[];
         const format = mergeFormatOf(
           contents.map((n) => n.format),
-          'content'
+          'CONTENT'
         );
         mergedNode = {
           id: firstNode.id,
           number: firstNode.number,
-          type: 'content',
+          type: 'CONTENT',
           format,
           contents: mergeContentsFromNodes(contents, paragraphSeparatorFor(format)),
           children: contents.flatMap((n) => n.children),
         };
-      } else if (firstNode.type === 'footnote') {
+      } else if (firstNode.type === 'FOOTNOTE') {
         const footnotes = nodes as LeafDocumentNode[];
         const format = mergeFormatOf(
           footnotes.map((n) => n.format),
-          'footnote'
+          'FOOTNOTE'
         );
         mergedNode = {
           id: firstNode.id,
           number: firstNode.number,
-          type: 'footnote',
+          type: 'FOOTNOTE',
           format,
           contents: mergeContentsFromNodes(footnotes, paragraphSeparatorFor(format)),
         };
-      } else if (firstNode.type === 'list' || firstNode.type === 'list_item') {
+      } else if (firstNode.type === 'LIST' || firstNode.type === 'LIST_ITEM') {
         const containers = nodes as ContainerDocumentNode[];
         mergedNode = {
           id: firstNode.id,

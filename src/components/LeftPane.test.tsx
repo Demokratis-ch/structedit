@@ -7,14 +7,14 @@ import { LeftPane } from './LeftPane';
 const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children,
 });
 
 const docWithHeading = makeDoc({
   id: 'h1',
   number: '1',
-  type: 'heading',
+  type: 'HEADING',
   format: 'TEXT',
   contents: { de: 'Heading One' },
   children: [],

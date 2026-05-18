@@ -17,12 +17,12 @@ vi.mock('../utils/document-utils', async () => {
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -30,7 +30,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -94,7 +94,7 @@ describe('EditorInterface layout', () => {
     const parsed = JSON.parse(content);
     expect(parsed.DocTreeVersion).toBe(DOC_TREE_VERSION);
     expect(parsed.metadata.title).toEqual({ de: 'entwurf' });
-    expect(parsed.document.type).toBe('document');
+    expect(parsed.document.type).toBe('DOCUMENT');
     expect(isValidDocTreeEnvelope(parsed)).toBe(true);
   });
 });

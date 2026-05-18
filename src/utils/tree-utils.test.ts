@@ -25,12 +25,12 @@ const createListItem = (
 ): ContainerDocumentNode => ({
   id,
   number,
-  type: 'list_item',
+  type: 'LIST_ITEM',
   children: [
     {
       id: `${id}-content`,
       number: null,
-      type: 'content',
+      type: 'CONTENT',
       format: 'TEXT',
       contents: { de: content },
       children: [],
@@ -42,19 +42,19 @@ const createListItem = (
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -62,14 +62,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
         {
           id: 'h2',
           number: '1.1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Nested Heading' },
           children: [
             {
               id: 'p2',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested paragraph' },
               children: [],
@@ -81,7 +81,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h1b',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -191,7 +191,7 @@ describe('insertNodeAtPath', () => {
   const newNode: ContentDocumentNode = {
     id: 'new',
     number: null,
-    type: 'content',
+    type: 'CONTENT',
     format: 'TEXT',
     contents: { de: 'New content' },
     children: [],
@@ -231,7 +231,7 @@ describe('insertNodeAtPath', () => {
     const newHeading: HeadingDocumentNode = {
       id: 'h1c',
       number: '3',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Third Heading' },
       children: [],
@@ -343,33 +343,33 @@ describe('buildIndices', () => {
     const deepDoc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: null,
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Level 1' },
           children: [
             {
               id: 'h2',
               number: null,
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Level 2' },
               children: [
                 {
                   id: 'h3',
                   number: null,
-                  type: 'heading',
+                  type: 'HEADING',
                   format: 'TEXT',
                   contents: { de: 'Level 3' },
                   children: [
                     {
                       id: 'p',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'Deep content' },
                       children: [],
@@ -453,12 +453,12 @@ describe('flattenForRendering', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItem('item1', '1.', 'First item'),
             createListItem('item2', '2.', 'Second item'),
@@ -480,18 +480,18 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item1', '1.', 'Item 1')],
         },
         {
           id: 'list2',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item2', '1.', 'Item 2')],
         },
       ],
@@ -500,7 +500,7 @@ describe('mergeAdjacentLists', () => {
     const result = mergeAdjacentLists(doc, []);
 
     expect(result.children.length).toBe(1);
-    expect(result.children[0].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
     const mergedList = result.children[0] as ContainerDocumentNode;
     expect(mergedList.children.length).toBe(2);
     expect(mergedList.children[0].id).toBe('item1');
@@ -511,24 +511,24 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'list2',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item2', null, 'B')],
         },
         {
           id: 'list3',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item3', null, 'C')],
         },
       ],
@@ -545,18 +545,18 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'content1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Separator' },
           children: [],
@@ -564,7 +564,7 @@ describe('mergeAdjacentLists', () => {
         {
           id: 'list2',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item2', null, 'B')],
         },
       ],
@@ -579,12 +579,12 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'A' },
           children: [],
@@ -592,7 +592,7 @@ describe('mergeAdjacentLists', () => {
         {
           id: 'p2',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'B' },
           children: [],
@@ -609,25 +609,25 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'heading1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Heading' },
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('item1', null, 'A')],
             },
             {
               id: 'list2',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('item2', null, 'B')],
             },
           ],
@@ -647,18 +647,18 @@ describe('mergeAdjacentLists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item1', null, 'A')],
         },
         {
           id: 'list2',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [createListItem('item2', null, 'B')],
         },
       ],
@@ -681,12 +681,12 @@ describe('nested lists', () => {
   ): ContainerDocumentNode => ({
     id: itemId,
     number: itemNumber,
-    type: 'list_item',
+    type: 'LIST_ITEM',
     children: [
       {
         id: `${itemId}-content`,
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: itemContent },
         children: [],
@@ -694,7 +694,7 @@ describe('nested lists', () => {
       {
         id: nestedListId,
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: nestedItems.map((ni) => createListItem(ni.id, ni.number, ni.content)),
       } as ContainerDocumentNode,
     ],
@@ -704,12 +704,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItem('item1', '1.', 'First item'),
             createListItemWithNestedList(
@@ -751,12 +751,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItem('item1', '1.', 'First'),
             createListItemWithNestedList('item2', '2.', 'Second', 'nested', [
@@ -787,12 +787,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItemWithNestedList('item1', '1.', 'First', 'nested', [
               { id: 'sub1', number: 'a.', content: 'Sub' },
@@ -817,12 +817,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItemWithNestedList('item1', '1.', 'First', 'nested', [
               { id: 'sub1', number: 'a.', content: 'Original' },
@@ -855,12 +855,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItemWithNestedList('item1', '1.', 'First', 'nested', [
               { id: 'sub1', number: 'a.', content: 'Sub A' },
@@ -883,12 +883,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItemWithNestedList('item1', '1.', 'First', 'nested', [
               { id: 'sub1', number: 'a.', content: 'Sub A' },
@@ -910,12 +910,12 @@ describe('nested lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItem('item1', '1.', 'First'),
             createListItemWithNestedList('item2', '2.', 'Second', 'nested', [
@@ -990,12 +990,12 @@ describe('changeNodeFormat', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [],
         },
       ],

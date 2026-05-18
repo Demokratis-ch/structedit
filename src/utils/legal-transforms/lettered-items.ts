@@ -13,7 +13,7 @@ import type { TreeTransform } from './types';
  * Check if a node is a content node with lettered item pattern
  */
 function getLetterMatch(node: DocumentNode): { letter: string; content: string } | null {
-  if (node.type !== 'content') return null;
+  if (node.type !== 'CONTENT') return null;
   const contentNode = node as ContentDocumentNode;
   const text = extractCleanText(contentNode.contents.de || '');
   const match = matchLetteredItem(text);
@@ -43,16 +43,16 @@ function createList(
   return {
     id: generateId(),
     number: null,
-    type: 'list',
+    type: 'LIST',
     children: items.map((item) => ({
       id: generateId(),
       number: item.number,
-      type: 'list_item' as const,
+      type: 'LIST_ITEM' as const,
       children: [
         {
           id: generateId(),
           number: null,
-          type: 'content' as const,
+          type: 'CONTENT' as const,
           format: 'TEXT' as const,
           contents: {
             [language]: stripLetterPrefix(item.originalContent.contents[language] || ''),

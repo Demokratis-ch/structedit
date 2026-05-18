@@ -14,7 +14,7 @@ import type { TreeTransform } from './types';
  * Returns the extracted number and rest if matched.
  */
 function getArticleMatch(node: DocumentNode): { number: string; rest: string } | null {
-  if (node.type !== 'content') return null;
+  if (node.type !== 'CONTENT') return null;
   const contentNode = node as ContentDocumentNode;
   const text = extractCleanText(contentNode.contents.de || '');
   const result = matchArticle(text);
@@ -55,12 +55,12 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
       currentArticle = {
         id: generateId(),
         number: articleMatch.number,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { [language]: articleMatch.rest },
         children: [],
       };
-    } else if (currentArticle && processedChild.type === 'content') {
+    } else if (currentArticle && processedChild.type === 'CONTENT') {
       // Nest content under current article
       currentArticle.children.push(processedChild);
     } else {

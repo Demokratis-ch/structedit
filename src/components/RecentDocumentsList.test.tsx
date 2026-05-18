@@ -11,7 +11,7 @@ function makeStoredEntry(overrides: Partial<StoredDocumentEntry> = {}): StoredDo
     name: overrides.name ?? 'bill.docx',
     subtitle: overrides.subtitle ?? null,
     language: 'de',
-    tree: { id: 'root', number: null, type: 'document', children: [] },
+    tree: { id: 'root', number: null, type: 'DOCUMENT', children: [] },
     source: {
       kind: 'docx',
       mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

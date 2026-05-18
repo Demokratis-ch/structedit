@@ -14,7 +14,7 @@ export function createDoc(children: DocumentNode[]): ContainerDocumentNode {
   return {
     id: generateId(),
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children,
   };
 }
@@ -26,7 +26,7 @@ export function content(text: string, lang: Language = 'de'): ContentDocumentNod
   return {
     id: generateId(),
     number: null,
-    type: 'content',
+    type: 'CONTENT',
     format: 'TEXT',
     contents: { [lang]: text },
     children: [],
@@ -44,7 +44,7 @@ export function heading(
   return {
     id: generateId(),
     number: null,
-    type: 'heading',
+    type: 'HEADING',
     format: 'TEXT',
     contents: { [lang]: text },
     children,
@@ -58,11 +58,11 @@ export function list(items: { number: string | null; content: string }[]): Conta
   return {
     id: generateId(),
     number: null,
-    type: 'list',
+    type: 'LIST',
     children: items.map((item) => ({
       id: generateId(),
       number: item.number,
-      type: 'list_item' as const,
+      type: 'LIST_ITEM' as const,
       children: [content(item.content)],
     })),
   };

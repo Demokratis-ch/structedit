@@ -8,12 +8,12 @@ import { EditorInterface } from './EditorInterface';
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -21,7 +21,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -304,19 +304,19 @@ describe('double-click inline editing', () => {
     const nestedDoc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [
             {
               id: 'c1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested Content' },
               children: [],
@@ -414,12 +414,12 @@ describe('double-click inline editing', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'NEWLINES',
           contents: { de: 'ab' },
           children: [],
@@ -472,12 +472,12 @@ describe('double-click inline editing', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: '**hello**' },
           children: [],
@@ -530,12 +530,12 @@ describe('double-click inline editing', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'MARKDOWN',
           contents: { de: 'xy' },
           children: [],
@@ -627,12 +627,12 @@ describe('double-click inline editing', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'MARKDOWN',
           contents: { de: 'xy' },
           children: [],
@@ -861,12 +861,12 @@ describe('node operations via keyboard', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [],
@@ -874,7 +874,7 @@ describe('node operations via keyboard', () => {
         {
           id: 'c1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Child Content' },
           children: [],
@@ -915,19 +915,19 @@ describe('node operations via keyboard', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [
             {
               id: 'c1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested Content' },
               children: [],
@@ -1028,12 +1028,12 @@ describe('edit mode behaviors', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'First Heading' },
           children: [],
@@ -1041,7 +1041,7 @@ describe('edit mode behaviors', () => {
         {
           id: 'empty',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: '' },
           children: [],
@@ -1094,7 +1094,7 @@ describe('empty document', () => {
   const createEmptyDocument = (): ContainerDocumentNode => ({
     id: 'root',
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [],
   });
 
@@ -1138,12 +1138,12 @@ describe('drag and drop reordering', () => {
   const createThreeNodeDocument = (): ContainerDocumentNode => ({
     id: 'root',
     number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'h1',
         number: '1',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'First' },
         children: [],
@@ -1151,7 +1151,7 @@ describe('drag and drop reordering', () => {
       {
         id: 'h2',
         number: '2',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Second' },
         children: [],
@@ -1159,7 +1159,7 @@ describe('drag and drop reordering', () => {
       {
         id: 'h3',
         number: '3',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Third' },
         children: [],
@@ -1330,12 +1330,12 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: 'hello' },
           children: [],
@@ -1399,12 +1399,12 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: null,
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: 'word' },
           children: [],
@@ -1509,12 +1509,12 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'heading text' },
           children: [],

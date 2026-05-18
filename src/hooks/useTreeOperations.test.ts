@@ -14,19 +14,19 @@ import { useTreeOperations } from './useTreeOperations';
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -34,14 +34,14 @@ const createTestDocument = (): ContainerDocumentNode => ({
         {
           id: 'h2',
           number: '1.1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Nested Heading' },
           children: [
             {
               id: 'p2',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested paragraph' },
               children: [],
@@ -53,7 +53,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h1b',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -69,12 +69,12 @@ const createListItem = (
 ): ContainerDocumentNode => ({
   id,
   number,
-  type: 'list_item',
+  type: 'LIST_ITEM',
   children: [
     {
       id: `${id}-content`,
       number: null,
-      type: 'content',
+      type: 'CONTENT',
       format: 'TEXT',
       contents: { de: content },
       children: [],
@@ -85,19 +85,19 @@ const createListItem = (
 const createDocumentWithList = (): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'list1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             createListItem('li1', '1.', 'First item'),
             createListItem('li2', '2.', 'Second item'),
@@ -151,7 +151,7 @@ describe('useTreeOperations', () => {
       expect(h1.children[2].id).toBe('h2');
       // New node is in the middle
       const newNode = h1.children[1] as LeafDocumentNode;
-      expect(newNode.type).toBe('content');
+      expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
 
@@ -165,7 +165,7 @@ describe('useTreeOperations', () => {
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[1] as LeafDocumentNode;
-      expect(newNode.type).toBe('content');
+      expect(newNode.type).toBe('CONTENT');
     });
 
     test('creates list_item when parent is list', () => {
@@ -182,7 +182,7 @@ describe('useTreeOperations', () => {
 
       expect(list.children.length).toBe(4);
       const newItem = list.children[1] as LeafDocumentNode;
-      expect(newItem.type).toBe('list_item');
+      expect(newItem.type).toBe('LIST_ITEM');
     });
   });
 
@@ -204,7 +204,7 @@ describe('useTreeOperations', () => {
       expect(h1.children[2].id).toBe('h2');
       // New node is in the middle
       const newNode = h1.children[1] as LeafDocumentNode;
-      expect(newNode.type).toBe('content');
+      expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
 
@@ -218,7 +218,7 @@ describe('useTreeOperations', () => {
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[0] as LeafDocumentNode;
-      expect(newNode.type).toBe('content');
+      expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
 
@@ -237,7 +237,7 @@ describe('useTreeOperations', () => {
       expect(list.children.length).toBe(4);
       // New item should be at index 1 (before li2 which shifts to index 2)
       const newItem = list.children[1] as ContainerDocumentNode;
-      expect(newItem.type).toBe('list_item');
+      expect(newItem.type).toBe('LIST_ITEM');
       expect(list.children[2].id).toBe('li2');
     });
 
@@ -335,12 +335,12 @@ describe('useTreeOperations', () => {
       const multiLangDoc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'German', en: 'English' },
             children: [],
@@ -367,12 +367,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
@@ -380,7 +380,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
@@ -419,12 +419,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'First' },
             children: [],
@@ -432,7 +432,7 @@ describe('useTreeOperations', () => {
           {
             id: 'h2',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
@@ -473,7 +473,7 @@ describe('useTreeOperations', () => {
       // li1 now ends with a nested list whose only child is li2.
       const li1 = list.children[0] as ContainerDocumentNode;
       const li1Last = li1.children[li1.children.length - 1];
-      expect(li1Last.type).toBe('list');
+      expect(li1Last.type).toBe('LIST');
       const nested = li1Last as ContainerDocumentNode;
       expect(nested.children.length).toBe(1);
       expect(nested.children[0].id).toBe('li2');
@@ -497,7 +497,7 @@ describe('useTreeOperations', () => {
 
       const li1 = list.children[0] as ContainerDocumentNode;
       const li1Last = li1.children[li1.children.length - 1];
-      expect(li1Last.type).toBe('list');
+      expect(li1Last.type).toBe('LIST');
       const nested = li1Last as ContainerDocumentNode;
       expect(nested.children.length).toBe(2);
       expect(nested.children[0].id).toBe('li2');
@@ -510,22 +510,22 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: 'li1',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'li1-content',
                     number: null,
-                    type: 'content',
+                    type: 'CONTENT',
                     format: 'TEXT',
                     contents: { de: 'First' },
                     children: [],
@@ -533,7 +533,7 @@ describe('useTreeOperations', () => {
                   {
                     id: 'oldNested',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [createListItem('liA', 'a.', 'Existing nested')],
                   },
                 ],
@@ -555,7 +555,7 @@ describe('useTreeOperations', () => {
       expect(list1.children.length).toBe(1);
 
       const li1 = list1.children[0] as ContainerDocumentNode;
-      const nested = li1.children.find((c) => c.type === 'list') as ContainerDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'LIST') as ContainerDocumentNode;
       // Same nested list (same id), now with both items inside.
       expect(nested.id).toBe('oldNested');
       expect(nested.children.length).toBe(2);
@@ -581,7 +581,7 @@ describe('useTreeOperations', () => {
       expect(list.children.map((c) => c.id)).toEqual(['li1', 'li3']);
       const li1 = list.children[0] as ContainerDocumentNode;
       const nested = li1.children[li1.children.length - 1] as ContainerDocumentNode;
-      expect(nested.type).toBe('list');
+      expect(nested.type).toBe('LIST');
       expect(nested.children.map((c) => c.id)).toEqual(['li2']);
     });
 
@@ -589,12 +589,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('li1', '1.', 'Only item')],
           },
         ],
@@ -615,23 +615,23 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               createListItem('li1', '1.', 'First'),
               {
                 id: 'li2',
                 number: '2.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'li2-content',
                     number: null,
-                    type: 'content',
+                    type: 'CONTENT',
                     format: 'TEXT',
                     contents: { de: 'Second' },
                     children: [],
@@ -639,7 +639,7 @@ describe('useTreeOperations', () => {
                   {
                     id: 'li2-nested',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [createListItem('liA', 'a.', 'Nested child of li2')],
                   },
                 ],
@@ -659,7 +659,7 @@ describe('useTreeOperations', () => {
       const list1 = newDoc.children[0] as ContainerDocumentNode;
       const li1 = list1.children[0] as ContainerDocumentNode;
       const newSublist = li1.children[li1.children.length - 1] as ContainerDocumentNode;
-      expect(newSublist.type).toBe('list');
+      expect(newSublist.type).toBe('LIST');
 
       const movedLi2 = newSublist.children[0] as ContainerDocumentNode;
       expect(movedLi2.id).toBe('li2');
@@ -674,12 +674,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
@@ -687,7 +687,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'First' },
             children: [],
@@ -695,7 +695,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p2',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
@@ -726,12 +726,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'First' },
             children: [],
@@ -739,7 +739,7 @@ describe('useTreeOperations', () => {
           {
             id: 'h1',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
@@ -810,18 +810,18 @@ describe('useTreeOperations', () => {
       const nestedListDoc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               createListItem('li1', '1.', 'First'),
               {
                 id: 'nested-list',
                 number: null,
-                type: 'list',
+                type: 'LIST',
                 children: [createListItem('li2', 'a.', 'Nested item')],
               },
             ],
@@ -846,12 +846,12 @@ describe('useTreeOperations', () => {
       const docWithTopLevelList: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               createListItem('li1', '1.', 'Item 1'),
               createListItem('li2', '2.', 'Item 2'),
@@ -873,19 +873,19 @@ describe('useTreeOperations', () => {
       const docWithListUnderHeading: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Title' },
             children: [
               {
                 id: 'list1',
                 number: null,
-                type: 'list',
+                type: 'LIST',
                 children: [createListItem('li1', '1.', 'Item 1')],
               },
             ],
@@ -908,22 +908,22 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: 'li1',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'li1-content',
                     number: null,
-                    type: 'content',
+                    type: 'CONTENT',
                     format: 'TEXT',
                     contents: { de: 'First' },
                     children: [],
@@ -931,7 +931,7 @@ describe('useTreeOperations', () => {
                   {
                     id: 'nested',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [createListItem('li2', 'a.', 'Nested item')],
                   },
                 ],
@@ -956,7 +956,7 @@ describe('useTreeOperations', () => {
 
       // li1's nested list is gone (it became empty after li2 left)
       const li1 = list1.children[0] as ContainerDocumentNode;
-      expect(li1.children.some((c) => c.type === 'list')).toBe(false);
+      expect(li1.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
     test('keeps nested list when other items remain after outdent', () => {
@@ -965,22 +965,22 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: 'li1',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'nested',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [createListItem('li2', 'a.', 'A'), createListItem('li3', 'b.', 'B')],
                   },
                 ],
@@ -1001,7 +1001,7 @@ describe('useTreeOperations', () => {
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2']);
 
       const li1 = list1.children[0] as ContainerDocumentNode;
-      const nested = li1.children.find((c) => c.type === 'list') as ContainerDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'LIST') as ContainerDocumentNode;
       expect(nested).toBeDefined();
       expect(nested.children.map((c) => c.id)).toEqual(['li3']);
     });
@@ -1012,32 +1012,32 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: 'li1',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'nested1',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [
                       {
                         id: 'li2',
                         number: 'a.',
-                        type: 'list_item',
+                        type: 'LIST_ITEM',
                         children: [
                           {
                             id: 'nested2',
                             number: null,
-                            type: 'list',
+                            type: 'LIST',
                             children: [createListItem('li3', 'i.', 'Deepest')],
                           },
                         ],
@@ -1065,7 +1065,7 @@ describe('useTreeOperations', () => {
       // li3 sits next to li2 in nested1; nested2 is gone (it became empty).
       expect(nested1.children.map((c) => c.id)).toEqual(['li2', 'li3']);
       const li2 = nested1.children[0] as ContainerDocumentNode;
-      expect(li2.children.some((c) => c.type === 'list')).toBe(false);
+      expect(li2.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
     test('outdents two list_items from nested list, dropping empty list', () => {
@@ -1074,22 +1074,22 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: 'li1',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: 'nested',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [createListItem('li2', 'a.', 'A'), createListItem('li3', 'b.', 'B')],
                   },
                 ],
@@ -1110,7 +1110,7 @@ describe('useTreeOperations', () => {
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2', 'li3']);
 
       const li1 = list1.children[0] as ContainerDocumentNode;
-      expect(li1.children.some((c) => c.type === 'list')).toBe(false);
+      expect(li1.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
     test('outdents multiple nested nodes', () => {
@@ -1141,12 +1141,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
@@ -1154,7 +1154,7 @@ describe('useTreeOperations', () => {
           {
             id: 'fn1',
             number: 'i.',
-            type: 'footnote',
+            type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Footnote text' },
           } as LeafDocumentNode,
@@ -1181,19 +1181,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'fn1',
             number: 'i.',
-            type: 'footnote',
+            type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'First footnote' },
           } as LeafDocumentNode,
           {
             id: 'fn2',
             number: 'ii.',
-            type: 'footnote',
+            type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Second footnote' },
           } as LeafDocumentNode,
@@ -1214,12 +1214,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
@@ -1227,7 +1227,7 @@ describe('useTreeOperations', () => {
           {
             id: 'fn1',
             number: 'i.',
-            type: 'footnote',
+            type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Footnote text' },
           } as LeafDocumentNode,
@@ -1256,19 +1256,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [
               {
                 id: 'fn1',
                 number: 'i.',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'Footnote text' },
               } as LeafDocumentNode,
@@ -1300,26 +1300,26 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [
               {
                 id: 'fn1',
                 number: 'i.',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'First footnote' },
               } as LeafDocumentNode,
               {
                 id: 'fn2',
                 number: 'ii.',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'Second footnote' },
               } as LeafDocumentNode,
@@ -1354,12 +1354,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Some text' },
               children: [],
@@ -1370,14 +1370,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'heading');
+          result.current.changeNodeTypes(['p1'], 'HEADING');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as HeadingDocumentNode;
 
-        expect(converted.type).toBe('heading');
+        expect(converted.type).toBe('HEADING');
         expect(converted.children).toEqual([]);
         expect(converted.contents.de).toBe('Some text');
       });
@@ -1386,12 +1386,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'Art. 1',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'German text', en: 'English text' },
               children: [],
@@ -1402,7 +1402,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'heading');
+          result.current.changeNodeTypes(['p1'], 'HEADING');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1418,12 +1418,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: null,
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Already heading' },
               children: [],
@@ -1434,7 +1434,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'heading');
+          result.current.changeNodeTypes(['h1'], 'HEADING');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1446,12 +1446,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [],
@@ -1462,14 +1462,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'content');
+          result.current.changeNodeTypes(['h1'], 'CONTENT');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('h1');
         expect(converted.number).toBe('1');
         expect(converted.contents.de).toBe('Heading text');
@@ -1480,19 +1480,19 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Heading' },
               children: [
                 {
                   id: 'p1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Child 1' },
                   children: [],
@@ -1500,7 +1500,7 @@ describe('useTreeOperations', () => {
                 {
                   id: 'p2',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Child 2' },
                   children: [],
@@ -1510,7 +1510,7 @@ describe('useTreeOperations', () => {
             {
               id: 'h2',
               number: '2',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Second heading' },
               children: [],
@@ -1521,7 +1521,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'content');
+          result.current.changeNodeTypes(['h1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1529,7 +1529,7 @@ describe('useTreeOperations', () => {
         // Should have 4 children: converted h1, p1, p2, h2
         expect(newDoc.children.length).toBe(4);
         expect(newDoc.children[0].id).toBe('h1');
-        expect(newDoc.children[0].type).toBe('content');
+        expect(newDoc.children[0].type).toBe('CONTENT');
         expect(newDoc.children[1].id).toBe('p1');
         expect(newDoc.children[2].id).toBe('p2');
         expect(newDoc.children[3].id).toBe('h2');
@@ -1539,12 +1539,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Already content' },
               children: [],
@@ -1555,7 +1555,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'content');
+          result.current.changeNodeTypes(['p1'], 'CONTENT');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -1567,12 +1567,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Item text' },
               children: [],
@@ -1583,7 +1583,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1591,15 +1591,15 @@ describe('useTreeOperations', () => {
         // Should have a list at root level
         expect(newDoc.children.length).toBe(1);
         const list = newDoc.children[0] as ContainerDocumentNode;
-        expect(list.type).toBe('list');
+        expect(list.type).toBe('LIST');
 
         // List should contain one list_item with child content node
         expect(list.children.length).toBe(1);
         const item = list.children[0] as ContainerDocumentNode;
-        expect(item.type).toBe('list_item');
+        expect(item.type).toBe('LIST_ITEM');
         // The original content node becomes a child with its id preserved
         const itemContent = item.children[0] as LeafDocumentNode;
-        expect(itemContent.type).toBe('content');
+        expect(itemContent.type).toBe('CONTENT');
         expect(itemContent.id).toBe('p1');
         expect(itemContent.contents.de).toBe('Item text');
       });
@@ -1608,12 +1608,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
@@ -1624,7 +1624,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1637,12 +1637,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
@@ -1653,7 +1653,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'lettered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1666,12 +1666,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Item' },
               children: [],
@@ -1682,7 +1682,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1697,19 +1697,19 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Heading' },
               children: [
                 {
                   id: 'p1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Child content' },
                   children: [],
@@ -1722,7 +1722,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['h1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1731,11 +1731,11 @@ describe('useTreeOperations', () => {
         expect(newDoc.children.length).toBe(2);
 
         const list = newDoc.children[0] as ContainerDocumentNode;
-        expect(list.type).toBe('list');
+        expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
 
         const item = list.children[0] as ContainerDocumentNode;
-        expect(item.type).toBe('list_item');
+        expect(item.type).toBe('LIST_ITEM');
         // The original heading content is now in the child content node
         const itemContent = item.children[0] as LeafDocumentNode;
         expect(itemContent.id).toBe('h1');
@@ -1750,12 +1750,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Only item')],
             },
           ],
@@ -1764,7 +1764,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'content');
+          result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1772,7 +1772,7 @@ describe('useTreeOperations', () => {
         // List should be replaced with content node
         expect(newDoc.children.length).toBe(1);
         const converted = newDoc.children[0] as LeafDocumentNode;
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('li1');
         expect(converted.contents.de).toBe('Only item');
       });
@@ -1781,12 +1781,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', '1.', 'First'),
                 createListItem('li2', '2.', 'Second'),
@@ -1798,7 +1798,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li2'], 'content');
+          result.current.changeNodeTypes(['li2'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1808,13 +1808,13 @@ describe('useTreeOperations', () => {
 
         // List should still exist with one item
         const list = newDoc.children[0] as ContainerDocumentNode;
-        expect(list.type).toBe('list');
+        expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
         expect(list.children[0].id).toBe('li1');
 
         // Converted item should be after the list
         const converted = newDoc.children[1] as LeafDocumentNode;
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('li2');
       });
     });
@@ -1824,12 +1824,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Only item')],
             },
           ],
@@ -1838,14 +1838,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'heading');
+          result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         expect(newDoc.children.length).toBe(1);
         const converted = newDoc.children[0] as HeadingDocumentNode;
-        expect(converted.type).toBe('heading');
+        expect(converted.type).toBe('HEADING');
         expect(converted.id).toBe('li1');
         expect(converted.children).toEqual([]);
       });
@@ -1854,12 +1854,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', '1.', 'First'),
                 createListItem('li2', '2.', 'Second'),
@@ -1871,7 +1871,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'heading');
+          result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1880,12 +1880,12 @@ describe('useTreeOperations', () => {
 
         // Converted heading should be first (since li1 was first item)
         const converted = newDoc.children[0] as HeadingDocumentNode;
-        expect(converted.type).toBe('heading');
+        expect(converted.type).toBe('HEADING');
         expect(converted.id).toBe('li1');
 
         // List with remaining item should follow
         const list = newDoc.children[1] as ContainerDocumentNode;
-        expect(list.type).toBe('list');
+        expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
         expect(list.children[0].id).toBe('li2');
       });
@@ -1896,12 +1896,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', null, 'A'),
                 createListItem('li2', null, 'B'),
@@ -1914,7 +1914,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li2'], 'list', 'numbered');
+          result.current.changeNodeTypes(['li2'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1930,12 +1930,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
             },
           ],
@@ -1944,7 +1944,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'list', 'lettered');
+          result.current.changeNodeTypes(['li1'], 'LIST', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1959,12 +1959,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
             },
           ],
@@ -1973,7 +1973,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['li1'], 'LIST', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -1990,12 +1990,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', null, 'A'),
                 createListItem('li2', null, 'B'),
@@ -2008,7 +2008,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['list1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2023,12 +2023,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'A'), createListItem('li2', '2.', 'B')],
             },
           ],
@@ -2037,7 +2037,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['list1'], 'LIST', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2051,12 +2051,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', '1.', 'A'),
                 createListItem('li2', '2.', 'B'),
@@ -2069,7 +2069,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'list', 'lettered');
+          result.current.changeNodeTypes(['list1'], 'LIST', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2084,12 +2084,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item')],
             },
           ],
@@ -2098,7 +2098,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'heading');
+          result.current.changeNodeTypes(['list1'], 'HEADING');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2110,7 +2110,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations();
 
         act(() => {
-          result.current.changeNodeTypes(['root'], 'content');
+          result.current.changeNodeTypes(['root'], 'CONTENT');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2123,12 +2123,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item')],
             },
           ],
@@ -2137,7 +2137,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'footnote');
+          result.current.changeNodeTypes(['list1'], 'FOOTNOTE');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2149,18 +2149,18 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
@@ -2171,14 +2171,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         // Should have merged into one list
         expect(newDoc.children.length).toBe(1);
-        expect(newDoc.children[0].type).toBe('list');
+        expect(newDoc.children[0].type).toBe('LIST');
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(2);
         expect(mergedList.children[0].id).toBe('li1');
@@ -2191,12 +2191,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
@@ -2204,7 +2204,7 @@ describe('useTreeOperations', () => {
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             },
           ],
@@ -2213,14 +2213,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         // Should have merged into one list
         expect(newDoc.children.length).toBe(1);
-        expect(newDoc.children[0].type).toBe('list');
+        expect(newDoc.children[0].type).toBe('LIST');
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(2);
         // The converted content's id is now in the child content node
@@ -2233,18 +2233,18 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
@@ -2252,7 +2252,7 @@ describe('useTreeOperations', () => {
             {
               id: 'list2',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li2', '1.', 'Item 2')],
             },
           ],
@@ -2261,14 +2261,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         // Should have merged all three into one list
         expect(newDoc.children.length).toBe(1);
-        expect(newDoc.children[0].type).toBe('list');
+        expect(newDoc.children[0].type).toBe('LIST');
         const mergedList = newDoc.children[0] as ContainerDocumentNode;
         expect(mergedList.children.length).toBe(3);
         expect(mergedList.children[0].id).toBe('li1');
@@ -2282,18 +2282,18 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             },
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Separator' },
               children: [],
@@ -2301,7 +2301,7 @@ describe('useTreeOperations', () => {
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Convert me' },
               children: [],
@@ -2312,16 +2312,16 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         // Should have 3 children: list1, heading, and new list
         expect(newDoc.children.length).toBe(3);
-        expect(newDoc.children[0].type).toBe('list');
-        expect(newDoc.children[1].type).toBe('heading');
-        expect(newDoc.children[2].type).toBe('list');
+        expect(newDoc.children[0].type).toBe('LIST');
+        expect(newDoc.children[1].type).toBe('HEADING');
+        expect(newDoc.children[2].type).toBe('LIST');
       });
     });
 
@@ -2330,12 +2330,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Note text' },
               children: [],
@@ -2346,14 +2346,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'footnote');
+          result.current.changeNodeTypes(['p1'], 'FOOTNOTE');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as LeafDocumentNode;
 
-        expect(converted.type).toBe('footnote');
+        expect(converted.type).toBe('FOOTNOTE');
         expect(converted.id).toBe('p1');
         expect(converted.contents.de).toBe('Note text');
         // Footnote is a leaf node - should not have children property
@@ -2364,12 +2364,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'i.',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'German', en: 'English' },
               children: [],
@@ -2380,7 +2380,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'footnote');
+          result.current.changeNodeTypes(['p1'], 'FOOTNOTE');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2396,26 +2396,26 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Main text' },
               children: [
                 {
                   id: 'fn1',
                   number: 'i.',
-                  type: 'footnote',
+                  type: 'FOOTNOTE',
                   format: 'TEXT',
                   contents: { de: 'First footnote' },
                 } as LeafDocumentNode,
                 {
                   id: 'fn2',
                   number: 'ii.',
-                  type: 'footnote',
+                  type: 'FOOTNOTE',
                   format: 'TEXT',
                   contents: { de: 'Second footnote' },
                 } as LeafDocumentNode,
@@ -2424,7 +2424,7 @@ describe('useTreeOperations', () => {
             {
               id: 'p2',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Next paragraph' },
               children: [],
@@ -2435,7 +2435,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'footnote');
+          result.current.changeNodeTypes(['p1'], 'FOOTNOTE');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2443,7 +2443,7 @@ describe('useTreeOperations', () => {
         // Should have 4 children: converted p1, fn1, fn2, p2
         expect(newDoc.children.length).toBe(4);
         expect(newDoc.children[0].id).toBe('p1');
-        expect(newDoc.children[0].type).toBe('footnote');
+        expect(newDoc.children[0].type).toBe('FOOTNOTE');
         expect(newDoc.children[1].id).toBe('fn1');
         expect(newDoc.children[2].id).toBe('fn2');
         expect(newDoc.children[3].id).toBe('p2');
@@ -2453,12 +2453,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'fn1',
               number: 'i.',
-              type: 'footnote',
+              type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Already a footnote' },
             } as LeafDocumentNode,
@@ -2468,7 +2468,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['fn1'], 'footnote');
+          result.current.changeNodeTypes(['fn1'], 'FOOTNOTE');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2480,19 +2480,19 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [
                 {
                   id: 'p1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Child content' },
                   children: [],
@@ -2500,7 +2500,7 @@ describe('useTreeOperations', () => {
                 {
                   id: 'p2',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Another child' },
                   children: [],
@@ -2510,7 +2510,7 @@ describe('useTreeOperations', () => {
             {
               id: 'h2',
               number: '2',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Next heading' },
               children: [],
@@ -2521,7 +2521,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'footnote');
+          result.current.changeNodeTypes(['h1'], 'FOOTNOTE');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2529,7 +2529,7 @@ describe('useTreeOperations', () => {
         // Should have 4 children: converted h1, p1, p2, h2
         expect(newDoc.children.length).toBe(4);
         expect(newDoc.children[0].id).toBe('h1');
-        expect(newDoc.children[0].type).toBe('footnote');
+        expect(newDoc.children[0].type).toBe('FOOTNOTE');
         expect('children' in newDoc.children[0]).toBe(false);
         expect(newDoc.children[1].id).toBe('p1');
         expect(newDoc.children[2].id).toBe('p2');
@@ -2540,12 +2540,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Heading text' },
               children: [],
@@ -2556,13 +2556,13 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['h1'], 'footnote');
+          result.current.changeNodeTypes(['h1'], 'FOOTNOTE');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as LeafDocumentNode;
 
-        expect(converted.type).toBe('footnote');
+        expect(converted.type).toBe('FOOTNOTE');
         expect(converted.id).toBe('h1');
         expect(converted.number).toBe('1');
         expect(converted.contents.de).toBe('Heading text');
@@ -2575,12 +2575,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'fn1',
               number: 'i.',
-              type: 'footnote',
+              type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Footnote text' },
             } as LeafDocumentNode,
@@ -2590,14 +2590,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['fn1'], 'content');
+          result.current.changeNodeTypes(['fn1'], 'CONTENT');
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('fn1');
         expect(converted.number).toBe('i.');
         expect(converted.contents.de).toBe('Footnote text');
@@ -2608,12 +2608,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'fn1',
               number: null,
-              type: 'footnote',
+              type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'German', en: 'English', fr: 'French' },
             } as LeafDocumentNode,
@@ -2623,7 +2623,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['fn1'], 'content');
+          result.current.changeNodeTypes(['fn1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2640,12 +2640,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item')],
             },
           ],
@@ -2654,7 +2654,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'footnote');
+          result.current.changeNodeTypes(['list1'], 'FOOTNOTE');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2664,12 +2664,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item')],
             },
           ],
@@ -2678,7 +2678,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'footnote');
+          result.current.changeNodeTypes(['li1'], 'FOOTNOTE');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -2691,12 +2691,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', 'Art. 5', 'Article body')],
             },
           ],
@@ -2705,13 +2705,13 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'content');
+          result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.number).toBe('Art. 5');
         expect(converted.contents.de).toBe('Article body');
       });
@@ -2720,17 +2720,17 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [],
                 } as ContainerDocumentNode,
               ],
@@ -2741,13 +2741,13 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'content');
+          result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('li1');
         expect(converted.number).toBe('1.');
         expect(converted.contents).toEqual({});
@@ -2758,22 +2758,22 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'li1-content',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'MARKDOWN',
                       contents: { de: '**bold**' },
                       children: [],
@@ -2788,7 +2788,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'content');
+          result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2802,12 +2802,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', '1.', 'First'),
                 createListItem('li2', '2.', 'Second'),
@@ -2819,7 +2819,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li2'], 'content');
+          result.current.changeNodeTypes(['li2'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2830,7 +2830,7 @@ describe('useTreeOperations', () => {
 
         // Extracted content carries its old list_item number
         const converted = newDoc.children[1] as ContentDocumentNode;
-        expect(converted.type).toBe('content');
+        expect(converted.type).toBe('CONTENT');
         expect(converted.number).toBe('2.');
       });
     });
@@ -2840,12 +2840,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', 'Art. 7', 'Heading body')],
             },
           ],
@@ -2854,13 +2854,13 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['li1'], 'heading');
+          result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const converted = newDoc.children[0] as HeadingDocumentNode;
 
-        expect(converted.type).toBe('heading');
+        expect(converted.type).toBe('HEADING');
         expect(converted.number).toBe('Art. 7');
       });
     });
@@ -2870,12 +2870,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 createListItem('li1', '1.', 'A'),
                 createListItem('li2', '2.', 'B'),
@@ -2888,7 +2888,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2899,13 +2899,13 @@ describe('useTreeOperations', () => {
         const c1 = newDoc.children[1] as ContentDocumentNode;
         const c2 = newDoc.children[2] as ContentDocumentNode;
 
-        expect(c0.type).toBe('content');
+        expect(c0.type).toBe('CONTENT');
         expect(c0.number).toBe('1.');
         expect(c0.contents.de).toBe('A');
-        expect(c1.type).toBe('content');
+        expect(c1.type).toBe('CONTENT');
         expect(c1.number).toBe('2.');
         expect(c1.contents.de).toBe('B');
-        expect(c2.type).toBe('content');
+        expect(c2.type).toBe('CONTENT');
         expect(c2.number).toBe('3.');
         expect(c2.contents.de).toBe('C');
       });
@@ -2914,12 +2914,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', null, 'A'), createListItem('li2', null, 'B')],
             },
           ],
@@ -2928,7 +2928,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -2942,22 +2942,22 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'li1-content',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'Outer 1' },
                       children: [],
@@ -2965,7 +2965,7 @@ describe('useTreeOperations', () => {
                     {
                       id: 'sublist',
                       number: null,
-                      type: 'list',
+                      type: 'LIST',
                       children: [
                         createListItem('lia', 'a.', 'Inner a'),
                         createListItem('lib', 'b.', 'Inner b'),
@@ -2982,7 +2982,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3008,28 +3008,28 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'sublist',
                       number: null,
-                      type: 'list',
+                      type: 'LIST',
                       children: [createListItem('lia', 'a.', 'Inner a')],
                     },
                     {
                       id: 'li1-content',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'Outer text' },
                       children: [],
@@ -3044,7 +3044,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3065,22 +3065,22 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'li1-content',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'MARKDOWN',
                       contents: { de: '**bold**' },
                       children: [],
@@ -3095,7 +3095,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3109,22 +3109,22 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'p1',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'First paragraph' },
                       children: [],
@@ -3132,7 +3132,7 @@ describe('useTreeOperations', () => {
                     {
                       id: 'p2',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'Second paragraph' },
                       children: [],
@@ -3147,7 +3147,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3171,17 +3171,17 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [],
                 } as ContainerDocumentNode,
               ],
@@ -3192,14 +3192,14 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
         expect(newDoc.children.length).toBe(1);
         const placeholder = newDoc.children[0] as ContentDocumentNode;
-        expect(placeholder.type).toBe('content');
+        expect(placeholder.type).toBe('CONTENT');
         expect(placeholder.id).toBe('li1');
         expect(placeholder.number).toBe('1.');
         expect(placeholder.contents).toEqual({});
@@ -3210,29 +3210,29 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [
                 {
                   id: 'li1',
                   number: '1.',
-                  type: 'list_item',
+                  type: 'LIST_ITEM',
                   children: [
                     {
                       id: 'li1-content',
                       number: null,
-                      type: 'content',
+                      type: 'CONTENT',
                       format: 'TEXT',
                       contents: { de: 'Item with note' },
                       children: [
                         {
                           id: 'fn1',
                           number: 'i.',
-                          type: 'footnote',
+                          type: 'FOOTNOTE',
                           format: 'TEXT',
                           contents: { de: 'Note text' },
                         } as LeafDocumentNode,
@@ -3248,7 +3248,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'content');
+          result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3256,19 +3256,19 @@ describe('useTreeOperations', () => {
 
         expect(converted.children.length).toBe(1);
         expect(converted.children[0].id).toBe('fn1');
-        expect(converted.children[0].type).toBe('footnote');
+        expect(converted.children[0].type).toBe('FOOTNOTE');
       });
 
       test('list -> heading is still a no-op', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item')],
             },
           ],
@@ -3277,7 +3277,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['list1'], 'heading');
+          result.current.changeNodeTypes(['list1'], 'HEADING');
         });
 
         expect(mockCommit).not.toHaveBeenCalled();
@@ -3289,12 +3289,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'Art. 5',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Body' },
               children: [],
@@ -3305,7 +3305,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3319,12 +3319,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'Art. 5',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Body' },
               children: [],
@@ -3335,7 +3335,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'numbered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3349,12 +3349,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'Art. 5',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Body' },
               children: [],
@@ -3365,7 +3365,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'lettered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'lettered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3379,12 +3379,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Body' },
               children: [],
@@ -3395,7 +3395,7 @@ describe('useTreeOperations', () => {
         const { result } = renderTreeOperations(doc);
 
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3411,12 +3411,12 @@ describe('useTreeOperations', () => {
         const startDoc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: 'Art. 5',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Body' },
               children: [],
@@ -3427,7 +3427,7 @@ describe('useTreeOperations', () => {
         // Step 1: content -> unordered list
         const { result } = renderTreeOperations(startDoc);
         act(() => {
-          result.current.changeNodeTypes(['p1'], 'list', 'unordered');
+          result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
         const afterToList = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = afterToList.children[0] as ContainerDocumentNode;
@@ -3438,12 +3438,12 @@ describe('useTreeOperations', () => {
         mockCommit.mockClear();
         const { result: result2 } = renderTreeOperations(afterToList);
         act(() => {
-          result2.current.changeNodeTypes([listItem.id], 'content');
+          result2.current.changeNodeTypes([listItem.id], 'CONTENT');
         });
         const afterRoundtrip = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const finalContent = afterRoundtrip.children[0] as ContentDocumentNode;
 
-        expect(finalContent.type).toBe('content');
+        expect(finalContent.type).toBe('CONTENT');
         expect(finalContent.number).toBe('Art. 5');
       });
     });
@@ -3454,12 +3454,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'First' },
             children: [],
@@ -3467,7 +3467,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p2',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Second' },
             children: [],
@@ -3475,7 +3475,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p3',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Third' },
             children: [],
@@ -3486,27 +3486,27 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'heading');
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'HEADING');
       });
 
       // Single commit for all three changes
       expect(mockCommit).toHaveBeenCalledTimes(1);
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      expect(newDoc.children[0].type).toBe('heading');
-      expect(newDoc.children[1].type).toBe('heading');
-      expect(newDoc.children[2].type).toBe('heading');
+      expect(newDoc.children[0].type).toBe('HEADING');
+      expect(newDoc.children[1].type).toBe('HEADING');
+      expect(newDoc.children[2].type).toBe('HEADING');
     });
 
     test('handles mixed node types (content + heading -> footnote)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Heading' },
             children: [],
@@ -3514,7 +3514,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Paragraph' },
             children: [],
@@ -3525,20 +3525,20 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.changeNodeTypes(['h1', 'p1'], 'footnote');
+        result.current.changeNodeTypes(['h1', 'p1'], 'FOOTNOTE');
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      expect(newDoc.children[0].type).toBe('footnote');
-      expect(newDoc.children[1].type).toBe('footnote');
+      expect(newDoc.children[0].type).toBe('FOOTNOTE');
+      expect(newDoc.children[1].type).toBe('FOOTNOTE');
     });
 
     test('commits nothing when no nodes can be changed', () => {
       const { result } = renderTreeOperations();
 
       act(() => {
-        result.current.changeNodeTypes(['root'], 'content');
+        result.current.changeNodeTypes(['root'], 'CONTENT');
       });
 
       expect(mockCommit).not.toHaveBeenCalled();
@@ -3548,12 +3548,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [],
@@ -3561,7 +3561,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p2',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [],
@@ -3569,7 +3569,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p3',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'C' },
             children: [],
@@ -3580,14 +3580,14 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'list', 'numbered');
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'LIST', 'numbered');
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
 
       expect(newDoc.children.length).toBe(1);
       const list = newDoc.children[0] as ContainerDocumentNode;
-      expect(list.type).toBe('list');
+      expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(3);
       expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
       expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
@@ -3598,12 +3598,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [],
@@ -3611,7 +3611,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p2',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [],
@@ -3619,7 +3619,7 @@ describe('useTreeOperations', () => {
           {
             id: 'p3',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'C' },
             children: [],
@@ -3630,7 +3630,7 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(doc);
 
       act(() => {
-        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'list', 'lettered');
+        result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'LIST', 'lettered');
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
@@ -3758,12 +3758,12 @@ describe('useTreeOperations', () => {
         const docWithList: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Para' },
               children: [],
@@ -3771,7 +3771,7 @@ describe('useTreeOperations', () => {
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
@@ -3793,12 +3793,12 @@ describe('useTreeOperations', () => {
         const docWithList: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'h1',
               number: '1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Title' },
               children: [],
@@ -3806,7 +3806,7 @@ describe('useTreeOperations', () => {
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
@@ -3870,18 +3870,18 @@ describe('useTreeOperations', () => {
         const docWithTwoLists: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
             {
               id: 'list2',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li2', '1.', 'Item 2')],
             } as ContainerDocumentNode,
           ],
@@ -3902,12 +3902,12 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'p1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Para' },
               children: [],
@@ -3915,7 +3915,7 @@ describe('useTreeOperations', () => {
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
@@ -3936,18 +3936,18 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
             {
               id: 'list2',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li2', '1.', 'Item 2')],
             } as ContainerDocumentNode,
           ],
@@ -3968,19 +3968,19 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'fn1',
               number: 'i.',
-              type: 'footnote',
+              type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Note' },
             } as LeafDocumentNode,
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
           ],
@@ -4000,18 +4000,18 @@ describe('useTreeOperations', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
           number: null,
-          type: 'document',
+          type: 'DOCUMENT',
           children: [
             {
               id: 'list1',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li1', '1.', 'Item 1')],
             } as ContainerDocumentNode,
             {
               id: 'list2',
               number: null,
-              type: 'list',
+              type: 'LIST',
               children: [createListItem('li2', '1.', 'Item 2')],
             } as ContainerDocumentNode,
           ],
@@ -4065,12 +4065,12 @@ describe('useTreeOperations', () => {
       const docWithList: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Para' },
             children: [],
@@ -4078,7 +4078,7 @@ describe('useTreeOperations', () => {
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('li1', '1.', 'Item 1')],
           } as ContainerDocumentNode,
         ],
@@ -4125,18 +4125,18 @@ describe('useTreeOperations', () => {
       const docWithTwoLists: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('li1', '1.', 'Item 1')],
           } as ContainerDocumentNode,
           {
             id: 'list2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('li2', '1.', 'Item 2')],
           } as ContainerDocumentNode,
         ],
@@ -4199,7 +4199,7 @@ describe('useTreeOperations', () => {
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[1] as ContentDocumentNode;
-      expect(newNode.type).toBe('content');
+      expect(newNode.type).toBe('CONTENT');
       expect(newNode.format).toBe('TEXT');
     });
 
@@ -4238,12 +4238,12 @@ describe('useTreeOperations', () => {
       const docWithMarkdown: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'NEWLINES',
             contents: { de: 'preserved' },
             children: [],
@@ -4253,12 +4253,12 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(docWithMarkdown);
 
       act(() => {
-        result.current.changeNodeTypes(['p'], 'footnote');
+        result.current.changeNodeTypes(['p'], 'FOOTNOTE');
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const f = newDoc.children[0] as LeafDocumentNode;
-      expect(f.type).toBe('footnote');
+      expect(f.type).toBe('FOOTNOTE');
       expect(f.format).toBe('NEWLINES');
     });
 
@@ -4266,12 +4266,12 @@ describe('useTreeOperations', () => {
       const docWithMarkdown: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'p',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'MARKDOWN',
             contents: { de: '**bold**' },
             children: [],
@@ -4281,12 +4281,12 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(docWithMarkdown);
 
       act(() => {
-        result.current.changeNodeTypes(['p'], 'heading');
+        result.current.changeNodeTypes(['p'], 'HEADING');
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const h = newDoc.children[0] as HeadingDocumentNode;
-      expect(h.type).toBe('heading');
+      expect(h.type).toBe('HEADING');
       expect(h.format).toBe('TEXT');
       // contents preserved
       expect(h.contents.de).toBe('**bold**');
@@ -4296,12 +4296,12 @@ describe('useTreeOperations', () => {
       const docWithNewlines: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             format: 'NEWLINES',
             contents: { de: 'a\nb' },
             children: [],
@@ -4311,12 +4311,12 @@ describe('useTreeOperations', () => {
       const { result } = renderTreeOperations(docWithNewlines);
 
       act(() => {
-        result.current.changeNodeTypes(['h'], 'content');
+        result.current.changeNodeTypes(['h'], 'CONTENT');
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
       const c = newDoc.children[0] as ContentDocumentNode;
-      expect(c.type).toBe('content');
+      expect(c.type).toBe('CONTENT');
       expect(c.format).toBe('NEWLINES');
     });
   });
@@ -4326,12 +4326,12 @@ describe('useTreeOperations', () => {
     const createFlatDocument = (): ContainerDocumentNode => ({
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'A',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'A' },
           children: [],
@@ -4339,7 +4339,7 @@ describe('useTreeOperations', () => {
         {
           id: 'B',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'B' },
           children: [],
@@ -4347,7 +4347,7 @@ describe('useTreeOperations', () => {
         {
           id: 'C',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'C' },
           children: [],
@@ -4355,7 +4355,7 @@ describe('useTreeOperations', () => {
         {
           id: 'D',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'D' },
           children: [],
@@ -4537,19 +4537,19 @@ describe('useTreeOperations', () => {
     const createMergeDoc = (): ContainerDocumentNode => ({
       id: 'root',
       number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Heading' },
           children: [
             {
               id: 'p1',
               number: 'a',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Hello' },
               children: [],
@@ -4557,7 +4557,7 @@ describe('useTreeOperations', () => {
             {
               id: 'p1b',
               number: 'b',
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'world' },
               children: [],
@@ -4565,7 +4565,7 @@ describe('useTreeOperations', () => {
             {
               id: 'h2',
               number: '1.1',
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Sub' },
               children: [],
@@ -4597,19 +4597,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'h1',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'H' },
             children: [
               {
                 id: 'p1',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'a' },
                 children: [],
@@ -4617,7 +4617,7 @@ describe('useTreeOperations', () => {
               {
                 id: 'pmid',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'b' },
                 children: [],
@@ -4625,7 +4625,7 @@ describe('useTreeOperations', () => {
               {
                 id: 'p1b',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'c' },
                 children: [],
@@ -4654,19 +4654,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'img1',
             number: null,
-            type: 'image',
+            type: 'IMAGE',
             format: 'TEXT',
             contents: { de: 'a' },
           },
           {
             id: 'img2',
             number: null,
-            type: 'image',
+            type: 'IMAGE',
             format: 'TEXT',
             contents: { de: 'b' },
           },
@@ -4698,12 +4698,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'pA',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'NEWLINES',
             contents: { de: 'D-A', en: 'E-A' },
             children: [],
@@ -4711,7 +4711,7 @@ describe('useTreeOperations', () => {
           {
             id: 'pB',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'NEWLINES',
             contents: { de: '', en: 'E-B', fr: 'F-B' },
             children: [],
@@ -4748,12 +4748,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'pA',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'NEWLINES',
             contents: { de: 'a' },
             children: [],
@@ -4761,7 +4761,7 @@ describe('useTreeOperations', () => {
           {
             id: 'pB',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'MARKDOWN',
             contents: { de: 'b' },
             children: [],
@@ -4782,19 +4782,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'pA',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [
               {
                 id: 'fnA1',
                 number: 'i',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'fnA1' },
               },
@@ -4803,21 +4803,21 @@ describe('useTreeOperations', () => {
           {
             id: 'pB',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [
               {
                 id: 'fnB1',
                 number: 'ii',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'fnB1' },
               },
               {
                 id: 'fnB2',
                 number: 'iii',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'fnB2' },
               },
@@ -4838,12 +4838,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'hA',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Foo' },
             children: [],
@@ -4851,7 +4851,7 @@ describe('useTreeOperations', () => {
           {
             id: 'hB',
             number: '2',
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'Bar' },
             children: [],
@@ -4874,12 +4874,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'hA',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [],
@@ -4887,7 +4887,7 @@ describe('useTreeOperations', () => {
           {
             id: 'hB',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [],
@@ -4907,19 +4907,19 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'hA',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [
               {
                 id: 'pA1',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'aa' },
                 children: [],
@@ -4929,14 +4929,14 @@ describe('useTreeOperations', () => {
           {
             id: 'hB',
             number: null,
-            type: 'heading',
+            type: 'HEADING',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [
               {
                 id: 'pB1',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'bb' },
                 children: [],
@@ -4958,26 +4958,26 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'pHolder',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: '' },
             children: [
               {
                 id: 'fnA',
                 number: 'i',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'first' },
               },
               {
                 id: 'fnB',
                 number: 'ii',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'second' },
               },
@@ -5001,12 +5001,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               createListItem('liA', '1.', 'A'),
               createListItem('liB', '2.', 'B'),
@@ -5031,18 +5031,18 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'listA',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('liA1', '1.', 'A1')],
           },
           {
             id: 'listB',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('liB1', '1.', 'B1'), createListItem('liB2', '2.', 'B2')],
           },
         ],
@@ -5069,12 +5069,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'pA',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'A' },
             children: [],
@@ -5082,7 +5082,7 @@ describe('useTreeOperations', () => {
           {
             id: 'pB',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'B' },
             children: [],
@@ -5090,7 +5090,7 @@ describe('useTreeOperations', () => {
           {
             id: 'pC',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'C' },
             children: [],
@@ -5122,12 +5122,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               createListItem('liA', '1.', 'A'),
               createListItem('liB', '2.', 'B'),
@@ -5162,12 +5162,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('liA', '1.', 'A'), createListItem('liB', '2.', 'B')],
           },
         ],
@@ -5181,12 +5181,12 @@ describe('useTreeOperations', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: 'list1',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [createListItem('li1', '1.', 'A')],
           },
         ],

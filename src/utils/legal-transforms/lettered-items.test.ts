@@ -14,7 +14,7 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
     expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
   });
 
@@ -48,7 +48,7 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     const listNode = result.children[0] as ContainerDocumentNode;
-    expect(listNode.type).toBe('list');
+    expect(listNode.type).toBe('LIST');
     const first = (listNode.children[0] as ContainerDocumentNode)
       .children[0] as ContentDocumentNode;
     const second = (listNode.children[1] as ContainerDocumentNode)
@@ -68,10 +68,10 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(3);
-    expect(result.children[0].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
     expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
-    expect(result.children[1].type).toBe('content');
-    expect(result.children[2].type).toBe('list');
+    expect(result.children[1].type).toBe('CONTENT');
+    expect(result.children[2].type).toBe('LIST');
     expect((result.children[2] as ContainerDocumentNode).children).toHaveLength(1);
   });
 
@@ -82,7 +82,7 @@ describe('letteredItemsTransform', () => {
 
     const section = result.children[0] as HeadingDocumentNode;
     expect(section.children).toHaveLength(1);
-    expect(section.children[0].type).toBe('list');
+    expect(section.children[0].type).toBe('LIST');
   });
 
   it('handles lettered items within headings', () => {
@@ -94,8 +94,8 @@ describe('letteredItemsTransform', () => {
 
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.children).toHaveLength(2);
-    expect(h.children[0].type).toBe('content');
-    expect(h.children[1].type).toBe('list');
+    expect(h.children[0].type).toBe('CONTENT');
+    expect(h.children[1].type).toBe('LIST');
   });
 
   it('creates separate lists for non-consecutive runs', () => {
@@ -110,9 +110,9 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(3);
-    expect(result.children[0].type).toBe('list');
-    expect(result.children[1].type).toBe('content');
-    expect(result.children[2].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
+    expect(result.children[1].type).toBe('CONTENT');
+    expect(result.children[2].type).toBe('LIST');
   });
 
   it('preserves content before lettered items', () => {
@@ -121,8 +121,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('list');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('LIST');
   });
 
   it('preserves existing lists', () => {
@@ -137,8 +137,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('list');
-    expect(result.children[1].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
+    expect(result.children[1].type).toBe('LIST');
   });
 
   it('handles empty document', () => {
@@ -155,8 +155,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('CONTENT');
   });
 
   it('preserves the document id', () => {
@@ -191,9 +191,9 @@ describe('letteredItemsTransform', () => {
 
     const listNode = result.children[0] as ContainerDocumentNode;
     const listItem = listNode.children[0];
-    expect(listItem.type).toBe('list_item');
+    expect(listItem.type).toBe('LIST_ITEM');
     expect((listItem as ContainerDocumentNode).children).toHaveLength(1);
-    expect((listItem as ContainerDocumentNode).children[0].type).toBe('content');
+    expect((listItem as ContainerDocumentNode).children[0].type).toBe('CONTENT');
   });
 
   it('handles deeply nested structure', () => {
@@ -208,7 +208,7 @@ describe('letteredItemsTransform', () => {
     const l1 = result.children[0] as HeadingDocumentNode;
     const l2 = l1.children[0] as HeadingDocumentNode;
     expect(l2.children).toHaveLength(1);
-    expect(l2.children[0].type).toBe('list');
+    expect(l2.children[0].type).toBe('LIST');
   });
 
   it('preserves plain text content after stripping letter prefix', () => {
