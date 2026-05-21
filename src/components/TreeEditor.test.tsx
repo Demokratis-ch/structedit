@@ -356,6 +356,46 @@ describe('double-click inline editing', () => {
     vi.useRealTimers();
   });
 
+  // Regression (issue #101, problem 2): editing a node's number opens a text
+  // <input>. While it's open the surrounding node wrappers must drop
+  // draggable=false, otherwise a mouse drag inside the input starts node
+  // drag&drop instead of selecting text.
+  test('node wrappers drop draggable while editing a number', async () => {
+    renderTreeEditor();
+
+    // Sanity: before editing, every wrapper is draggable.
+    let wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('true');
+
+    // Double-click the first node's number badge to enter number-edit mode.
+    await act(async () => {
+      fireEvent.doubleClick(getTreePane().getAllByTitle('Double-click to edit number')[0]);
+    });
+
+    // Every wrapper must now declare draggable=false so the browser lets the
+    // user select text inside the number input with the mouse.
+    wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('false');
+  });
+
+  // Regression (issue #101, problem 3): with no node selected, pressing Tab used
+  // to fall through to the browser's native focus-move, scrolling the pane. The
+  // handler must call preventDefault() even when there's nothing to indent.
+  test('Tab with no selection prevents default (no scroll jump)', () => {
+    renderTreeEditor();
+
+    // Guard the precondition: nothing is selected, so this exercises the
+    // no-selection path rather than the indent path (which also preventDefaults).
+    expectNodeNotSelected('First Heading');
+    expectNodeNotSelected('Second Heading');
+
+    // fireEvent returns false when a handler called preventDefault() on the event.
+    const result = fireEvent.keyDown(getContainer(), { key: 'Tab' });
+    expect(result).toBe(false);
+  });
+
   test('pressing Enter while editing a TEXT-format node does NOT create a sibling', async () => {
     vi.useFakeTimers();
     renderTreeEditor();

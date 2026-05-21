@@ -56,12 +56,17 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       isInvalidDrop,
     } = useNodeState(store, node.id);
     // Firefox suppresses caret-positioning in a contentEditable when any
-    // ancestor has draggable=true (issue #60). Disable draggable on every
-    // node while any node is in edit mode — drag-to-reorder is unavailable
-    // mid-edit anyway, so this is a no-op behaviour-wise.
+    // ancestor has draggable=true (issue #60). The same draggable ancestor also
+    // hijacks mouse text-selection in the number <input> as node drag&drop
+    // (issue #101). Disable draggable on every node while any node is editing
+    // its content or number — drag-to-reorder is unavailable mid-edit anyway,
+    // so this is a no-op behaviour-wise.
     const isAnyNodeEditing = useSyncExternalStore(
       store.subscribe,
-      useCallback(() => store.getEditingId() !== null, [store])
+      useCallback(
+        () => store.getEditingId() !== null || store.getEditingNumberId() !== null,
+        [store]
+      )
     );
 
     const {
