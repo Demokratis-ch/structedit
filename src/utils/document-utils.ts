@@ -80,6 +80,32 @@ export const preserveListStyleType = (html: string): string => {
 };
 
 /**
+ * True when a parsed document carries no text content anywhere in the tree.
+ * Used to detect uploads/pastes we couldn't extract any structure from (e.g.
+ * PDF→HTML output that is only positioned <span>s) so the UI can warn instead
+ * of silently opening an empty editor.
+ */
+export const isEmptyDocument = (doc: ContainerDocumentNode): boolean => {
+  const hasText = (node: DocumentNode): boolean => {
+    // A label like "Art. 5" or "I." that legal transforms moved into `number` is
+    // still real content even when `contents` is empty.
+    if (typeof node.number === 'string' && node.number.trim().length > 0) {
+      return true;
+    }
+    if ('contents' in node && node.contents) {
+      if (Object.values(node.contents).some((v) => typeof v === 'string' && v.trim().length > 0)) {
+        return true;
+      }
+    }
+    if ('children' in node && node.children) {
+      return node.children.some(hasText);
+    }
+    return false;
+  };
+  return !hasText(doc);
+};
+
+/**
  * Parse HTML to DocumentNode tree structure
  */
 export const parseHtmlToTree = (
