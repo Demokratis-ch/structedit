@@ -6,6 +6,7 @@ import type {
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
+import { isValidDocument } from '../types/document';
 import { useTreeEditor } from './useTreeEditor';
 
 const createTestDocument = (): ContainerDocumentNode => ({
@@ -394,6 +395,70 @@ describe('useTreeEditor', () => {
     expect(result.current.document.children[1].id).toBe('p1');
     expect(result.current.document.children[2].id).toBe('p2');
     expect(result.current.document.children[3].id).toBe('h2');
+  });
+
+  test('outdentSelected tabs a heading stuck in a list out of the list (issue #101 #4)', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'LIST',
+          children: [
+            {
+              id: 'li1',
+              number: '1.',
+              type: 'LIST_ITEM',
+              children: [
+                {
+                  id: 'li1-content',
+                  number: null,
+                  type: 'CONTENT',
+                  format: 'TEXT',
+                  contents: { de: 'An item' },
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 'liH',
+              number: null,
+              type: 'LIST_ITEM',
+              children: [
+                {
+                  id: 'stuck',
+                  number: null,
+                  type: 'HEADING',
+                  format: 'TEXT',
+                  contents: { de: 'Stuck heading' },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    act(() => {
+      result.current.handleNodeClick('stuck', { shiftKey: false, ctrlKey: false, metaKey: false });
+    });
+
+    act(() => {
+      result.current.outdentSelected();
+    });
+
+    // The heading is lifted out to sit after the list; the list keeps its first item.
+    expect(result.current.document.children.map((c) => c.type)).toEqual(['LIST', 'HEADING']);
+    expect(result.current.document.children[1].id).toBe('stuck');
+    const list = result.current.document.children[0] as ContainerDocumentNode;
+    expect(list.children.map((c) => c.id)).toEqual(['li1']);
+    expect(isValidDocument(result.current.document)).toBe(true);
   });
 
   describe('moveSelectedToTop / moveSelectedToBottom', () => {

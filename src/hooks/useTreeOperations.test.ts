@@ -6,6 +6,7 @@ import type {
   HeadingDocumentNode,
   LeafDocumentNode,
 } from '../types/document';
+import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { buildIndices, getNodeAtPath } from '../utils/tree-utils';
 import { useTreeOperations } from './useTreeOperations';
@@ -1133,6 +1134,596 @@ describe('useTreeOperations', () => {
       // h1 should have no children left
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       expect(h1.children.length).toBe(0);
+    });
+  });
+
+  describe('outdentNodes: lift node out of list_item (issue #101 #4)', () => {
+    // Helper: a content child node literal.
+    const content = (id: string, text: string): ContentDocumentNode => ({
+      id,
+      number: null,
+      type: 'CONTENT',
+      format: 'TEXT',
+      contents: { de: text },
+      children: [],
+    });
+    // Helper: a heading child node literal.
+    const heading = (id: string, text: string): HeadingDocumentNode => ({
+      id,
+      number: null,
+      type: 'HEADING',
+      format: 'TEXT',
+      contents: { de: text },
+      children: [],
+    });
+
+    test('lifts a heading out of the last list_item, placing it after the list (no split)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              createListItem('li1', '1.', 'a'),
+              {
+                id: 'li2',
+                number: '2.',
+                type: 'LIST_ITEM',
+                children: [content('li2-content', 'b'), heading('H', 'Stuck')],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // No content follows the heading, so no trailing list is created.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['list1', 'H']);
+      const list = newDoc.children[0] as ContainerDocumentNode;
+      expect(list.children.map((c) => c.id)).toEqual(['li1', 'li2']);
+      const li2 = list.children[1] as ContainerDocumentNode;
+      // The surviving list_item keeps its id and number.
+      expect(li2.number).toBe('2.');
+      expect(li2.children.map((c) => c.id)).toEqual(['li2-content']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts a heading out of a middle list_item, splitting the list around it', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [content('li1-content', 'a'), heading('H', 'Stuck')],
+              } as ContainerDocumentNode,
+              createListItem('li2', '2.', 'b'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
+      expect(newDoc.children[1].id).toBe('H');
+      const before = newDoc.children[0] as ContainerDocumentNode;
+      expect(before.id).toBe('list1');
+      expect(before.children.map((c) => c.id)).toEqual(['li1']);
+      const li1 = before.children[0] as ContainerDocumentNode;
+      expect(li1.children.map((c) => c.id)).toEqual(['li1-content']);
+      const after = newDoc.children[2] as ContainerDocumentNode;
+      expect(after.id).not.toBe('list1');
+      expect(after.children.map((c) => c.id)).toEqual(['li2']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('drops an emptied middle list_item when its only child is lifted out', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              createListItem('li1', '1.', 'a'),
+              {
+                id: 'liH',
+                number: null,
+                type: 'LIST_ITEM',
+                children: [heading('H', 'Stuck')],
+              } as ContainerDocumentNode,
+              createListItem('li2', '2.', 'b'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
+      const before = newDoc.children[0] as ContainerDocumentNode;
+      expect(before.children.map((c) => c.id)).toEqual(['li1']);
+      const after = newDoc.children[2] as ContainerDocumentNode;
+      expect(after.children.map((c) => c.id)).toEqual(['li2']);
+      // The emptied list_item is gone entirely.
+      expect(JSON.stringify(newDoc)).not.toContain('liH');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('splits the list_item itself when the lifted node sits between content', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [content('c-a', 'a'), heading('H', 'Stuck'), content('c-c', 'c')],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
+
+      const beforeItem = (newDoc.children[0] as ContainerDocumentNode)
+        .children[0] as ContainerDocumentNode;
+      expect(beforeItem.id).toBe('li1');
+      expect(beforeItem.number).toBe('1.');
+      expect(beforeItem.children.map((c) => c.id)).toEqual(['c-a']);
+
+      const afterItem = (newDoc.children[2] as ContainerDocumentNode)
+        .children[0] as ContainerDocumentNode;
+      // Tail fragment gets a fresh id and no number to avoid a duplicate label.
+      expect(afterItem.id).not.toBe('li1');
+      expect(afterItem.number).toBeNull();
+      expect(afterItem.children.map((c) => c.id)).toEqual(['c-c']);
+
+      // No duplicate ids despite the split.
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts a heading out of the first list_item, placing it before the list', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'liH',
+                number: null,
+                type: 'LIST_ITEM',
+                children: [heading('H', 'Stuck')],
+              } as ContainerDocumentNode,
+              createListItem('li2', '2.', 'b'),
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['H', 'list1']);
+      const after = newDoc.children[1] as ContainerDocumentNode;
+      // No "before" list, so the surviving list reuses the original id.
+      expect(after.id).toBe('list1');
+      expect(after.children.map((c) => c.id)).toEqual(['li2']);
+      // The surviving list_item keeps its original number.
+      expect((after.children[0] as ContainerDocumentNode).number).toBe('2.');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('replaces a single-item single-child list with just the lifted node', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'liH',
+                number: null,
+                type: 'LIST_ITEM',
+                children: [heading('H', 'Stuck')],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['H']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('keeps document order when lifting from a list nested under a heading', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'T',
+            number: '1',
+            type: 'HEADING',
+            format: 'TEXT',
+            contents: { de: 'Title' },
+            children: [
+              content('pre', 'pre'),
+              {
+                id: 'list1',
+                number: null,
+                type: 'LIST',
+                children: [
+                  createListItem('li1', '1.', 'x'),
+                  {
+                    id: 'liH',
+                    number: null,
+                    type: 'LIST_ITEM',
+                    children: [heading('H', 'Stuck')],
+                  } as ContainerDocumentNode,
+                  createListItem('li2', '2.', 'y'),
+                ],
+              },
+              content('post', 'post'),
+            ],
+          } as HeadingDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const t = newDoc.children[0] as HeadingDocumentNode;
+      expect(t.children.map((c) => c.type)).toEqual([
+        'CONTENT',
+        'LIST',
+        'HEADING',
+        'LIST',
+        'CONTENT',
+      ]);
+      expect(t.children[0].id).toBe('pre');
+      expect((t.children[1] as ContainerDocumentNode).children.map((c) => c.id)).toEqual(['li1']);
+      expect(t.children[2].id).toBe('H');
+      expect((t.children[3] as ContainerDocumentNode).children.map((c) => c.id)).toEqual(['li2']);
+      expect(t.children[4].id).toBe('post');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts a normal list item content out of the list', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [createListItem('li1', '1.', 'a'), createListItem('li2', '2.', 'b')],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['li1-content']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['CONTENT', 'LIST']);
+      expect(newDoc.children[0].id).toBe('li1-content');
+      const after = newDoc.children[1] as ContainerDocumentNode;
+      expect(after.id).toBe('list1');
+      expect(after.children.map((c) => c.id)).toEqual(['li2']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts a footnote trapped directly in a list_item out of the list', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [
+                  content('c1', 'a'),
+                  {
+                    id: 'fn',
+                    number: 'i.',
+                    type: 'FOOTNOTE',
+                    format: 'TEXT',
+                    contents: { de: 'note' },
+                  } as LeafDocumentNode,
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['fn']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'FOOTNOTE']);
+      expect(newDoc.children[1].id).toBe('fn');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts multiple sibling nodes out of the same list_item, preserving order', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [
+                  content('c-a', 'a'),
+                  heading('H1', 'H1'),
+                  heading('H2', 'H2'),
+                  content('c-b', 'b'),
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H1', 'H2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'HEADING', 'LIST']);
+      expect(newDoc.children[1].id).toBe('H1');
+      expect(newDoc.children[2].id).toBe('H2');
+      const before = newDoc.children[0] as ContainerDocumentNode;
+      expect((before.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+        'c-a',
+      ]);
+      const after = newDoc.children[3] as ContainerDocumentNode;
+      expect((after.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+        'c-b',
+      ]);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('preserves the lifted node subtree (a heading with body content)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'liH',
+                number: null,
+                type: 'LIST_ITEM',
+                children: [
+                  {
+                    id: 'H',
+                    number: '2',
+                    type: 'HEADING',
+                    format: 'TEXT',
+                    contents: { de: 'Stuck' },
+                    children: [content('body', 'body text')],
+                  } as HeadingDocumentNode,
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(newDoc.children.map((c) => c.id)).toEqual(['H']);
+      const h = newDoc.children[0] as HeadingDocumentNode;
+      // The lifted node keeps its number and its whole subtree.
+      expect(h.number).toBe('2');
+      expect(h.children.map((c) => c.id)).toEqual(['body']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts two non-adjacent nodes out of the same list_item, preserving order', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [heading('H1', 'H1'), content('c-mid', 'mid'), heading('H2', 'H2')],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H1', 'H2']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // Order H1, (list holding the middle content), H2 is preserved.
+      expect(newDoc.children.map((c) => c.type)).toEqual(['HEADING', 'LIST', 'HEADING']);
+      expect(newDoc.children[0].id).toBe('H1');
+      expect(newDoc.children[2].id).toBe('H2');
+      const midList = newDoc.children[1] as ContainerDocumentNode;
+      expect((midList.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+        'c-mid',
+      ]);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('lifts a nested list out of a list_item as a sibling of the outer list', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'outer',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [
+                  content('c-x', 'x'),
+                  {
+                    id: 'inner',
+                    number: null,
+                    type: 'LIST',
+                    children: [createListItem('lia', 'a.', 'nested')],
+                  } as ContainerDocumentNode,
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['inner']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      // The two lists are left adjacent and unmerged; order (x, then nested) holds.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['outer', 'inner']);
+      const outer = newDoc.children[0] as ContainerDocumentNode;
+      expect((outer.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+        'c-x',
+      ]);
+      const inner = newDoc.children[1] as ContainerDocumentNode;
+      expect(inner.children.map((c) => c.id)).toEqual(['lia']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('does not lift when the list_item is not inside a list (malformed)', () => {
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'orphan',
+            number: null,
+            type: 'LIST_ITEM',
+            children: [heading('H', 'Stuck')],
+          } as ContainerDocumentNode,
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+      act(() => {
+        result.current.outdentNodes(['H']);
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
     });
   });
 

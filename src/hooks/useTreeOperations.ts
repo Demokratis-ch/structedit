@@ -243,6 +243,99 @@ function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
   return out;
 }
 
+/**
+ * Lift a node out of the LIST_ITEM that contains it, making it a sibling of the
+ * enclosing LIST while preserving document reading order. The list_item and the
+ * list are split around the node: anything that came before it stays in the
+ * original list (placed before the lifted node); anything that came after moves
+ * into a fresh list placed after the lifted node. Empty fragments are dropped.
+ *
+ * This is what lets a node whose type the LIST schema can't hold — most visibly
+ * a HEADING that ended up inside a list — be "tabbed out" of the list (issue
+ * #101, problem 4). A single level of lifting always lands in a valid parent:
+ * a LIST's parent is always DOCUMENT, HEADING, or LIST_ITEM, all of which accept
+ * every node type a list_item can hold.
+ *
+ * `path` points at the node to lift; its parent must be a LIST_ITEM. Returns
+ * null when the structure isn't the expected LIST > LIST_ITEM > node shape
+ * (e.g. a malformed list_item not inside a list), so odd inputs are left alone.
+ */
+function liftNodeOutOfListItem(
+  doc: ContainerDocumentNode,
+  path: NodePath
+): ContainerDocumentNode | null {
+  const itemPath = path.slice(0, -1);
+  const listPath = itemPath.slice(0, -1);
+
+  const node = getNodeAtPath(doc, path);
+  const item = getNodeAtPath(doc, itemPath);
+  const list = listPath.length === 0 ? doc : getNodeAtPath(doc, listPath);
+  if (!node || !item || item.type !== 'LIST_ITEM' || !list || list.type !== 'LIST') {
+    return null;
+  }
+
+  const gpPath = listPath.slice(0, -1);
+  const gp = gpPath.length === 0 ? doc : getNodeAtPath(doc, gpPath);
+  if (!gp || !('children' in gp)) return null;
+
+  const nodeIndexInItem = path[path.length - 1];
+  const itemIndexInList = itemPath[itemPath.length - 1];
+  const listIndexInGp = listPath[listPath.length - 1];
+
+  const itemChildren = item.children;
+  const beforeChildren = itemChildren.slice(0, nodeIndexInItem);
+  const afterChildren = itemChildren.slice(nodeIndexInItem + 1);
+
+  const listChildren = list.children;
+  const itemsBefore = listChildren.slice(0, itemIndexInList);
+  const itemsAfter = listChildren.slice(itemIndexInList + 1);
+
+  // The "before" fragment of the split list_item keeps the original id/number —
+  // it's the natural start of the item. Omitted when nothing precedes the node.
+  const beforeItem: DocumentNode | null =
+    beforeChildren.length > 0 ? { ...item, children: beforeChildren } : null;
+
+  // The "after" fragment is a continuation: when there's a "before" fragment it
+  // already owns the original id/number, so this one needs a fresh id and drops
+  // the number (a duplicate label would mislead). With no "before" fragment it
+  // IS the surviving remnant of the item, so it keeps the original id/number.
+  const afterItem: DocumentNode | null =
+    afterChildren.length > 0
+      ? beforeItem
+        ? { ...item, id: generateId(), number: null, children: afterChildren }
+        : { ...item, children: afterChildren }
+      : null;
+
+  const beforeListChildren = [...itemsBefore, ...(beforeItem ? [beforeItem] : [])];
+  const afterListChildren = [...(afterItem ? [afterItem] : []), ...itemsAfter];
+
+  // Replace the single list entry in the grandparent with [beforeList?, node, afterList?].
+  // The fragments are left unmerged on purpose: the lifted node sits between them
+  // and `outdentNodes` (unlike the type-change paths) never calls
+  // mergeAdjacentLists — re-joining a split list stays the user's explicit choice.
+  const replacement: DocumentNode[] = [];
+  if (beforeListChildren.length > 0) {
+    replacement.push({ ...list, children: beforeListChildren });
+  }
+  replacement.push(node);
+  if (afterListChildren.length > 0) {
+    // Reuse the original list id only when the "before" list didn't claim it.
+    const afterListId = beforeListChildren.length > 0 ? generateId() : list.id;
+    replacement.push({ ...list, id: afterListId, children: afterListChildren });
+  }
+
+  const newGpChildren = [...gp.children];
+  newGpChildren.splice(listIndexInGp, 1, ...replacement);
+
+  if (gpPath.length === 0) {
+    return { ...doc, children: newGpChildren };
+  }
+  return updateNodeAtPath(doc, gpPath, (n) => ({
+    ...n,
+    children: newGpChildren,
+  }));
+}
+
 /** Create a new empty sibling node appropriate for the given parent. */
 function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
   if (parent.type === 'LIST') {
@@ -526,6 +619,13 @@ export const useTreeOperations = ({
     const node = getNodeAtPath(doc, path);
 
     if (!parent || !node) return null;
+
+    // Issue #101: a node trapped inside a LIST_ITEM whose type the LIST can't
+    // hold (most visibly a HEADING) is lifted out of the list — splitting the
+    // list_item and the list around it so reading order is preserved.
+    if (parent.type === 'LIST_ITEM') {
+      return liftNodeOutOfListItem(doc, path);
+    }
 
     if (parent.type !== 'HEADING' && parent.type !== 'LIST' && parent.type !== 'CONTENT')
       return null;
