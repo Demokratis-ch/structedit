@@ -438,6 +438,10 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       if (flattenedNodes.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         moveSelection(e.key === 'ArrowDown' ? 'down' : 'up', false);
+      } else if (e.key === 'Tab') {
+        // Nothing to indent, but stop the browser's native focus-move, which
+        // otherwise scrolls the pane (issue #101).
+        e.preventDefault();
       }
       return;
     }
