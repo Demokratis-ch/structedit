@@ -50,6 +50,22 @@ const isStrictPathPrefix = (a: NodePath, b: NodePath): boolean => {
 };
 
 /**
+ * Keep only the "outermost" ids: drop any id whose ancestor is also in the set.
+ * When a node and one of its descendants are both selected, an indent/outdent of
+ * the ancestor already carries the descendant along, so processing the
+ * descendant separately would change its relative nesting and corrupt the
+ * structure (issue #108). Order is preserved.
+ */
+const keepOutermostIds = (ids: string[], nodeIndex: Map<string, NodePath>): string[] => {
+  const entries = ids
+    .map((id) => ({ id, path: nodeIndex.get(id) }))
+    .filter((e): e is { id: string; path: NodePath } => e.path !== undefined);
+  return entries
+    .filter(({ path }) => !entries.some((o) => o.path !== path && isStrictPathPrefix(o.path, path)))
+    .map(({ id }) => id);
+};
+
+/**
  * Resolve the canonical merge targets for the given ids, sorted in document
  * order. Returns null when the selection doesn't qualify.
  *
@@ -584,7 +600,7 @@ export const useTreeOperations = ({
       let doc = document;
       let changed = false;
 
-      for (const id of ids) {
+      for (const id of keepOutermostIds(ids, nodeIndex)) {
         const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
         const result = indentNodeInDoc(doc, idx, id);
         if (result) {
@@ -697,7 +713,7 @@ export const useTreeOperations = ({
       // load-bearing for outdenting multiple list_items out of a nested list:
       // the last one to leave drops the now-empty nested list, and an earlier
       // (forward) pass would invalidate the second item's path.
-      const reversed = [...ids].reverse();
+      const reversed = keepOutermostIds(ids, nodeIndex).reverse();
 
       for (const id of reversed) {
         const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
