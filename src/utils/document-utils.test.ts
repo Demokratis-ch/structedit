@@ -13,6 +13,7 @@ import {
   deriveJsonFilename,
   detectLanguage,
   generateId,
+  isEmptyDocument,
   parseHtmlLegalToTree,
   parseHtmlToTree,
   preserveListStyleType,
@@ -848,5 +849,82 @@ describe('Document Utils', () => {
       const doc = parseHtmlLegalToTree(html);
       expect(doc.children.length).toEqual(6);
     });
+  });
+});
+
+describe('isEmptyDocument', () => {
+  const readFixture = (filename: string) => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    return fs.readFileSync(path.join(__dirname, '../test/fixtures', filename), 'utf-8');
+  };
+
+  it('returns true for a DOCUMENT with no children', () => {
+    const doc: ContainerDocumentNode = { id: 'root', number: null, type: 'DOCUMENT', children: [] };
+    expect(isEmptyDocument(doc)).toBe(true);
+  });
+
+  it('returns true for a tree whose only nodes carry no text', () => {
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'h',
+          number: null,
+          type: 'HEADING',
+          format: 'TEXT',
+          contents: {},
+          children: [
+            {
+              id: 'c',
+              number: null,
+              type: 'CONTENT',
+              format: 'TEXT',
+              contents: { de: '   ' },
+              children: [],
+            },
+          ],
+        } as HeadingDocumentNode,
+      ],
+    };
+    expect(isEmptyDocument(doc)).toBe(true);
+  });
+
+  it('returns false for a document that has text content', () => {
+    const doc = parseHtmlLegalToTree('<h1>Title</h1><p>Body</p>');
+    expect(isEmptyDocument(doc)).toBe(false);
+  });
+
+  it('treats a node whose only text lives in `number` as non-empty', () => {
+    // Swiss legal transforms move labels like "Art. 5" into `number`, leaving
+    // `contents` empty — that is still real content, not an empty import.
+    const doc: ContainerDocumentNode = {
+      id: 'root',
+      number: null,
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'h',
+          number: 'Art. 5',
+          type: 'HEADING',
+          format: 'TEXT',
+          contents: { de: '' },
+          children: [],
+        } as HeadingDocumentNode,
+      ],
+    };
+    expect(isEmptyDocument(doc)).toBe(false);
+  });
+
+  // Real artifact from issue #101: HTML produced by the pdf24 PDF→HTML converter.
+  // It has no semantic tags — every line is an absolutely-positioned <div><span> —
+  // so the parser extracts nothing. We can't reasonably import it; we just detect it.
+  it('detects the pdf24-converted fixture as empty (cannot be imported)', () => {
+    const html = readFixture('fedlex-pdf24.html');
+    const doc = parseHtmlLegalToTree(html);
+    expect(doc.children.length).toBe(0);
+    expect(isEmptyDocument(doc)).toBe(true);
   });
 });

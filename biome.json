@@ -51,6 +51,13 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/coverage", "!**/*.css"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/coverage",
+      "!**/*.css",
+      "!**/test/fixtures"
+    ]
   }
 }
