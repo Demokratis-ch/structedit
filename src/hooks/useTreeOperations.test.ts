@@ -756,6 +756,121 @@ describe('useTreeOperations', () => {
 
       expect(mockCommit).not.toHaveBeenCalled();
     });
+
+    test('does not re-nest selected descendants when an ancestor is selected too (issue #108)', () => {
+      // doc: HeadingA, HeadingB(HeadingC, HeadingD). Selecting B together with
+      // its children C and D and indenting must nest B under A while leaving C
+      // and D as direct siblings under B — not re-nesting D under C.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'A',
+            number: null,
+            type: 'HEADING',
+            format: 'TEXT',
+            contents: { de: 'HeadingA' },
+            children: [],
+          },
+          {
+            id: 'B',
+            number: null,
+            type: 'HEADING',
+            format: 'TEXT',
+            contents: { de: 'HeadingB' },
+            children: [
+              {
+                id: 'C',
+                number: null,
+                type: 'HEADING',
+                format: 'TEXT',
+                contents: { de: 'HeadingC' },
+                children: [],
+              },
+              {
+                id: 'D',
+                number: null,
+                type: 'HEADING',
+                format: 'TEXT',
+                contents: { de: 'HeadingD' },
+                children: [],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.indentNodes(['B', 'C', 'D']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(isValidDocument(newDoc)).toBe(true);
+
+      // A is the only root child; B nested under it.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['A']);
+      const a = newDoc.children[0] as HeadingDocumentNode;
+      expect(a.children.map((c) => c.id)).toEqual(['B']);
+
+      // C and D remain direct children of B, in order.
+      const b = a.children[0] as HeadingDocumentNode;
+      expect(b.children.map((c) => c.id)).toEqual(['C', 'D']);
+    });
+
+    test('indents two disjoint subtrees, carrying nested descendants untouched (issue #108)', () => {
+      // Two independent subtrees, each with a selected ancestor and selected
+      // descendants. Both ancestors should indent under their previous sibling,
+      // each carrying its descendants along without re-nesting them.
+      const heading = (id: string, children: HeadingDocumentNode[] = []): HeadingDocumentNode => ({
+        id,
+        number: null,
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: id },
+        children,
+      });
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          heading('A'),
+          heading('B', [heading('C', [heading('E')])]),
+          heading('X'),
+          heading('Y', [heading('Z')]),
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        // Selection spans two disjoint subtrees: ancestors B/Y plus their
+        // descendants C/E/Z. (X is left out — it is the sibling Y indents under.)
+        result.current.indentNodes(['B', 'C', 'E', 'Y', 'Z']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(isValidDocument(newDoc)).toBe(true);
+
+      // A and X remain at root; B nested under A, Y nested under X.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['A', 'X']);
+      const a = newDoc.children[0] as HeadingDocumentNode;
+      const x = newDoc.children[1] as HeadingDocumentNode;
+      expect(a.children.map((c) => c.id)).toEqual(['B']);
+      expect(x.children.map((c) => c.id)).toEqual(['Y']);
+
+      // Nested descendants keep their original relative nesting.
+      const b = a.children[0] as HeadingDocumentNode;
+      const c = b.children[0] as HeadingDocumentNode;
+      expect(b.children.map((n) => n.id)).toEqual(['C']);
+      expect(c.children.map((n) => n.id)).toEqual(['E']);
+      const y = x.children[0] as HeadingDocumentNode;
+      expect(y.children.map((n) => n.id)).toEqual(['Z']);
+    });
   });
 
   describe('outdentNodes (Shift-Tab)', () => {
@@ -1134,6 +1249,154 @@ describe('useTreeOperations', () => {
       // h1 should have no children left
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       expect(h1.children.length).toBe(0);
+    });
+
+    test('does not scatter selected descendants when an ancestor is selected too (issue #108)', () => {
+      // doc: HeadingA(HeadingB(HeadingC, HeadingD)). Selecting B together with
+      // its children C and D and outdenting must lift B to be a sibling of A,
+      // carrying C and D along unchanged — not scatter them or reverse order.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'A',
+            number: null,
+            type: 'HEADING',
+            format: 'TEXT',
+            contents: { de: 'HeadingA' },
+            children: [
+              {
+                id: 'B',
+                number: null,
+                type: 'HEADING',
+                format: 'TEXT',
+                contents: { de: 'HeadingB' },
+                children: [
+                  {
+                    id: 'C',
+                    number: null,
+                    type: 'HEADING',
+                    format: 'TEXT',
+                    contents: { de: 'HeadingC' },
+                    children: [],
+                  },
+                  {
+                    id: 'D',
+                    number: null,
+                    type: 'HEADING',
+                    format: 'TEXT',
+                    contents: { de: 'HeadingD' },
+                    children: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['B', 'C', 'D']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(isValidDocument(newDoc)).toBe(true);
+
+      // B lifted to be a sibling of A, after it.
+      expect(newDoc.children.map((c) => c.id)).toEqual(['A', 'B']);
+      const a = newDoc.children[0] as HeadingDocumentNode;
+      expect(a.children.length).toBe(0);
+
+      // C and D remain direct children of B, in order.
+      const b = newDoc.children[1] as HeadingDocumentNode;
+      expect(b.children.map((c) => c.id)).toEqual(['C', 'D']);
+    });
+
+    test('skips a nested list_item when its enclosing list_item is selected too (issue #108)', () => {
+      // outerLi > nested list > li1 > nested2 list > liA. Selecting li1 together
+      // with its nested descendant liA and outdenting must lift li1 to be a
+      // sibling of outerLi, carrying nested2/liA along — liA must not be
+      // processed separately.
+      const doc: ContainerDocumentNode = {
+        id: 'root',
+        number: null,
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'list1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'outerLi',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [
+                  {
+                    id: 'outerLi-content',
+                    number: null,
+                    type: 'CONTENT',
+                    format: 'TEXT',
+                    contents: { de: 'Outer' },
+                    children: [],
+                  } as ContentDocumentNode,
+                  {
+                    id: 'nested',
+                    number: null,
+                    type: 'LIST',
+                    children: [
+                      {
+                        id: 'li1',
+                        number: 'a.',
+                        type: 'LIST_ITEM',
+                        children: [
+                          {
+                            id: 'li1-content',
+                            number: null,
+                            type: 'CONTENT',
+                            format: 'TEXT',
+                            contents: { de: 'Inner' },
+                            children: [],
+                          } as ContentDocumentNode,
+                          {
+                            id: 'nested2',
+                            number: null,
+                            type: 'LIST',
+                            children: [createListItem('liA', 'i.', 'Deepest')],
+                          },
+                        ],
+                      } as ContainerDocumentNode,
+                    ],
+                  },
+                ],
+              } as ContainerDocumentNode,
+            ],
+          },
+        ],
+      };
+
+      const { result } = renderTreeOperations(doc);
+
+      act(() => {
+        result.current.outdentNodes(['li1', 'liA']);
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      expect(isValidDocument(newDoc)).toBe(true);
+
+      // li1 popped out to be a sibling of outerLi in the outer list.
+      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      expect(list1.children.map((c) => c.id)).toEqual(['outerLi', 'li1']);
+
+      // li1 still carries its own nested2 list with liA unchanged.
+      const li1 = list1.children[1] as ContainerDocumentNode;
+      const nested2 = li1.children.find((c) => c.id === 'nested2') as ContainerDocumentNode;
+      expect(nested2).toBeDefined();
+      expect(nested2.children.map((c) => c.id)).toEqual(['liA']);
     });
   });
 
