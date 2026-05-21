@@ -19,10 +19,10 @@ import {
 import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
 
-type ToolbarBlockType = 'heading' | 'content' | 'ul' | 'ol' | 'abc' | 'footnote';
+type ToolbarBlockType = 'HEADING' | 'CONTENT' | 'ul' | 'ol' | 'abc' | 'FOOTNOTE';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
-type SelectorNodeType = ToolbarBlockType | 'image';
+type SelectorNodeType = ToolbarBlockType | 'IMAGE';
 
 export type InlineMarksTarget = 'contenteditable' | 'input-number';
 
@@ -72,7 +72,7 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
   'MARKDOWN',
 ];
 
-const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
+const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
 
 export function FloatingToolbar({
   selectedCount,
@@ -135,15 +135,15 @@ export function FloatingToolbar({
       )}
 
       <button
-        onClick={() => onUpdateType('heading')}
-        className={typeButtonClass('heading')}
+        onClick={() => onUpdateType('HEADING')}
+        className={typeButtonClass('HEADING')}
         title="Heading (H)"
       >
         <Heading size={18} />
       </button>
       <button
-        onClick={() => onUpdateType('content')}
-        className={typeButtonClass('content')}
+        onClick={() => onUpdateType('CONTENT')}
+        className={typeButtonClass('CONTENT')}
         title="Content (C)"
       >
         <Type size={18} />
@@ -172,8 +172,8 @@ export function FloatingToolbar({
       </button>
       <div className="w-px h-6 bg-gray-700 mx-1" />
       <button
-        onClick={() => onUpdateType('footnote')}
-        className={typeButtonClass('footnote')}
+        onClick={() => onUpdateType('FOOTNOTE')}
+        className={typeButtonClass('FOOTNOTE')}
         title="Footnote (F)"
       >
         <Asterisk size={18} />

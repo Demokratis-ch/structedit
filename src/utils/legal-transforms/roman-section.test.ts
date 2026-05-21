@@ -10,12 +10,12 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.number).toBe('I.');
     expect(h.contents.de).toBe('First Section');
     expect(h.children).toHaveLength(1);
-    expect(h.children[0].type).toBe('content');
+    expect(h.children[0].type).toBe('CONTENT');
   });
 
   it('creates multiple sections for multiple roman numerals', () => {
@@ -45,8 +45,8 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('heading');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('HEADING');
   });
 
   it('does not modify non-document roots', () => {
@@ -55,7 +55,7 @@ describe('romanSectionTransform', () => {
     // HeadingDocumentNode is a valid input but transform should only affect document roots
     const result = romanSectionTransform(input as unknown as ContainerDocumentNode, 'de');
 
-    expect(result.children[0].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
   });
 
   it('preserves existing headings in document', () => {
@@ -64,9 +64,9 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     expect((result.children[0] as HeadingDocumentNode).contents.de).toBe('Existing heading');
-    expect(result.children[1].type).toBe('heading');
+    expect(result.children[1].type).toBe('HEADING');
     expect((result.children[1] as HeadingDocumentNode).number).toBe('I.');
     expect((result.children[1] as HeadingDocumentNode).contents.de).toBe('First Section');
   });
@@ -83,8 +83,8 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('list');
-    expect(result.children[1].type).toBe('heading');
+    expect(result.children[0].type).toBe('LIST');
+    expect(result.children[1].type).toBe('HEADING');
   });
 
   it('nests multiple content nodes under a section', () => {
@@ -112,7 +112,7 @@ describe('romanSectionTransform', () => {
 
     const section = result.children[0] as HeadingDocumentNode;
     expect(section.children).toHaveLength(1);
-    expect(section.children[0].type).toBe('list');
+    expect(section.children[0].type).toBe('LIST');
   });
 
   it('nests headings under sections', () => {
@@ -122,7 +122,7 @@ describe('romanSectionTransform', () => {
 
     const section = result.children[0] as HeadingDocumentNode;
     expect(section.children).toHaveLength(1);
-    expect(section.children[0].type).toBe('heading');
+    expect(section.children[0].type).toBe('HEADING');
   });
 
   // Issue #89: bold/italic wrapping of the numeral kept it from matching after PR #75.
@@ -132,7 +132,7 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.number).toBe('I.');
     expect(h.contents.de).toBe('First Section');
@@ -144,7 +144,7 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
   });
 
   it('promotes a content node that is just a bold Roman numeral', () => {
@@ -153,7 +153,7 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.number).toBe('I.');
     expect(h.contents.de).toBe('');
@@ -173,8 +173,8 @@ describe('romanSectionTransform', () => {
     const result = romanSectionTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('CONTENT');
   });
 
   it('preserves the document id', () => {

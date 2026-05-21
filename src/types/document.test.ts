@@ -4,7 +4,9 @@ import {
   canBeChildOf,
   canHaveFormat,
   DEFAULT_FORMAT,
+  DOC_TREE_VERSION,
   exampleDocument,
+  isValidDocTreeEnvelope,
   isValidDocument,
   isValidNode,
   type NodeFormat,
@@ -15,12 +17,96 @@ describe('Document validation', () => {
     expect(isValidDocument(exampleDocument)).toBe(true);
   });
 
+  describe('SCREAMING_SNAKE_CASE type values (issue #103)', () => {
+    it('accepts an uppercase HEADING node', () => {
+      expect(
+        isValidNode({
+          id: '1',
+          number: null,
+          type: 'HEADING',
+          contents: { en: 'Title' },
+          children: [],
+          format: 'TEXT',
+        })
+      ).toBe(true);
+    });
+
+    it('rejects a lowercase heading node (legacy form)', () => {
+      expect(
+        isValidNode({
+          id: '1',
+          number: null,
+          type: 'heading',
+          contents: { en: 'Title' },
+          children: [],
+          format: 'TEXT',
+        })
+      ).toBe(false);
+    });
+
+    it('accepts an uppercase DOCUMENT root', () => {
+      expect(
+        isValidDocument({
+          id: '1',
+          number: null,
+          type: 'DOCUMENT',
+          children: [],
+        })
+      ).toBe(true);
+    });
+
+    it('rejects a lowercase document root (legacy form)', () => {
+      expect(
+        isValidDocument({
+          id: '1',
+          number: null,
+          type: 'document',
+          children: [],
+        })
+      ).toBe(false);
+    });
+
+    it('accepts a LIST containing a LIST_ITEM (uppercase)', () => {
+      expect(
+        isValidDocument({
+          id: '1',
+          number: null,
+          type: 'DOCUMENT',
+          children: [
+            {
+              id: '2',
+              number: null,
+              type: 'LIST',
+              children: [
+                {
+                  id: '3',
+                  number: '1.',
+                  type: 'LIST_ITEM',
+                  children: [
+                    {
+                      id: '4',
+                      number: null,
+                      type: 'CONTENT',
+                      contents: { en: 'Item' },
+                      children: [],
+                      format: 'TEXT',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        })
+      ).toBe(true);
+    });
+  });
+
   it('validates individual nodes', () => {
     expect(
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Hello' },
         children: [],
         format: 'TEXT',
@@ -44,10 +130,10 @@ describe('Document validation', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
-          { id: '2', number: null, type: 'content', contents: { en: 'A' }, children: [] },
-          { id: '2', number: null, type: 'content', contents: { en: 'B' }, children: [] },
+          { id: '2', number: null, type: 'CONTENT', contents: { en: 'A' }, children: [] },
+          { id: '2', number: null, type: 'CONTENT', contents: { en: 'B' }, children: [] },
         ],
       })
     ).toBe(false);
@@ -58,14 +144,14 @@ describe('Document validation', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list_item',
+            type: 'LIST_ITEM',
             children: [
-              { id: '3', number: null, type: 'content', contents: { en: 'Item' }, children: [] },
+              { id: '3', number: null, type: 'CONTENT', contents: { en: 'Item' }, children: [] },
             ],
           },
         ],
@@ -78,22 +164,22 @@ describe('Document validation', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: '4',
                     number: null,
-                    type: 'content',
+                    type: 'CONTENT',
                     contents: { en: 'Item' },
                     children: [],
                     format: 'TEXT',
@@ -112,13 +198,13 @@ describe('Document validation', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
-            children: [{ id: '3', number: '1.', type: 'list_item', contents: { en: 'Item' } }],
+            type: 'LIST',
+            children: [{ id: '3', number: '1.', type: 'LIST_ITEM', contents: { en: 'Item' } }],
           },
         ],
       })
@@ -130,7 +216,7 @@ describe('Document validation', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [],
         contents: { en: 'Should not have this' },
       })
@@ -142,7 +228,7 @@ describe('Document validation', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'image',
+        type: 'IMAGE',
         contents: { en: 'image.png' },
         children: [],
       })
@@ -154,7 +240,7 @@ describe('Document validation', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { xyz: 'Invalid language' },
       })
     ).toBe(false);
@@ -165,7 +251,7 @@ describe('Document validation', () => {
       isValidNode({
         id: '1',
         number: 'i.',
-        type: 'footnote',
+        type: 'FOOTNOTE',
         contents: { en: 'This is a footnote.' },
         format: 'TEXT',
       })
@@ -177,8 +263,8 @@ describe('Document validation', () => {
       isValidNode({
         id: '1',
         number: 'i.',
-        type: 'footnote',
-        children: [{ id: '2', number: null, type: 'content', contents: { en: 'Text' } }],
+        type: 'FOOTNOTE',
+        children: [{ id: '2', number: null, type: 'CONTENT', contents: { en: 'Text' } }],
       })
     ).toBe(false);
   });
@@ -187,123 +273,123 @@ describe('Document validation', () => {
 describe('canBeChildOf', () => {
   describe('document parent', () => {
     it('allows heading as child of document', () => {
-      expect(canBeChildOf('heading', 'document')).toBe(true);
+      expect(canBeChildOf('HEADING', 'DOCUMENT')).toBe(true);
     });
 
     it('allows list as child of document', () => {
-      expect(canBeChildOf('list', 'document')).toBe(true);
+      expect(canBeChildOf('LIST', 'DOCUMENT')).toBe(true);
     });
 
     it('allows content as child of document', () => {
-      expect(canBeChildOf('content', 'document')).toBe(true);
+      expect(canBeChildOf('CONTENT', 'DOCUMENT')).toBe(true);
     });
 
     it('allows footnote as child of document', () => {
-      expect(canBeChildOf('footnote', 'document')).toBe(true);
+      expect(canBeChildOf('FOOTNOTE', 'DOCUMENT')).toBe(true);
     });
 
     it('allows image as child of document', () => {
-      expect(canBeChildOf('image', 'document')).toBe(true);
+      expect(canBeChildOf('IMAGE', 'DOCUMENT')).toBe(true);
     });
 
     it('rejects list_item as child of document', () => {
-      expect(canBeChildOf('list_item', 'document')).toBe(false);
+      expect(canBeChildOf('LIST_ITEM', 'DOCUMENT')).toBe(false);
     });
   });
 
   describe('heading parent', () => {
     it('allows heading as child of heading', () => {
-      expect(canBeChildOf('heading', 'heading')).toBe(true);
+      expect(canBeChildOf('HEADING', 'HEADING')).toBe(true);
     });
 
     it('allows list as child of heading', () => {
-      expect(canBeChildOf('list', 'heading')).toBe(true);
+      expect(canBeChildOf('LIST', 'HEADING')).toBe(true);
     });
 
     it('allows content as child of heading', () => {
-      expect(canBeChildOf('content', 'heading')).toBe(true);
+      expect(canBeChildOf('CONTENT', 'HEADING')).toBe(true);
     });
 
     it('allows footnote as child of heading', () => {
-      expect(canBeChildOf('footnote', 'heading')).toBe(true);
+      expect(canBeChildOf('FOOTNOTE', 'HEADING')).toBe(true);
     });
 
     it('allows image as child of heading', () => {
-      expect(canBeChildOf('image', 'heading')).toBe(true);
+      expect(canBeChildOf('IMAGE', 'HEADING')).toBe(true);
     });
 
     it('rejects list_item as child of heading', () => {
-      expect(canBeChildOf('list_item', 'heading')).toBe(false);
+      expect(canBeChildOf('LIST_ITEM', 'HEADING')).toBe(false);
     });
   });
 
   describe('list parent', () => {
     it('allows list_item as child of list', () => {
-      expect(canBeChildOf('list_item', 'list')).toBe(true);
+      expect(canBeChildOf('LIST_ITEM', 'LIST')).toBe(true);
     });
 
     it('rejects heading as child of list', () => {
-      expect(canBeChildOf('heading', 'list')).toBe(false);
+      expect(canBeChildOf('HEADING', 'LIST')).toBe(false);
     });
 
     it('rejects content as child of list', () => {
-      expect(canBeChildOf('content', 'list')).toBe(false);
+      expect(canBeChildOf('CONTENT', 'LIST')).toBe(false);
     });
 
     it('rejects list as child of list', () => {
-      expect(canBeChildOf('list', 'list')).toBe(false);
+      expect(canBeChildOf('LIST', 'LIST')).toBe(false);
     });
 
     it('rejects footnote as child of list', () => {
-      expect(canBeChildOf('footnote', 'list')).toBe(false);
+      expect(canBeChildOf('FOOTNOTE', 'LIST')).toBe(false);
     });
 
     it('rejects image as child of list', () => {
-      expect(canBeChildOf('image', 'list')).toBe(false);
+      expect(canBeChildOf('IMAGE', 'LIST')).toBe(false);
     });
   });
 
   describe('list_item parent', () => {
     it('allows content as child of list_item', () => {
-      expect(canBeChildOf('content', 'list_item')).toBe(true);
+      expect(canBeChildOf('CONTENT', 'LIST_ITEM')).toBe(true);
     });
 
     it('allows heading as child of list_item', () => {
-      expect(canBeChildOf('heading', 'list_item')).toBe(true);
+      expect(canBeChildOf('HEADING', 'LIST_ITEM')).toBe(true);
     });
 
     it('allows nested list as child of list_item', () => {
-      expect(canBeChildOf('list', 'list_item')).toBe(true);
+      expect(canBeChildOf('LIST', 'LIST_ITEM')).toBe(true);
     });
 
     it('allows footnote as child of list_item', () => {
-      expect(canBeChildOf('footnote', 'list_item')).toBe(true);
+      expect(canBeChildOf('FOOTNOTE', 'LIST_ITEM')).toBe(true);
     });
 
     it('allows image as child of list_item', () => {
-      expect(canBeChildOf('image', 'list_item')).toBe(true);
+      expect(canBeChildOf('IMAGE', 'LIST_ITEM')).toBe(true);
     });
 
     it('rejects list_item as direct child of list_item', () => {
-      expect(canBeChildOf('list_item', 'list_item')).toBe(false);
+      expect(canBeChildOf('LIST_ITEM', 'LIST_ITEM')).toBe(false);
     });
   });
 
   describe('null parent (root level)', () => {
     it('allows heading at root level', () => {
-      expect(canBeChildOf('heading', null)).toBe(true);
+      expect(canBeChildOf('HEADING', null)).toBe(true);
     });
 
     it('allows content at root level', () => {
-      expect(canBeChildOf('content', null)).toBe(true);
+      expect(canBeChildOf('CONTENT', null)).toBe(true);
     });
 
     it('allows list at root level', () => {
-      expect(canBeChildOf('list', null)).toBe(true);
+      expect(canBeChildOf('LIST', null)).toBe(true);
     });
 
     it('rejects list_item at root level', () => {
-      expect(canBeChildOf('list_item', null)).toBe(false);
+      expect(canBeChildOf('LIST_ITEM', null)).toBe(false);
     });
   });
 });
@@ -314,17 +400,17 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 contents: { en: 'Invalid!' },
                 children: [],
               },
@@ -340,14 +426,14 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
-              { id: '3', number: '1', type: 'heading', contents: { en: 'Invalid!' }, children: [] },
+              { id: '3', number: '1', type: 'HEADING', contents: { en: 'Invalid!' }, children: [] },
             ],
           },
         ],
@@ -360,27 +446,27 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: null,
-                type: 'list',
+                type: 'LIST',
                 children: [
                   {
                     id: '4',
                     number: '1.',
-                    type: 'list_item',
+                    type: 'LIST_ITEM',
                     children: [
                       {
                         id: '5',
                         number: null,
-                        type: 'content',
+                        type: 'CONTENT',
                         contents: { en: 'Item' },
                         children: [],
                       },
@@ -400,13 +486,13 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
-            children: [{ id: '3', number: 'i.', type: 'footnote', contents: { en: 'Invalid' } }],
+            type: 'LIST',
+            children: [{ id: '3', number: 'i.', type: 'FOOTNOTE', contents: { en: 'Invalid' } }],
           },
         ],
       })
@@ -418,13 +504,13 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
-            children: [{ id: '3', number: null, type: 'image', contents: { en: 'image.png' } }],
+            type: 'LIST',
+            children: [{ id: '3', number: null, type: 'IMAGE', contents: { en: 'image.png' } }],
           },
         ],
       })
@@ -436,22 +522,22 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: '4',
                     number: null,
-                    type: 'content',
+                    type: 'CONTENT',
                     contents: { en: 'Item' },
                     children: [],
                     format: 'TEXT',
@@ -459,17 +545,17 @@ describe('Document validation - parent-child rules', () => {
                   {
                     id: '5',
                     number: null,
-                    type: 'list',
+                    type: 'LIST',
                     children: [
                       {
                         id: '6',
                         number: 'a.',
-                        type: 'list_item',
+                        type: 'LIST_ITEM',
                         children: [
                           {
                             id: '7',
                             number: null,
-                            type: 'content',
+                            type: 'CONTENT',
                             contents: { en: 'Nested' },
                             children: [],
                             format: 'TEXT',
@@ -492,19 +578,19 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: '1',
-            type: 'heading',
+            type: 'HEADING',
             contents: { en: 'Title' },
             format: 'TEXT',
             children: [
               {
                 id: '3',
                 number: 'i.',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 contents: { en: 'Note' },
                 format: 'TEXT',
               },
@@ -520,22 +606,22 @@ describe('Document validation - parent-child rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [
                   {
                     id: '4',
                     number: null,
-                    type: 'image',
+                    type: 'IMAGE',
                     contents: { en: 'image.png' },
                     format: 'TEXT',
                   },
@@ -555,7 +641,7 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Hello' },
         children: [],
         format: 'TEXT',
@@ -568,14 +654,14 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text with footnote' },
         format: 'TEXT',
         children: [
           {
             id: '2',
             number: 'i.',
-            type: 'footnote',
+            type: 'FOOTNOTE',
             contents: { en: 'Footnote text' },
             format: 'TEXT',
           },
@@ -589,12 +675,12 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
         format: 'TEXT',
         children: [
-          { id: '2', number: 'i.', type: 'footnote', contents: { en: 'First' }, format: 'TEXT' },
-          { id: '3', number: 'ii.', type: 'footnote', contents: { en: 'Second' }, format: 'TEXT' },
+          { id: '2', number: 'i.', type: 'FOOTNOTE', contents: { en: 'First' }, format: 'TEXT' },
+          { id: '3', number: 'ii.', type: 'FOOTNOTE', contents: { en: 'Second' }, format: 'TEXT' },
         ],
       })
     ).toBe(true);
@@ -605,7 +691,7 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Hello' },
       })
     ).toBe(false);
@@ -616,10 +702,10 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
         children: [
-          { id: '2', number: '1', type: 'heading', contents: { en: 'Heading' }, children: [] },
+          { id: '2', number: '1', type: 'HEADING', contents: { en: 'Heading' }, children: [] },
         ],
       })
     ).toBe(false);
@@ -630,10 +716,10 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
         children: [
-          { id: '2', number: null, type: 'content', contents: { en: 'Nested' }, children: [] },
+          { id: '2', number: null, type: 'CONTENT', contents: { en: 'Nested' }, children: [] },
         ],
       })
     ).toBe(false);
@@ -644,9 +730,9 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
-        children: [{ id: '2', number: null, type: 'list', children: [] }],
+        children: [{ id: '2', number: null, type: 'LIST', children: [] }],
       })
     ).toBe(false);
   });
@@ -656,9 +742,9 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
-        children: [{ id: '2', number: null, type: 'image', contents: { en: 'img.png' } }],
+        children: [{ id: '2', number: null, type: 'IMAGE', contents: { en: 'img.png' } }],
       })
     ).toBe(false);
   });
@@ -668,9 +754,9 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'Text' },
-        children: [{ id: '2', number: null, type: 'list_item', children: [] }],
+        children: [{ id: '2', number: null, type: 'LIST_ITEM', children: [] }],
       })
     ).toBe(false);
   });
@@ -680,7 +766,7 @@ describe('Content node as hybrid type (with footnote children)', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: 'not an object',
         children: [],
       })
@@ -690,27 +776,27 @@ describe('Content node as hybrid type (with footnote children)', () => {
 
 describe('canBeChildOf - content parent', () => {
   it('allows footnote as child of content', () => {
-    expect(canBeChildOf('footnote', 'content')).toBe(true);
+    expect(canBeChildOf('FOOTNOTE', 'CONTENT')).toBe(true);
   });
 
   it('rejects heading as child of content', () => {
-    expect(canBeChildOf('heading', 'content')).toBe(false);
+    expect(canBeChildOf('HEADING', 'CONTENT')).toBe(false);
   });
 
   it('rejects content as child of content', () => {
-    expect(canBeChildOf('content', 'content')).toBe(false);
+    expect(canBeChildOf('CONTENT', 'CONTENT')).toBe(false);
   });
 
   it('rejects list as child of content', () => {
-    expect(canBeChildOf('list', 'content')).toBe(false);
+    expect(canBeChildOf('LIST', 'CONTENT')).toBe(false);
   });
 
   it('rejects list_item as child of content', () => {
-    expect(canBeChildOf('list_item', 'content')).toBe(false);
+    expect(canBeChildOf('LIST_ITEM', 'CONTENT')).toBe(false);
   });
 
   it('rejects image as child of content', () => {
-    expect(canBeChildOf('image', 'content')).toBe(false);
+    expect(canBeChildOf('IMAGE', 'CONTENT')).toBe(false);
   });
 });
 
@@ -727,56 +813,127 @@ describe('NodeFormat — type and tables', () => {
   });
 
   it('ALLOWED_FORMATS exposes per-type allow-lists', () => {
-    expect(ALLOWED_FORMATS.heading).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL']);
-    expect(ALLOWED_FORMATS.content).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
-    expect(ALLOWED_FORMATS.footnote).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
-    expect(ALLOWED_FORMATS.image).toEqual(['TEXT', 'NEWLINES']);
+    expect(ALLOWED_FORMATS.HEADING).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL']);
+    expect(ALLOWED_FORMATS.CONTENT).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.FOOTNOTE).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.IMAGE).toEqual(['TEXT', 'NEWLINES']);
   });
 
   it('DEFAULT_FORMAT is TEXT for every content-bearing type', () => {
-    expect(DEFAULT_FORMAT.heading).toBe('TEXT');
-    expect(DEFAULT_FORMAT.content).toBe('TEXT');
-    expect(DEFAULT_FORMAT.footnote).toBe('TEXT');
-    expect(DEFAULT_FORMAT.image).toBe('TEXT');
+    expect(DEFAULT_FORMAT.HEADING).toBe('TEXT');
+    expect(DEFAULT_FORMAT.CONTENT).toBe('TEXT');
+    expect(DEFAULT_FORMAT.FOOTNOTE).toBe('TEXT');
+    expect(DEFAULT_FORMAT.IMAGE).toBe('TEXT');
   });
 });
 
 describe('canHaveFormat', () => {
   it('returns true for an allowed (heading, MARKDOWN_MINIMAL) pair', () => {
-    expect(canHaveFormat('heading', 'MARKDOWN_MINIMAL')).toBe(true);
+    expect(canHaveFormat('HEADING', 'MARKDOWN_MINIMAL')).toBe(true);
   });
 
   it('returns false for (heading, MARKDOWN)', () => {
-    expect(canHaveFormat('heading', 'MARKDOWN')).toBe(false);
+    expect(canHaveFormat('HEADING', 'MARKDOWN')).toBe(false);
   });
 
   it('returns true for (content, MARKDOWN)', () => {
-    expect(canHaveFormat('content', 'MARKDOWN')).toBe(true);
+    expect(canHaveFormat('CONTENT', 'MARKDOWN')).toBe(true);
   });
 
   it('returns false for (content, MARKDOWN_MINIMAL)', () => {
-    expect(canHaveFormat('content', 'MARKDOWN_MINIMAL')).toBe(false);
+    expect(canHaveFormat('CONTENT', 'MARKDOWN_MINIMAL')).toBe(false);
   });
 
   it('returns true for (footnote, MARKDOWN)', () => {
-    expect(canHaveFormat('footnote', 'MARKDOWN')).toBe(true);
+    expect(canHaveFormat('FOOTNOTE', 'MARKDOWN')).toBe(true);
   });
 
   it('returns false for (image, MARKDOWN)', () => {
-    expect(canHaveFormat('image', 'MARKDOWN')).toBe(false);
+    expect(canHaveFormat('IMAGE', 'MARKDOWN')).toBe(false);
   });
 
   it('returns true for (image, NEWLINES)', () => {
-    expect(canHaveFormat('image', 'NEWLINES')).toBe(true);
+    expect(canHaveFormat('IMAGE', 'NEWLINES')).toBe(true);
   });
 
   it('returns false for container types like document/list/list_item', () => {
     // @ts-expect-error — container types are not allowed in canHaveFormat callers
-    expect(canHaveFormat('document', 'TEXT')).toBe(false);
+    expect(canHaveFormat('DOCUMENT', 'TEXT')).toBe(false);
     // @ts-expect-error
-    expect(canHaveFormat('list', 'TEXT')).toBe(false);
+    expect(canHaveFormat('LIST', 'TEXT')).toBe(false);
     // @ts-expect-error
-    expect(canHaveFormat('list_item', 'TEXT')).toBe(false);
+    expect(canHaveFormat('LIST_ITEM', 'TEXT')).toBe(false);
+  });
+});
+
+describe('DocTreeEnvelope', () => {
+  const envelopeFor = (overrides: Record<string, unknown> = {}) => ({
+    DocTreeVersion: DOC_TREE_VERSION,
+    metadata: { title: { de: 'Beispieldokument' } },
+    document: exampleDocument,
+    ...overrides,
+  });
+
+  it('exports DOC_TREE_VERSION as 1', () => {
+    expect(DOC_TREE_VERSION).toBe(1);
+  });
+
+  it('accepts a well-formed envelope around exampleDocument', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor())).toBe(true);
+  });
+
+  it('accepts an envelope with an empty title map', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: {} } }))).toBe(true);
+  });
+
+  it('rejects an envelope with a missing DocTreeVersion', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.DocTreeVersion;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope with an unsupported DocTreeVersion', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ DocTreeVersion: 2 }))).toBe(false);
+  });
+
+  it('rejects an envelope with missing metadata', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.metadata;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title is missing', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: {} }))).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title uses an invalid language key', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: { xyz: 'Hi' } } }))).toBe(false);
+  });
+
+  it('rejects an envelope whose metadata.title has a non-string value', () => {
+    expect(isValidDocTreeEnvelope(envelopeFor({ metadata: { title: { de: 42 } } }))).toBe(false);
+  });
+
+  it('rejects an envelope with a missing document', () => {
+    const env = envelopeFor() as Record<string, unknown>;
+    delete env.document;
+    expect(isValidDocTreeEnvelope(env)).toBe(false);
+  });
+
+  it('rejects an envelope whose document is not a valid document tree', () => {
+    expect(
+      isValidDocTreeEnvelope(
+        envelopeFor({
+          document: { id: '1', number: null, type: 'HEADING', contents: {}, children: [] },
+        })
+      )
+    ).toBe(false);
+  });
+
+  it('rejects non-object inputs', () => {
+    expect(isValidDocTreeEnvelope(null)).toBe(false);
+    expect(isValidDocTreeEnvelope(undefined)).toBe(false);
+    expect(isValidDocTreeEnvelope('envelope')).toBe(false);
   });
 });
 
@@ -786,7 +943,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'hello' },
         children: [],
       })
@@ -798,7 +955,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         contents: { en: 'Title' },
         children: [],
       })
@@ -810,7 +967,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: 'i.',
-        type: 'footnote',
+        type: 'FOOTNOTE',
         contents: { en: 'Note' },
       })
     ).toBe(false);
@@ -821,7 +978,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'image',
+        type: 'IMAGE',
         contents: { en: 'img.png' },
       })
     ).toBe(false);
@@ -832,7 +989,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         contents: { en: 'Title' },
         children: [],
         format: 'MARKDOWN_MINIMAL',
@@ -845,7 +1002,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         contents: { en: 'Title' },
         children: [],
         format: 'MARKDOWN',
@@ -858,7 +1015,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'x' },
         children: [],
         format: 'MARKDOWN_MINIMAL',
@@ -871,7 +1028,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'image',
+        type: 'IMAGE',
         contents: { en: 'i.png' },
         format: 'MARKDOWN',
       })
@@ -883,7 +1040,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         contents: { en: 'x' },
         children: [],
         format: 'WHATEVER',
@@ -896,7 +1053,7 @@ describe('isValidNode — format field rules', () => {
       isValidNode({
         id: '1',
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [],
         format: 'TEXT',
       })
@@ -908,7 +1065,7 @@ describe('isValidNode — format field rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [],
         format: 'TEXT',
       })
@@ -920,17 +1077,17 @@ describe('isValidNode — format field rules', () => {
       isValidDocument({
         id: '1',
         number: null,
-        type: 'document',
+        type: 'DOCUMENT',
         children: [
           {
             id: '2',
             number: null,
-            type: 'list',
+            type: 'LIST',
             children: [
               {
                 id: '3',
                 number: '1.',
-                type: 'list_item',
+                type: 'LIST_ITEM',
                 children: [],
                 format: 'TEXT',
               },

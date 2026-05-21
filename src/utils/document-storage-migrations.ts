@@ -1,16 +1,23 @@
 import { isValidDocument } from '../types/document';
 import type { IncompatibleEntry, StoredDocumentEntry } from './document-storage';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+const V1_TO_V2_TYPE_RENAMES: Record<string, string> = {
+  document: 'DOCUMENT',
+  heading: 'HEADING',
+  content: 'CONTENT',
+  list: 'LIST',
+  list_item: 'LIST_ITEM',
+  image: 'IMAGE',
+  footnote: 'FOOTNOTE',
+};
 
 /**
  * Run the version-dispatch chain on a raw record, then validate the migrated
  * tree against `isValidDocument`. Returns either a usable {@link StoredDocumentEntry}
  * or an {@link IncompatibleEntry} carrying just enough metadata for the picker
  * to render a disabled row.
- *
- * The chain is empty today (v1 only). When a future schema bumps to v2, add a
- * `migrateV1ToV2(raw)` step and update SCHEMA_VERSION in this file.
  */
 export function migrateEntry(raw: unknown): StoredDocumentEntry | IncompatibleEntry {
   const fallback = (): IncompatibleEntry => extractIncompatible(raw);
@@ -20,12 +27,33 @@ export function migrateEntry(raw: unknown): StoredDocumentEntry | IncompatibleEn
   const version = typeof raw.schemaVersion === 'number' ? raw.schemaVersion : null;
   if (version === null || version > SCHEMA_VERSION) return fallback();
 
-  // Future: dispatch migrations here for version < SCHEMA_VERSION.
+  let working: Record<string, unknown> = raw;
+  if (version < 2) working = migrateV1ToV2(working);
 
-  if (!hasStoredEntryShape(raw)) return fallback();
-  if (!isValidDocument(raw.tree)) return fallback();
+  if (!hasStoredEntryShape(working)) return fallback();
+  if (!isValidDocument(working.tree)) return fallback();
 
-  return raw as unknown as StoredDocumentEntry;
+  return working as unknown as StoredDocumentEntry;
+}
+
+// Issue #103: node `type` values switched from lowercase to SCREAMING_SNAKE_CASE.
+// Walk the tree and uppercase known type literals so v1 documents survive the bump.
+// Only `tree` needs walking; other entry fields (source, name, language, …) are
+// unaffected by the node-type rename.
+function migrateV1ToV2(raw: Record<string, unknown>): Record<string, unknown> {
+  return { ...raw, tree: upgradeNodeTypes(raw.tree), schemaVersion: 2 };
+}
+
+function upgradeNodeTypes(node: unknown): unknown {
+  if (!isObject(node)) return node;
+  const next: Record<string, unknown> = { ...node };
+  if (typeof next.type === 'string' && V1_TO_V2_TYPE_RENAMES[next.type]) {
+    next.type = V1_TO_V2_TYPE_RENAMES[next.type];
+  }
+  if (Array.isArray(next.children)) {
+    next.children = next.children.map(upgradeNodeTypes);
+  }
+  return next;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

@@ -119,17 +119,17 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     if (!flatNode) return null;
 
     const nodeType = flatNode.node.type;
-    if (nodeType === 'heading') return 'heading';
-    if (nodeType === 'content') return 'content';
-    if (nodeType === 'footnote') return 'footnote';
-    if (nodeType === 'list_item') {
+    if (nodeType === 'HEADING') return 'HEADING';
+    if (nodeType === 'CONTENT') return 'CONTENT';
+    if (nodeType === 'FOOTNOTE') return 'FOOTNOTE';
+    if (nodeType === 'LIST_ITEM') {
       // Check parent list style via the node's number format
       const num = flatNode.node.number;
       if (num === null || num === '•') return 'ul';
       if (/^[a-z]\.?$/i.test(num)) return 'abc';
       return 'ol';
     }
-    if (nodeType === 'list') {
+    if (nodeType === 'LIST') {
       // For list containers, check first child's number format
       const listNode = flatNode.node as { children?: { number?: string | null }[] };
       const firstChild = listNode.children?.[0];
@@ -387,30 +387,30 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
-    let targetType: 'heading' | 'content' | 'list' | 'footnote';
+    let targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE';
     let listStyle: ListStyle | undefined;
 
     switch (toolbarType) {
-      case 'heading':
-        targetType = 'heading';
+      case 'HEADING':
+        targetType = 'HEADING';
         break;
-      case 'content':
-        targetType = 'content';
+      case 'CONTENT':
+        targetType = 'CONTENT';
         break;
       case 'ul':
-        targetType = 'list';
+        targetType = 'LIST';
         listStyle = 'unordered';
         break;
       case 'ol':
-        targetType = 'list';
+        targetType = 'LIST';
         listStyle = 'numbered';
         break;
       case 'abc':
-        targetType = 'list';
+        targetType = 'LIST';
         listStyle = 'lettered';
         break;
-      case 'footnote':
-        targetType = 'footnote';
+      case 'FOOTNOTE':
+        targetType = 'FOOTNOTE';
         break;
       default:
         return;
@@ -474,13 +474,13 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         return;
       }
       const shortcutMap: Record<string, string> = {
-        h: 'heading',
-        t: 'content',
-        c: 'content',
+        h: 'HEADING',
+        t: 'CONTENT',
+        c: 'CONTENT',
         u: 'ul',
         o: 'ol',
         a: 'abc',
-        f: 'footnote',
+        f: 'FOOTNOTE',
       };
       const toolbarType = shortcutMap[key];
       if (toolbarType) {

@@ -16,16 +16,16 @@ describe('file-processing', () => {
   describe('createPlainTextDocument', () => {
     it('creates a document with one empty content node for empty string', () => {
       const doc = createPlainTextDocument('');
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(doc.children).toHaveLength(1);
-      expect(doc.children[0].type).toBe('content');
+      expect(doc.children[0].type).toBe('CONTENT');
       expect((doc.children[0] as ContentDocumentNode).contents).toEqual({ de: '' });
     });
 
     it('creates a document with one content node for a single line', () => {
       const doc = createPlainTextDocument('Hello world');
       expect(doc.children).toHaveLength(1);
-      expect(doc.children[0].type).toBe('content');
+      expect(doc.children[0].type).toBe('CONTENT');
       expect((doc.children[0] as ContentDocumentNode).contents).toEqual({ de: 'Hello world' });
     });
 
@@ -56,7 +56,7 @@ describe('file-processing', () => {
 
     it('returns a plain text document for non-HTML input', () => {
       const result = processTextInput('Hello world');
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect((result.doc.children[0] as ContentDocumentNode).contents).toEqual({
         de: 'Hello world',
       });
@@ -67,7 +67,7 @@ describe('file-processing', () => {
     it('parses HTML input and returns sourceUrl and html', () => {
       const html = '<h1>Title</h1><p>Content</p>';
       const result = processTextInput(html);
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(result.doc.children.length).toBeGreaterThan(0);
       expect(result.sourceUrl).toBe('blob:fake-url');
       expect(result.html).toBe(html);
@@ -78,7 +78,7 @@ describe('file-processing', () => {
       const text = '<not-a-real-tag>';
       const result = processTextInput(text);
       // Should not throw, should produce a document
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
     });
 
     it('generates an Untitled (timestamp) name and a 40+-char subtitle for pasted text', () => {
@@ -132,7 +132,7 @@ describe('file-processing', () => {
 
       const result = await processHtmlFile(file);
 
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(result.doc.children.length).toBeGreaterThan(0);
       expect(result.sourceUrl).toBe('blob:fake-url');
       expect(result.html).toBe(htmlContent);
@@ -141,7 +141,7 @@ describe('file-processing', () => {
     it('works with .htm extension', async () => {
       const file = new File(['<p>Content</p>'], 'doc.htm', { type: 'text/html' });
       const result = await processHtmlFile(file);
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(result.html).toBe('<p>Content</p>');
     });
   });
@@ -175,7 +175,7 @@ describe('file-processing', () => {
 
       const result = await processDocxFile(file);
 
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(result.doc.children.length).toBeGreaterThan(0);
       expect(result.sourceUrl).toBe('blob:fake-url');
       expect(result.html).toBe(generatedHtml);
@@ -260,14 +260,14 @@ describe('file-processing', () => {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       const result = await processFile(file);
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(mammoth.convertToHtml).toHaveBeenCalled();
     });
 
     it('routes .html files to processHtmlFile', async () => {
       const file = new File(['<p>html</p>'], 'test.html', { type: 'text/html' });
       const result = await processFile(file);
-      expect(result.doc.type).toBe('document');
+      expect(result.doc.type).toBe('DOCUMENT');
       expect(result.html).toBe('<p>html</p>');
     });
 

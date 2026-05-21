@@ -52,7 +52,7 @@ export function updateNodeAtPath(
   return { ...root, children: newChildren };
 }
 
-const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['heading', 'content', 'footnote', 'image'];
+const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
 
 /**
  * Change a content-bearing node's format. No-op when the target node is a container
@@ -228,9 +228,9 @@ export function mergeAdjacentLists(
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
 
-    if (child.type === 'list' && merged.length > 0) {
+    if (child.type === 'LIST' && merged.length > 0) {
       const prev = merged[merged.length - 1];
-      if (prev.type === 'list') {
+      if (prev.type === 'LIST') {
         // Merge this list into the previous one
         const prevList = prev as ContainerDocumentNode;
         const currList = child as ContainerDocumentNode;

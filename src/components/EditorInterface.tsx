@@ -3,7 +3,7 @@ import { useAutosave } from '../hooks/useAutosave';
 import { useResizable } from '../hooks/useResizable';
 import { useTreeEditor } from '../hooks/useTreeEditor';
 import type { ContainerDocumentNode, Language } from '../types/document';
-import { deriveJsonFilename, downloadFile } from '../utils/document-utils';
+import { buildDocTreeEnvelope, deriveJsonFilename, downloadFile } from '../utils/document-utils';
 import { DragHandle } from './DragHandle';
 import { LeftPane } from './LeftPane';
 import { Toolbar } from './Toolbar';
@@ -63,8 +63,9 @@ export function EditorInterface({
   );
 
   const handleDownload = () => {
+    const envelope = buildDocTreeEnvelope(editor.document, { language, filename: documentName });
     downloadFile(
-      JSON.stringify(editor.document, null, 2),
+      JSON.stringify(envelope, null, 2),
       deriveJsonFilename(documentName),
       'application/json'
     );

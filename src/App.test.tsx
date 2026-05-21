@@ -15,12 +15,12 @@ function makeTree() {
   return {
     id: 'root',
     number: null,
-    type: 'document' as const,
+    type: 'DOCUMENT' as const,
     children: [
       {
         id: 'n1',
         number: null,
-        type: 'content' as const,
+        type: 'CONTENT' as const,
         format: 'TEXT' as const,
         contents: { de: 'hello' },
         children: [],

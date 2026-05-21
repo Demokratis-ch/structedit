@@ -10,20 +10,20 @@ export type Language = 'en' | 'de' | 'fr' | 'it' | 'rm';
  */
 export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_INLINE' | 'MARKDOWN';
 
-export type ContentBearingNodeType = 'heading' | 'content' | 'footnote' | 'image';
+export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
 
 export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
-  heading: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
-  content: ['TEXT', 'NEWLINES', 'MARKDOWN'],
-  footnote: ['TEXT', 'NEWLINES', 'MARKDOWN'],
-  image: ['TEXT', 'NEWLINES'],
+  HEADING: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
+  CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
+  FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
+  IMAGE: ['TEXT', 'NEWLINES'],
 };
 
 export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
-  heading: 'TEXT',
-  content: 'TEXT',
-  footnote: 'TEXT',
-  image: 'TEXT',
+  HEADING: 'TEXT',
+  CONTENT: 'TEXT',
+  FOOTNOTE: 'TEXT',
+  IMAGE: 'TEXT',
 };
 
 export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeFormat): boolean => {
@@ -35,9 +35,9 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
  * Container-only nodes have children but no content of their own.
  */
 export type ContainerDocumentNodeType =
-  | 'document' // Tree root
-  | 'list'
-  | 'list_item'; // List item container; text content goes in child 'content' node
+  | 'DOCUMENT' // Tree root
+  | 'LIST'
+  | 'LIST_ITEM'; // List item container; text content goes in child 'CONTENT' node
 
 export interface ContainerDocumentNode {
   id: string;
@@ -49,7 +49,7 @@ export interface ContainerDocumentNode {
 /**
  * Leaf-only nodes have content but no children.
  */
-export type LeafDocumentNodeType = 'image' | 'footnote';
+export type LeafDocumentNodeType = 'IMAGE' | 'FOOTNOTE';
 
 export interface LeafDocumentNode {
   id: string;
@@ -65,7 +65,7 @@ export interface LeafDocumentNode {
 export interface HeadingDocumentNode {
   id: string;
   number: string | null;
-  type: 'heading';
+  type: 'HEADING';
   contents: Partial<{ [K in Language]: string }>;
   children: DocumentNode[];
   format: NodeFormat;
@@ -78,9 +78,9 @@ export interface HeadingDocumentNode {
 export interface ContentDocumentNode {
   id: string;
   number: string | null;
-  type: 'content';
+  type: 'CONTENT';
   contents: Partial<{ [K in Language]: string }>;
-  children: DocumentNode[]; // Can only contain footnote nodes
+  children: DocumentNode[]; // Can only contain FOOTNOTE nodes
   format: NodeFormat;
 }
 
@@ -97,26 +97,26 @@ export type DocumentNode =
 export const exampleDocument: ContainerDocumentNode = {
   id: '001',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: '002',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       contents: { en: 'Introduction' },
       format: 'TEXT',
       children: [
         {
           id: '003',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           contents: { en: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
           format: 'TEXT',
           children: [
             {
               id: '004',
               number: 'i.',
-              type: 'footnote',
+              type: 'FOOTNOTE',
               contents: { en: 'This is a footnote.', de: 'Dies ist eine Fussnote.' },
               format: 'TEXT',
             },
@@ -132,8 +132,8 @@ export const exampleDocument: ContainerDocumentNode = {
  */
 
 const VALID_LANGUAGES: Language[] = ['en', 'de', 'fr', 'it', 'rm'];
-const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['document', 'list', 'list_item'];
-const LEAF_TYPES: LeafDocumentNodeType[] = ['image', 'footnote'];
+const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
+const LEAF_TYPES: LeafDocumentNodeType[] = ['IMAGE', 'FOOTNOTE'];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
   'NEWLINES',
@@ -146,24 +146,24 @@ const VALID_FORMATS: NodeFormat[] = [
  * Mapping of parent types to their allowed child types.
  */
 const ALLOWED_CHILDREN: Record<
-  ContainerDocumentNodeType | 'heading' | 'content',
+  ContainerDocumentNodeType | 'HEADING' | 'CONTENT',
   DocumentNode['type'][]
 > = {
-  document: ['heading', 'list', 'content', 'footnote', 'image'],
-  heading: ['heading', 'list', 'content', 'footnote', 'image'],
-  list_item: ['heading', 'list', 'content', 'footnote', 'image'],
-  list: ['list_item'],
-  content: ['footnote'],
+  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  LIST: ['LIST_ITEM'],
+  CONTENT: ['FOOTNOTE'],
 };
 
-export type ParentType = ContainerDocumentNodeType | 'heading' | 'content' | null;
+export type ParentType = ContainerDocumentNodeType | 'HEADING' | 'CONTENT' | null;
 
 /**
  * Check if a node type can be a valid child of a parent type.
  */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
-  // Root level (null parent) uses document rules
-  const effectiveParentType = parentType ?? 'document';
+  // Root level (null parent) uses DOCUMENT rules
+  const effectiveParentType = parentType ?? 'DOCUMENT';
   const allowedChildren = ALLOWED_CHILDREN[effectiveParentType];
   return allowedChildren?.includes(childType) ?? false;
 };
@@ -224,19 +224,19 @@ const isValidNodeInternal = (
   }
 
   // Heading nodes
-  if (type === 'heading') {
+  if (type === 'HEADING') {
     if (!isValidContents(node.contents)) return false;
     if (!Array.isArray(node.children)) return false;
-    if (!isValidFormatForType('heading')) return false;
-    return node.children.every((child) => isValidNodeInternal(child, 'heading', seenIds));
+    if (!isValidFormatForType('HEADING')) return false;
+    return node.children.every((child) => isValidNodeInternal(child, 'HEADING', seenIds));
   }
 
-  // Content nodes (hybrid - has contents AND children, but children must be footnotes only)
-  if (type === 'content') {
+  // Content nodes (hybrid - has contents AND children, but children must be FOOTNOTEs only)
+  if (type === 'CONTENT') {
     if (!isValidContents(node.contents)) return false;
     if (!Array.isArray(node.children)) return false;
-    if (!isValidFormatForType('content')) return false;
-    return node.children.every((child) => isValidNodeInternal(child, 'content', seenIds));
+    if (!isValidFormatForType('CONTENT')) return false;
+    return node.children.every((child) => isValidNodeInternal(child, 'CONTENT', seenIds));
   }
 
   return false;
@@ -247,5 +247,37 @@ export const isValidNode = (obj: unknown): obj is DocumentNode => {
 };
 
 export const isValidDocument = (obj: unknown): obj is DocumentNode => {
-  return (obj as any)?.type === 'document' && isValidNodeInternal(obj, null, new Set());
+  return (obj as any)?.type === 'DOCUMENT' && isValidNodeInternal(obj, null, new Set());
+};
+
+/**
+ * ================================ DocTree envelope ================================
+ *
+ * Versioned wrapper around an exported document tree. Lets the export format
+ * evolve (and later carry attachments or other metadata) without breaking
+ * downstream consumers.
+ */
+
+export const DOC_TREE_VERSION = 1 as const;
+
+export interface DocTreeMetadata {
+  title: Partial<{ [K in Language]: string }>;
+}
+
+export interface DocTreeEnvelope {
+  DocTreeVersion: typeof DOC_TREE_VERSION;
+  metadata: DocTreeMetadata;
+  document: ContainerDocumentNode;
+}
+
+export const isValidDocTreeEnvelope = (obj: unknown): obj is DocTreeEnvelope => {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const env = obj as Record<string, unknown>;
+  if (env.DocTreeVersion !== DOC_TREE_VERSION) return false;
+  if (typeof env.metadata !== 'object' || env.metadata === null) return false;
+  const metadata = env.metadata as Record<string, unknown>;
+  // Title shares the language-keyed shape of node `contents`, so we reuse the same validator.
+  if (!isValidContents(metadata.title)) return false;
+  if (!isValidDocument(env.document)) return false;
+  return true;
 };

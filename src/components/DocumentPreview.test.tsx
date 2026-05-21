@@ -7,7 +7,7 @@ import { DocumentPreview } from './DocumentPreview';
 const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
   number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children,
 });
 
@@ -22,14 +22,14 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Top Heading' },
       children: [
         {
           id: 'h2',
           number: null,
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Sub Heading' },
           children: [],
@@ -46,7 +46,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'Art. 1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Gegenstand' },
       children: [],
@@ -62,14 +62,14 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph text.' },
           children: [],
@@ -85,14 +85,14 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: '1',
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Paragraph with number.' },
           children: [],
@@ -110,24 +110,24 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'l1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             {
               id: 'li1',
               number: 'a)',
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'First item text.' },
                   children: [],
@@ -137,12 +137,12 @@ describe('DocumentPreview', () => {
             {
               id: 'li2',
               number: 'b)',
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c2',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Second item text.' },
                   children: [],
@@ -168,21 +168,21 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'c1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Some text.' },
           children: [
             {
               id: 'fn1',
               number: '1',
-              type: 'footnote',
+              type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Footnote text here.' },
             },
@@ -202,7 +202,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'German Title', fr: 'French Title' },
       children: [],
@@ -219,35 +219,35 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Level 1' },
       children: [
         {
           id: 'h2',
           number: null,
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Level 2' },
           children: [
             {
               id: 'h3',
               number: null,
-              type: 'heading',
+              type: 'HEADING',
               format: 'TEXT',
               contents: { de: 'Level 3' },
               children: [
                 {
                   id: 'h4',
                   number: null,
-                  type: 'heading',
+                  type: 'HEADING',
                   format: 'TEXT',
                   contents: { de: 'Level 4' },
                   children: [
                     {
                       id: 'h5',
                       number: null,
-                      type: 'heading',
+                      type: 'HEADING',
                       format: 'TEXT',
                       contents: { de: 'Level 5' },
                       children: [],
@@ -272,7 +272,7 @@ describe('DocumentPreview', () => {
       {
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Some text.' },
         children: [],
@@ -280,7 +280,7 @@ describe('DocumentPreview', () => {
       {
         id: 'fn1',
         number: '1',
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: 'TEXT',
         contents: { de: 'Root-level footnote.' },
       }
@@ -294,24 +294,24 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'l1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             {
               id: 'li1',
               number: 'a)',
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Item text.' },
                   children: [],
@@ -319,7 +319,7 @@ describe('DocumentPreview', () => {
                 {
                   id: 'fn1',
                   number: '1',
-                  type: 'footnote',
+                  type: 'FOOTNOTE',
                   format: 'TEXT',
                   contents: { de: 'List item footnote.' },
                 },
@@ -338,24 +338,24 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'l1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             {
               id: 'li1',
               number: null,
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Unnumbered item.' },
                   children: [],
@@ -377,24 +377,24 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'l1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             {
               id: 'li1',
               number: '1.',
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Numbered item text.' },
                   children: [],
@@ -419,24 +419,24 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Title' },
       children: [
         {
           id: 'l1',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [
             {
               id: 'li1',
               number: null,
-              type: 'list_item',
+              type: 'LIST_ITEM',
               children: [
                 {
                   id: 'c1',
                   number: null,
-                  type: 'content',
+                  type: 'CONTENT',
                   format: 'TEXT',
                   contents: { de: 'Bullet item text.' },
                   children: [],
@@ -458,14 +458,14 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Allgemeine Bestimmungen' },
       children: [
         {
           id: 'h2',
           number: 'Art. 1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Gegenstand' },
           children: [],
@@ -473,7 +473,7 @@ describe('DocumentPreview', () => {
         {
           id: 'h3',
           number: 'Art. 2',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Geltungsbereich' },
           children: [],
@@ -505,7 +505,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -524,7 +524,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: null,
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Target Heading' },
       children: [],
@@ -551,7 +551,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -576,7 +576,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -591,7 +591,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -610,7 +610,7 @@ describe('DocumentPreview', () => {
     const doc = makeDoc({
       id: 'h1',
       number: 'I.',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -634,7 +634,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: '**1**',
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Bold-numbered paragraph.' },
         children: [],
@@ -651,7 +651,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: '^1^',
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Sup-numbered paragraph.' },
         children: [],
@@ -668,17 +668,17 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'l1',
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [
           {
             id: 'li1',
             number: '*a)*',
-            type: 'list_item',
+            type: 'LIST_ITEM',
             children: [
               {
                 id: 'c1',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'TEXT',
                 contents: { de: 'Italic-marker item.' },
                 children: [],
@@ -699,21 +699,21 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Title' },
         children: [
           {
             id: 'c1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Some text.' },
             children: [
               {
                 id: 'fn1',
                 number: '^1^',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'Footnote content.' },
               },
@@ -733,7 +733,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: '**Art. 1**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Gegenstand' },
         children: [],
@@ -750,7 +750,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: '**I.**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Allgemeine Bestimmungen' },
         children: [],
@@ -768,7 +768,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: '<script>alert(1)</script>',
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Paragraph with hostile number.' },
         children: [],
@@ -787,7 +787,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'MARKDOWN_MINIMAL',
         contents: { de: '**Important** topic' },
         children: [],
@@ -804,7 +804,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'MARKDOWN_MINIMAL',
         contents: { de: 'Note^*^' },
         children: [],
@@ -821,7 +821,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'MARKDOWN_MINIMAL',
         contents: { de: '**Important**' },
         children: [],
@@ -836,7 +836,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '**bold body** rest' },
         children: [],
@@ -853,7 +853,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: 'first para\n\nsecond para' },
         children: [],
@@ -868,7 +868,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '- alpha\n- beta\n- gamma' },
         children: [],
@@ -888,7 +888,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'NEWLINES',
         contents: { de: 'line one\nline two' },
         children: [],
@@ -902,17 +902,17 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'l1',
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [
           {
             id: 'li1',
             number: 'a)',
-            type: 'list_item',
+            type: 'LIST_ITEM',
             children: [
               {
                 id: 'c1',
                 number: null,
-                type: 'content',
+                type: 'CONTENT',
                 format: 'MARKDOWN',
                 contents: { de: '**bold** item body' },
                 children: [],
@@ -933,21 +933,21 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'h1',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Title' },
         children: [
           {
             id: 'c1',
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: 'Body' },
             children: [
               {
                 id: 'fn1',
                 number: '1',
-                type: 'footnote',
+                type: 'FOOTNOTE',
                 format: 'MARKDOWN',
                 contents: { de: '**bold note** body' },
               },
@@ -968,7 +968,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: '<script>alert(1)</script>' },
         children: [],
@@ -983,7 +983,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '<img src=x onerror=alert(1)>' },
         children: [],
@@ -1003,7 +1003,7 @@ describe('DocumentPreview', () => {
       const doc = makeDoc({
         id: 'c1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '[click](javascript:alert(1))' },
         children: [],

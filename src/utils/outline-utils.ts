@@ -26,7 +26,7 @@ export function getDocumentOutline(
   const result: OutlineEntry[] = [];
 
   function walk(node: DocumentNode, depth: number) {
-    if (node.type === 'heading') {
+    if (node.type === 'HEADING') {
       result.push({
         id: node.id,
         number: node.number,

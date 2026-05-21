@@ -28,7 +28,7 @@ function recurseIntoContainer(node: DocumentNode): DocumentNode {
     if (recursed !== child) changed = true;
 
     const last = out[out.length - 1];
-    if (recursed.type === 'list' && last?.type === 'list') {
+    if (recursed.type === 'LIST' && last?.type === 'LIST') {
       const prev = last as ContainerDocumentNode;
       const curr = recursed as ContainerDocumentNode;
       out[out.length - 1] = {
