@@ -6,7 +6,6 @@ import { DocumentPreview } from './DocumentPreview';
 
 const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children,
 });

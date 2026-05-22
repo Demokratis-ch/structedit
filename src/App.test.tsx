@@ -14,7 +14,6 @@ import {
 function makeTree() {
   return {
     id: 'root',
-    number: null,
     type: 'DOCUMENT' as const,
     children: [
       {

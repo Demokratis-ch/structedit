@@ -9,7 +9,6 @@ import { useTreeHistory } from './useTreeHistory';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -312,7 +311,6 @@ describe('useTreeHistory', () => {
     // Reset with new document
     const newDoc: ContainerDocumentNode = {
       id: 'new-root',
-      number: null,
       type: 'DOCUMENT',
       children: [],
     };

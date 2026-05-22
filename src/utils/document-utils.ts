@@ -5,6 +5,7 @@ import {
   DOC_TREE_VERSION,
   type DocTreeEnvelope,
   type DocumentNode,
+  type DocumentRootNode,
   type HeadingDocumentNode,
   type Language,
   type NodeFormat,
@@ -88,8 +89,8 @@ export const preserveListStyleType = (html: string): string => {
 export const isEmptyDocument = (doc: ContainerDocumentNode): boolean => {
   const hasText = (node: DocumentNode): boolean => {
     // A label like "Art. 5" or "I." that legal transforms moved into `number` is
-    // still real content even when `contents` is empty.
-    if (typeof node.number === 'string' && node.number.trim().length > 0) {
+    // still real content even when `contents` is empty. (The document root has no `number`.)
+    if ('number' in node && typeof node.number === 'string' && node.number.trim().length > 0) {
       return true;
     }
     if ('contents' in node && node.contents) {
@@ -146,9 +147,8 @@ export const parseHtmlToTree = (
   const parser = new DOMParser();
   const doc = parser.parseFromString(cleanHtml, 'text/html');
 
-  const root: ContainerDocumentNode = {
+  const root: DocumentRootNode = {
     id: generateId(),
-    number: null,
     type: 'DOCUMENT',
     children: [],
   };

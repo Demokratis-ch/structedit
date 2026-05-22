@@ -13,7 +13,6 @@ import { useRecentDocuments } from './useRecentDocuments';
 function makeTree(text = 'hello'): ContainerDocumentNode {
   return {
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [
       {

@@ -37,7 +37,6 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
   const lines = text.split('\n').filter((line) => line.trim().length > 0);
   return {
     id: generateId(),
-    number: null,
     type: 'DOCUMENT',
     children:
       lines.length > 0

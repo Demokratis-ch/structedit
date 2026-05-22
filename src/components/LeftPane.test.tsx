@@ -6,7 +6,6 @@ import { LeftPane } from './LeftPane';
 
 const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children,
 });

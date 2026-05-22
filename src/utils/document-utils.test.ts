@@ -7,6 +7,7 @@ import {
   type HeadingDocumentNode,
   isValidDocTreeEnvelope,
   type LeafDocumentNode,
+  type NumberedDocumentNode,
 } from '../types/document';
 import {
   buildDocTreeEnvelope,
@@ -35,7 +36,6 @@ describe('deriveJsonFilename', () => {
 describe('buildDocTreeEnvelope', () => {
   const tree: ContainerDocumentNode = {
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [
       {
@@ -219,7 +219,7 @@ describe('Document Utils', () => {
       expect(list.children.length).toBe(2);
       const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
-      expect(item1.number).toBeNull(); // ul has no numbering
+      expect((item1 as NumberedDocumentNode).number).toBeNull(); // ul has no numbering
       // Content is now in a child content node
       const item1Content = item1.children[0] as LeafDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
@@ -233,12 +233,12 @@ describe('Document Utils', () => {
       expect(list.type).toBe('LIST');
       const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
-      expect(item1.number).toBe('1.');
+      expect((item1 as NumberedDocumentNode).number).toBe('1.');
       // Content is now in a child content node
       const item1Content = item1.children[0] as LeafDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
       const item2 = list.children[1] as ContainerDocumentNode;
-      expect(item2.number).toBe('2.');
+      expect((item2 as NumberedDocumentNode).number).toBe('2.');
     });
 
     it('uses list-style-type for numbering when present', () => {
@@ -251,11 +251,11 @@ describe('Document Utils', () => {
       const list = doc.children[0] as ContainerDocumentNode;
       expect(list.type).toBe('LIST');
       const item1 = list.children[0] as ContainerDocumentNode;
-      expect(item1.number).toBe('a)');
+      expect((item1 as NumberedDocumentNode).number).toBe('a)');
       const item2 = list.children[1] as ContainerDocumentNode;
-      expect(item2.number).toBe('b)');
+      expect((item2 as NumberedDocumentNode).number).toBe('b)');
       const item3 = list.children[2] as ContainerDocumentNode;
-      expect(item3.number).toBe('c)');
+      expect((item3 as NumberedDocumentNode).number).toBe('c)');
     });
 
     it('converts nested ol lists into nested list structure', () => {
@@ -291,7 +291,7 @@ describe('Document Utils', () => {
 
       const nestedItem1 = nestedList.children[0] as ContainerDocumentNode;
       expect(nestedItem1.type).toBe('LIST_ITEM');
-      expect(nestedItem1.number).toBe('1.');
+      expect((nestedItem1 as NumberedDocumentNode).number).toBe('1.');
       const nestedItem1Content = nestedItem1.children[0] as ContentDocumentNode;
       expect(nestedItem1Content.type).toBe('CONTENT');
       expect(nestedItem1Content.contents.de).toContain('die öffentliche Volksschule');
@@ -669,7 +669,7 @@ describe('Document Utils', () => {
       expect(list.type).toBe('LIST');
       const item1 = list.children[0] as ContainerDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
-      expect(item1.number).toBe('a.');
+      expect((item1 as NumberedDocumentNode).number).toBe('a.');
       // Content is now in a child content node
       const item1Content = item1.children[0] as LeafDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
@@ -793,10 +793,10 @@ describe('Document Utils', () => {
       collectLists(doc);
       // The second list should be the ol with a), b) items
       const olList = allLists.find((l) =>
-        l.children.some((c) => (c as ContainerDocumentNode).number === 'a)')
+        l.children.some((c) => (c as NumberedDocumentNode).number === 'a)')
       );
       expect(olList).toBeDefined();
-      const items = olList!.children as ContainerDocumentNode[];
+      const items = olList!.children as NumberedDocumentNode[];
       expect(items[0].number).toBe('a)');
       expect(items[1].number).toBe('b)');
     });
@@ -860,14 +860,13 @@ describe('isEmptyDocument', () => {
   };
 
   it('returns true for a DOCUMENT with no children', () => {
-    const doc: ContainerDocumentNode = { id: 'root', number: null, type: 'DOCUMENT', children: [] };
+    const doc: ContainerDocumentNode = { id: 'root', type: 'DOCUMENT', children: [] };
     expect(isEmptyDocument(doc)).toBe(true);
   });
 
   it('returns true for a tree whose only nodes carry no text', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -902,7 +901,6 @@ describe('isEmptyDocument', () => {
     // `contents` empty — that is still real content, not an empty import.
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {

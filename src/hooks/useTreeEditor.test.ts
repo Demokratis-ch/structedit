@@ -11,7 +11,6 @@ import { useTreeEditor } from './useTreeEditor';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -314,7 +313,6 @@ describe('useTreeEditor', () => {
     // Create doc: root > [h1, p1, p2]
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -400,7 +398,6 @@ describe('useTreeEditor', () => {
   test('outdentSelected tabs a heading stuck in a list out of the list (issue #101 #4)', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -465,7 +462,6 @@ describe('useTreeEditor', () => {
     // Flat doc: root > [a, b, c, d]
     const createFlatDoc = (): ContainerDocumentNode => ({
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: ['a', 'b', 'c', 'd'].map(
         (id) =>

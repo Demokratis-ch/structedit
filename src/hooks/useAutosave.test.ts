@@ -21,7 +21,6 @@ vi.mock('../components/ui/Toast', () => ({
 function makeTree(text = 'hello'): ContainerDocumentNode {
   return {
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [
       {

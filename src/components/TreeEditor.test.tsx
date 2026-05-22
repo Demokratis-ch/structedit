@@ -7,7 +7,6 @@ import { EditorInterface } from './EditorInterface';
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -303,7 +302,6 @@ describe('double-click inline editing', () => {
     vi.useFakeTimers();
     const nestedDoc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -453,7 +451,6 @@ describe('double-click inline editing', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -511,7 +508,6 @@ describe('double-click inline editing', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -569,7 +565,6 @@ describe('double-click inline editing', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -666,7 +661,6 @@ describe('double-click inline editing', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -900,7 +894,6 @@ describe('node operations via keyboard', () => {
     // Need heading followed by content at same level for indent to work
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -954,7 +947,6 @@ describe('node operations via keyboard', () => {
   test('Shift+Tab outdents selected node', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -1067,7 +1059,6 @@ describe('edit mode behaviors', () => {
     // Create document with an empty content node
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -1133,7 +1124,6 @@ describe('edit mode behaviors', () => {
 describe('empty document', () => {
   const createEmptyDocument = (): ContainerDocumentNode => ({
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [],
   });
@@ -1177,7 +1167,6 @@ describe('empty document', () => {
 describe('drag and drop reordering', () => {
   const createThreeNodeDocument = (): ContainerDocumentNode => ({
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [
       {
@@ -1369,7 +1358,6 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -1438,7 +1426,6 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
 
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -1548,7 +1535,6 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   test('clicking Bold while editing a number input commits to the tree without waiting for blur', async () => {
     const initialDocument: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {

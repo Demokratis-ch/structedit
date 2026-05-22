@@ -1,16 +1,68 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_FORMATS,
+  type ContentDocumentNode,
   canBeChildOf,
   canHaveFormat,
   DEFAULT_FORMAT,
   DOC_TREE_VERSION,
+  type DocumentNode,
+  type DocumentRootNode,
   exampleDocument,
+  type FootnoteDocumentNode,
+  type HeadingDocumentNode,
+  type ImageDocumentNode,
   isValidDocTreeEnvelope,
   isValidDocument,
   isValidNode,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
   type NodeFormat,
+  type NumberedDocumentNode,
 } from './document';
+
+/**
+ * ============================ Type-level assertions (issue #104) ============================
+ * These are erased at runtime; they are verified by `npm run typecheck` (tsc). They lock the
+ * per-node-type interface shapes so the module stays a faithful reference for the DocTree format.
+ */
+type Expect<T extends true> = T;
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type HasKey<T, K extends PropertyKey> = K extends keyof T ? true : false;
+
+// Collected into one (non-exported) tuple so tsc checks them without exporting from a test module.
+type _TypeAssertions = [
+  // Each node type owns its own `type` discriminant.
+  Expect<Equal<DocumentRootNode['type'], 'DOCUMENT'>>,
+  Expect<Equal<ListDocumentNode['type'], 'LIST'>>,
+  Expect<Equal<ListItemDocumentNode['type'], 'LIST_ITEM'>>,
+  Expect<Equal<HeadingDocumentNode['type'], 'HEADING'>>,
+  Expect<Equal<ContentDocumentNode['type'], 'CONTENT'>>,
+  Expect<Equal<FootnoteDocumentNode['type'], 'FOOTNOTE'>>,
+  Expect<Equal<ImageDocumentNode['type'], 'IMAGE'>>,
+  // The document root has no `number`; every other node type does.
+  Expect<Equal<HasKey<DocumentRootNode, 'number'>, false>>,
+  Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
+  Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
+  Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
+  // `DocumentNode` is the union of all seven per-type interfaces.
+  Expect<
+    Equal<
+      DocumentNode,
+      | DocumentRootNode
+      | ListDocumentNode
+      | ListItemDocumentNode
+      | HeadingDocumentNode
+      | ContentDocumentNode
+      | FootnoteDocumentNode
+      | ImageDocumentNode
+    >
+  >,
+  // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
+  Expect<Equal<HasKey<NumberedDocumentNode, 'number'>, true>>,
+  Expect<Equal<Extract<NumberedDocumentNode, DocumentRootNode>, never>>,
+];
 
 describe('Document validation', () => {
   it('validates the example document', () => {
@@ -48,7 +100,6 @@ describe('Document validation', () => {
       expect(
         isValidDocument({
           id: '1',
-          number: null,
           type: 'DOCUMENT',
           children: [],
         })
@@ -70,7 +121,6 @@ describe('Document validation', () => {
       expect(
         isValidDocument({
           id: '1',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -129,7 +179,6 @@ describe('Document validation', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           { id: '2', number: null, type: 'CONTENT', contents: { en: 'A' }, children: [] },
@@ -143,7 +192,6 @@ describe('Document validation', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -163,7 +211,6 @@ describe('Document validation', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -197,7 +244,6 @@ describe('Document validation', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -215,7 +261,6 @@ describe('Document validation', () => {
     expect(
       isValidNode({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [],
         contents: { en: 'Should not have this' },
@@ -265,6 +310,34 @@ describe('Document validation', () => {
         number: 'i.',
         type: 'FOOTNOTE',
         children: [{ id: '2', number: null, type: 'CONTENT', contents: { en: 'Text' } }],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('DOCUMENT number-field rules (issue #104)', () => {
+  it('accepts a DOCUMENT root with no number field', () => {
+    expect(isValidDocument({ id: '1', type: 'DOCUMENT', children: [] })).toBe(true);
+  });
+
+  it('rejects a DOCUMENT root carrying a real (string) number', () => {
+    expect(isValidDocument({ id: '1', number: 'X', type: 'DOCUMENT', children: [] })).toBe(false);
+  });
+
+  it('still accepts a legacy DOCUMENT root with number: null', () => {
+    // Persisted documents created before the field was removed still carry `number: null`.
+    expect(isValidDocument({ id: '1', number: null, type: 'DOCUMENT', children: [] })).toBe(true);
+  });
+
+  it('still rejects a non-DOCUMENT node that omits the number field', () => {
+    // Guards against an over-broad loosening: only the document root may drop number.
+    expect(
+      isValidNode({
+        id: '1',
+        type: 'CONTENT',
+        contents: { en: 'x' },
+        children: [],
+        format: 'TEXT',
       })
     ).toBe(false);
   });
@@ -399,7 +472,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -425,7 +497,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -445,7 +516,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -485,7 +555,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -503,7 +572,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -521,7 +589,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -577,7 +644,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -605,7 +671,6 @@ describe('Document validation - parent-child rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1064,7 +1129,6 @@ describe('isValidNode — format field rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [],
         format: 'TEXT',
@@ -1076,7 +1140,6 @@ describe('isValidNode — format field rules', () => {
     expect(
       isValidDocument({
         id: '1',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {

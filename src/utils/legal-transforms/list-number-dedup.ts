@@ -4,6 +4,7 @@ import type {
   DocumentNode,
   HeadingDocumentNode,
   Language,
+  ListItemDocumentNode,
   NodeFormat,
 } from '../../types/document';
 import { generateId } from '../document-utils';
@@ -41,10 +42,10 @@ function downgradeFormatIfPlain(source: string, format: NodeFormat): NodeFormat 
  * because the leading <sup>N</sup> marks it as an Absatznummer.
  */
 type ProcessedListItem =
-  | { kind: 'LIST_ITEM'; node: ContainerDocumentNode }
+  | { kind: 'LIST_ITEM'; node: DocumentNode }
   | { kind: 'CONTENT'; node: ContentDocumentNode };
 
-function processListItem(listItem: ContainerDocumentNode, language: Language): ProcessedListItem {
+function processListItem(listItem: ListItemDocumentNode, language: Language): ProcessedListItem {
   if (listItem.children.length === 0) {
     return { kind: 'LIST_ITEM', node: listItem };
   }
@@ -144,13 +145,14 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
 function processList(listNode: ContainerDocumentNode, language: Language): DocumentNode[] {
   const processed = listNode.children.map((item): ProcessedListItem => {
     if (item.type !== 'LIST_ITEM') {
-      return { kind: 'LIST_ITEM', node: item as ContainerDocumentNode };
+      return { kind: 'LIST_ITEM', node: item };
     }
-    return processListItem(item as ContainerDocumentNode, language);
+    // `item` is narrowed to the LIST_ITEM member of the DocumentNode union here.
+    return processListItem(item, language);
   });
 
   const result: DocumentNode[] = [];
-  let buffer: ContainerDocumentNode[] = [];
+  let buffer: DocumentNode[] = [];
   let firstSegment = true;
 
   const flush = () => {

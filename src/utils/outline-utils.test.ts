@@ -4,7 +4,6 @@ import { getDocumentOutline } from './outline-utils';
 
 const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children,
 });

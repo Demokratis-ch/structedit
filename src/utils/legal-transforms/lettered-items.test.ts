@@ -3,6 +3,7 @@ import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  NumberedDocumentNode,
 } from '../../types/document';
 import { letteredItemsTransform } from './lettered-items';
 import { content, createDoc, heading, list } from './test-helpers';
@@ -24,7 +25,7 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     const listNode = result.children[0] as ContainerDocumentNode;
-    expect(listNode.children[0].number).toBe('a.');
+    expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
   });
 
   it('strips letter prefix from content', () => {
@@ -180,8 +181,8 @@ describe('letteredItemsTransform', () => {
 
     const listNode = result.children[0] as ContainerDocumentNode;
     expect(listNode.children).toHaveLength(4);
-    expect(listNode.children[0].number).toBe('a.');
-    expect(listNode.children[3].number).toBe('z.');
+    expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
+    expect((listNode.children[3] as NumberedDocumentNode).number).toBe('z.');
   });
 
   it('creates list_item with content child', () => {

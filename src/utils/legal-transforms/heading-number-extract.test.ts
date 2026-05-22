@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { HeadingDocumentNode } from '../../types/document';
+import type { HeadingDocumentNode, NumberedDocumentNode } from '../../types/document';
 import { headingNumberExtractTransform } from './heading-number-extract';
 import { content, createDoc, heading } from './test-helpers';
 
@@ -122,6 +122,6 @@ describe('headingNumberExtractTransform', () => {
     const result = headingNumberExtractTransform(input, 'de');
 
     expect(result.children[0].type).toBe('CONTENT');
-    expect(result.children[0].number).toBeNull();
+    expect((result.children[0] as NumberedDocumentNode).number).toBeNull();
   });
 });

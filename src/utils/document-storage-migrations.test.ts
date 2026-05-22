@@ -144,7 +144,6 @@ describe('document-storage-migrations', () => {
       // hand-edit in storage) should still produce a fully-upgraded valid tree.
       const v1 = makeV1Entry({
         id: 'r',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -166,7 +165,7 @@ describe('document-storage-migrations', () => {
   describe('passthrough and incompatibility', () => {
     it('passes through a v2 record unchanged', () => {
       const v2 = {
-        ...makeV1Entry({ id: 'r', number: null, type: 'DOCUMENT', children: [] }),
+        ...makeV1Entry({ id: 'r', type: 'DOCUMENT', children: [] }),
         schemaVersion: 2,
       };
       const out = migrateEntry(v2);

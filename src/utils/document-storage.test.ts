@@ -18,7 +18,6 @@ import {
 function makeTree(text = 'hello'): ContainerDocumentNode {
   return {
     id: 'root',
-    number: null,
     type: 'DOCUMENT',
     children: [
       {
@@ -341,7 +340,7 @@ describe('document-storage', () => {
         name: 'futuristic.docx',
         subtitle: null,
         language: 'de',
-        tree: { id: 'r', number: null, type: 'DOCUMENT', children: [] },
+        tree: { id: 'r', type: 'DOCUMENT', children: [] },
         source: {
           kind: 'docx',
           mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -371,7 +370,7 @@ describe('document-storage', () => {
         name: 'futuristic.docx',
         subtitle: null,
         language: 'de',
-        tree: { id: 'r', number: null, type: 'DOCUMENT', children: [] },
+        tree: { id: 'r', type: 'DOCUMENT', children: [] },
         source: {
           kind: 'docx',
           mime: 'application/octet-stream',
