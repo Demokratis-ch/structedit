@@ -41,7 +41,6 @@ const createListItem = (
 // Helper to create test documents
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -342,7 +341,6 @@ describe('buildIndices', () => {
   test('handles deeply nested structure', () => {
     const deepDoc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -452,7 +450,6 @@ describe('flattenForRendering', () => {
   test('includes list_item children in flattening', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -479,7 +476,6 @@ describe('mergeAdjacentLists', () => {
   test('merges two adjacent lists into one', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -510,7 +506,6 @@ describe('mergeAdjacentLists', () => {
   test('merges three adjacent lists into one', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -544,7 +539,6 @@ describe('mergeAdjacentLists', () => {
   test('does not merge non-adjacent lists', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -578,7 +572,6 @@ describe('mergeAdjacentLists', () => {
   test('returns unchanged document when no lists to merge', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -608,7 +601,6 @@ describe('mergeAdjacentLists', () => {
   test('merges lists within nested container', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -646,7 +638,6 @@ describe('mergeAdjacentLists', () => {
   test('preserves first list id when merging', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -703,7 +694,6 @@ describe('nested lists', () => {
   test('supports nested lists (list inside list_item)', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -750,7 +740,6 @@ describe('nested lists', () => {
   test('flattens nested lists correctly', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -786,7 +775,6 @@ describe('nested lists', () => {
   test('computes correct depth for nested list items', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -816,7 +804,6 @@ describe('nested lists', () => {
   test('can access and update nested list items', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -854,7 +841,6 @@ describe('nested lists', () => {
   test('can remove nested list items', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -882,7 +868,6 @@ describe('nested lists', () => {
   test('can insert items into nested list', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -909,7 +894,6 @@ describe('nested lists', () => {
   test('can move nested list item to parent list', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -989,7 +973,6 @@ describe('changeNodeFormat', () => {
   test('no-ops when target node is a container (no format)', () => {
     const doc: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {

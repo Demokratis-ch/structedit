@@ -3,6 +3,7 @@ import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  NumberedDocumentNode,
 } from '../../types/document';
 import { applySwissLegalTransforms, composeTransforms } from './index';
 import { content, createDoc, heading, list } from './test-helpers';
@@ -95,8 +96,8 @@ describe('applySwissLegalTransforms', () => {
     // List should have 2 items
     const list = article.children[0] as ContainerDocumentNode;
     expect(list.children).toHaveLength(2);
-    expect(list.children[0].number).toBe('a.');
-    expect(list.children[1].number).toBe('b.');
+    expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
+    expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
   });
 
   it('respects config to disable romanSections', () => {
@@ -171,7 +172,12 @@ describe('applySwissLegalTransforms', () => {
 
     expect(result.children).toHaveLength(1);
     const merged = result.children[0] as ContainerDocumentNode;
-    expect(merged.children.map((c) => c.number)).toEqual(['a)', 'b)', 'a)', 'b)']);
+    expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
+      'a)',
+      'b)',
+      'a)',
+      'b)',
+    ]);
   });
 
   it('handles complex nested structure', () => {

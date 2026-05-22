@@ -3,6 +3,7 @@ import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  NumberedDocumentNode,
 } from '../../types/document';
 import { parseHtmlLegalToTree, parseHtmlToTree } from '../document-utils';
 import { mergeAdjacentListsTransform } from './merge-adjacent-lists';
@@ -199,7 +200,7 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual(['a)', 'b)', 'c)', 'd)', 'a)', 'b)', 'c)']);
     });
 
@@ -219,7 +220,7 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual(['1.', '2.', '3.', '1.', '2.']);
     });
 
@@ -235,7 +236,7 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual([null, null, null]);
     });
   });
@@ -251,7 +252,7 @@ describe('mergeAdjacentListsTransform', () => {
       const merged = result.children[0] as ContainerDocumentNode;
       expect(merged.children).toHaveLength(2);
       // position-derived numbers are preserved as-is (no renumbering)
-      expect(merged.children.map((c) => c.number)).toEqual(['1.', '1.']);
+      expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual(['1.', '1.']);
     });
 
     it('issue #67 scenario: merge runs before dedup so <sup> Absatznummern numbering is continuous', () => {
@@ -270,7 +271,11 @@ describe('mergeAdjacentListsTransform', () => {
 
       expect(tree.children).toHaveLength(3);
       expect(tree.children.every((c) => c.type === 'CONTENT')).toBe(true);
-      expect(tree.children.map((c) => c.number)).toEqual(['^1^', '^2^', '^3^']);
+      expect(tree.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
+        '^1^',
+        '^2^',
+        '^3^',
+      ]);
     });
 
     it('preserves data-list-style-type markers across the merge (no overwrite)', () => {
@@ -282,7 +287,7 @@ describe('mergeAdjacentListsTransform', () => {
       const merged = tree.children[0] as ContainerDocumentNode;
       expect(merged.children).toHaveLength(2);
       // Explicit list-style-type markers preserved exactly — restart kept.
-      expect(merged.children.map((c) => c.number)).toEqual(['a)', 'a)']);
+      expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual(['a)', 'a)']);
     });
   });
 });

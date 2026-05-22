@@ -1,7 +1,13 @@
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResizable } from '../hooks/useResizable';
-import type { ContainerDocumentNode, DocumentNode, Language, NodeFormat } from '../types/document';
+import type {
+  ContainerDocumentNode,
+  DocumentNode,
+  Language,
+  ListItemDocumentNode,
+  NodeFormat,
+} from '../types/document';
 import { renderContent } from '../utils/format-render';
 import { getDocumentOutline, type OutlineEntry } from '../utils/outline-utils';
 import { DragHandle } from './DragHandle';
@@ -347,7 +353,7 @@ function ListItemNode({
   language,
   headingDepth,
 }: {
-  node: ContainerDocumentNode;
+  node: ListItemDocumentNode;
   language: Language;
   headingDepth: number;
 }) {

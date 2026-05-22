@@ -5,6 +5,7 @@ import type {
   ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  NumberedDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -14,7 +15,6 @@ import { useTreeOperations } from './useTreeOperations';
 // Helper to create a test document
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -85,7 +85,6 @@ const createListItem = (
 
 const createDocumentWithList = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {
@@ -335,7 +334,6 @@ describe('useTreeOperations', () => {
       // Create a document with multi-language content
       const multiLangDoc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -367,7 +365,6 @@ describe('useTreeOperations', () => {
       // Create doc with h1, then content at same level
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -419,7 +416,6 @@ describe('useTreeOperations', () => {
       // Create two sibling headings at root level
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -510,7 +506,6 @@ describe('useTreeOperations', () => {
       // append it to that existing list, not create a new sibling list.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -589,7 +584,6 @@ describe('useTreeOperations', () => {
     test('does nothing when list_item has no preceding sibling', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -615,7 +609,6 @@ describe('useTreeOperations', () => {
       // new sublist under li1 should contain li2 unchanged — including liA.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -674,7 +667,6 @@ describe('useTreeOperations', () => {
       // doc: h1, p1, p2 at root level → both p1 and p2 should move under h1
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -726,7 +718,6 @@ describe('useTreeOperations', () => {
       // Neither can be indented
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -763,7 +754,6 @@ describe('useTreeOperations', () => {
       // and D as direct siblings under B — not re-nesting D under C.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -835,7 +825,6 @@ describe('useTreeOperations', () => {
       });
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           heading('A'),
@@ -925,7 +914,6 @@ describe('useTreeOperations', () => {
     test('moves list_item out of nested list', () => {
       const nestedListDoc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -961,7 +949,6 @@ describe('useTreeOperations', () => {
     test('does nothing when outdenting list_item would place it outside any list', () => {
       const docWithTopLevelList: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -988,7 +975,6 @@ describe('useTreeOperations', () => {
     test('does nothing when outdenting list_item in list under heading would violate rules', () => {
       const docWithListUnderHeading: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1023,7 +1009,6 @@ describe('useTreeOperations', () => {
       // list1[li1{content}, li2, li3]  (empty nested list is dropped)
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1080,7 +1065,6 @@ describe('useTreeOperations', () => {
       // list1[li1{nested[li3]}, li2]
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1127,7 +1111,6 @@ describe('useTreeOperations', () => {
       // list1[li1{nested1[li2, li3]}]   (li3 moves up one level, into nested1)
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1189,7 +1172,6 @@ describe('useTreeOperations', () => {
       // list1[li1, li2, li3]  (no nested list left)
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1257,7 +1239,6 @@ describe('useTreeOperations', () => {
       // carrying C and D along unchanged — not scatter them or reverse order.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1323,7 +1304,6 @@ describe('useTreeOperations', () => {
       // processed separately.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1423,7 +1403,6 @@ describe('useTreeOperations', () => {
     test('lifts a heading out of the last list_item, placing it after the list (no split)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1455,7 +1434,7 @@ describe('useTreeOperations', () => {
       expect(list.children.map((c) => c.id)).toEqual(['li1', 'li2']);
       const li2 = list.children[1] as ContainerDocumentNode;
       // The surviving list_item keeps its id and number.
-      expect(li2.number).toBe('2.');
+      expect((li2 as NumberedDocumentNode).number).toBe('2.');
       expect(li2.children.map((c) => c.id)).toEqual(['li2-content']);
       expect(isValidDocument(newDoc)).toBe(true);
     });
@@ -1463,7 +1442,6 @@ describe('useTreeOperations', () => {
     test('lifts a heading out of a middle list_item, splitting the list around it', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1505,7 +1483,6 @@ describe('useTreeOperations', () => {
     test('drops an emptied middle list_item when its only child is lifted out', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1545,7 +1522,6 @@ describe('useTreeOperations', () => {
     test('splits the list_item itself when the lifted node sits between content', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1575,14 +1551,14 @@ describe('useTreeOperations', () => {
       const beforeItem = (newDoc.children[0] as ContainerDocumentNode)
         .children[0] as ContainerDocumentNode;
       expect(beforeItem.id).toBe('li1');
-      expect(beforeItem.number).toBe('1.');
+      expect((beforeItem as NumberedDocumentNode).number).toBe('1.');
       expect(beforeItem.children.map((c) => c.id)).toEqual(['c-a']);
 
       const afterItem = (newDoc.children[2] as ContainerDocumentNode)
         .children[0] as ContainerDocumentNode;
       // Tail fragment gets a fresh id and no number to avoid a duplicate label.
       expect(afterItem.id).not.toBe('li1');
-      expect(afterItem.number).toBeNull();
+      expect((afterItem as NumberedDocumentNode).number).toBeNull();
       expect(afterItem.children.map((c) => c.id)).toEqual(['c-c']);
 
       // No duplicate ids despite the split.
@@ -1592,7 +1568,6 @@ describe('useTreeOperations', () => {
     test('lifts a heading out of the first list_item, placing it before the list', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1624,14 +1599,13 @@ describe('useTreeOperations', () => {
       expect(after.id).toBe('list1');
       expect(after.children.map((c) => c.id)).toEqual(['li2']);
       // The surviving list_item keeps its original number.
-      expect((after.children[0] as ContainerDocumentNode).number).toBe('2.');
+      expect((after.children[0] as NumberedDocumentNode).number).toBe('2.');
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('replaces a single-item single-child list with just the lifted node', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1663,7 +1637,6 @@ describe('useTreeOperations', () => {
     test('keeps document order when lifting from a list nested under a heading', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1720,7 +1693,6 @@ describe('useTreeOperations', () => {
     test('lifts a normal list item content out of the list', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1749,7 +1721,6 @@ describe('useTreeOperations', () => {
     test('lifts a footnote trapped directly in a list_item out of the list', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1791,7 +1762,6 @@ describe('useTreeOperations', () => {
     test('lifts multiple sibling nodes out of the same list_item, preserving order', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1838,7 +1808,6 @@ describe('useTreeOperations', () => {
     test('preserves the lifted node subtree (a heading with body content)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1883,7 +1852,6 @@ describe('useTreeOperations', () => {
     test('lifts two non-adjacent nodes out of the same list_item, preserving order', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1922,7 +1890,6 @@ describe('useTreeOperations', () => {
     test('lifts a nested list out of a list_item as a sibling of the outer list', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1969,7 +1936,6 @@ describe('useTreeOperations', () => {
     test('does not lift when the list_item is not inside a list (malformed)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -1994,7 +1960,6 @@ describe('useTreeOperations', () => {
     test('moves footnote under previous sibling content', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -2034,7 +1999,6 @@ describe('useTreeOperations', () => {
     test('does nothing when previous sibling is not content or heading', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -2067,7 +2031,6 @@ describe('useTreeOperations', () => {
     test('moves footnote under previous sibling heading', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -2109,7 +2072,6 @@ describe('useTreeOperations', () => {
     test('moves footnote to be sibling of parent content', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -2153,7 +2115,6 @@ describe('useTreeOperations', () => {
     test('preserves other footnote siblings when outdenting', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -2207,7 +2168,6 @@ describe('useTreeOperations', () => {
       test('converts content to heading with empty children', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2239,7 +2199,6 @@ describe('useTreeOperations', () => {
       test('preserves id, number, and contents', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2271,7 +2230,6 @@ describe('useTreeOperations', () => {
       test('does nothing when already a heading', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2299,7 +2257,6 @@ describe('useTreeOperations', () => {
       test('converts heading without children to content', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2333,7 +2290,6 @@ describe('useTreeOperations', () => {
       test('lifts children as siblings after converted node', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2392,7 +2348,6 @@ describe('useTreeOperations', () => {
       test('does nothing when already content', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2420,7 +2375,6 @@ describe('useTreeOperations', () => {
       test('wraps content in list with single list_item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2461,7 +2415,6 @@ describe('useTreeOperations', () => {
       test('sets correct number for numbered list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2484,13 +2437,12 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
-        expect(item.number).toBe('1.');
+        expect((item as NumberedDocumentNode).number).toBe('1.');
       });
 
       test('sets correct number for lettered list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2513,13 +2465,12 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
-        expect(item.number).toBe('a.');
+        expect((item as NumberedDocumentNode).number).toBe('a.');
       });
 
       test('sets null number for unordered list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2542,7 +2493,7 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
-        expect(item.number).toBeNull();
+        expect((item as NumberedDocumentNode).number).toBeNull();
       });
     });
 
@@ -2550,7 +2501,6 @@ describe('useTreeOperations', () => {
       test('wraps heading in list, lifts children after list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2603,7 +2553,6 @@ describe('useTreeOperations', () => {
       test('replaces entire list when only item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2634,7 +2583,6 @@ describe('useTreeOperations', () => {
       test('extracts item and inserts after list when multiple items', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2677,7 +2625,6 @@ describe('useTreeOperations', () => {
       test('replaces entire list when only item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2707,7 +2654,6 @@ describe('useTreeOperations', () => {
       test('extracts item and inserts after list when multiple items', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2749,7 +2695,6 @@ describe('useTreeOperations', () => {
       test('changes only selected item to numbered, leaves siblings unchanged', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2775,15 +2720,14 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
 
         // Only li2 (index 1) should change
-        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
-        expect((list.children[2] as ContainerDocumentNode).number).toBeNull();
+        expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
+        expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
+        expect((list.children[2] as NumberedDocumentNode).number).toBeNull();
       });
 
       test('changes only selected item to lettered', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2805,14 +2749,13 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
 
         // Only li1 (index 0) should change
-        expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+        expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
+        expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
       });
 
       test('changes only selected item to unordered', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2834,8 +2777,8 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
 
         // Only li1 (index 0) should change
-        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
+        expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
+        expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
       });
     });
 
@@ -2843,7 +2786,6 @@ describe('useTreeOperations', () => {
       test('list node + numbered: changes all children to 1., 2., 3.', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2868,15 +2810,14 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
-        expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
+        expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
+        expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
+        expect((list.children[2] as NumberedDocumentNode).number).toBe('3.');
       });
 
       test('list node + unordered: sets all children numbers to null', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2897,14 +2838,13 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as ContainerDocumentNode).number).toBeNull();
-        expect((list.children[1] as ContainerDocumentNode).number).toBeNull();
+        expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
+        expect((list.children[1] as NumberedDocumentNode).number).toBeNull();
       });
 
       test('list node + lettered: changes all children to a., b., c.', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2929,15 +2869,14 @@ describe('useTreeOperations', () => {
         const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = newDoc.children[0] as ContainerDocumentNode;
 
-        expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
-        expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
-        expect((list.children[2] as ContainerDocumentNode).number).toBe('c.');
+        expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
+        expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
+        expect((list.children[2] as NumberedDocumentNode).number).toBe('c.');
       });
 
       test('list node + non-list target: does nothing', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -2976,7 +2915,6 @@ describe('useTreeOperations', () => {
         // remains unsupported because there's no meaningful semantics for it.
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3002,7 +2940,6 @@ describe('useTreeOperations', () => {
       test('merges with preceding list when converting to list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3044,7 +2981,6 @@ describe('useTreeOperations', () => {
       test('merges with following list when converting to list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3086,7 +3022,6 @@ describe('useTreeOperations', () => {
       test('merges with both surrounding lists when converting to list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3135,7 +3070,6 @@ describe('useTreeOperations', () => {
       test('does not merge lists separated by other nodes', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3183,7 +3117,6 @@ describe('useTreeOperations', () => {
       test('converts content to footnote (leaf node without children)', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3217,7 +3150,6 @@ describe('useTreeOperations', () => {
       test('preserves id, number, and contents', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3249,7 +3181,6 @@ describe('useTreeOperations', () => {
       test('lifts footnote children when converting content with footnotes', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3306,7 +3237,6 @@ describe('useTreeOperations', () => {
       test('does nothing when already footnote', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3333,7 +3263,6 @@ describe('useTreeOperations', () => {
       test('converts heading to footnote and lifts children', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3393,7 +3322,6 @@ describe('useTreeOperations', () => {
       test('converts heading without children to footnote', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3428,7 +3356,6 @@ describe('useTreeOperations', () => {
       test('converts footnote to content (adds empty children array)', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3461,7 +3388,6 @@ describe('useTreeOperations', () => {
       test('preserves multi-language contents', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3493,7 +3419,6 @@ describe('useTreeOperations', () => {
       test('cannot convert list to footnote', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3517,7 +3442,6 @@ describe('useTreeOperations', () => {
       test('cannot convert list_item to footnote', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3544,7 +3468,6 @@ describe('useTreeOperations', () => {
       test('preserves list_item.number on the converted content node when it is the only item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3573,7 +3496,6 @@ describe('useTreeOperations', () => {
       test('handles a list_item with no content child (empty contents, default format)', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3611,7 +3533,6 @@ describe('useTreeOperations', () => {
       test('preserves the list_item content format when converting to content', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3655,7 +3576,6 @@ describe('useTreeOperations', () => {
       test('preserves list_item.number when extracted from a multi-item list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3680,7 +3600,7 @@ describe('useTreeOperations', () => {
 
         // Remaining list_item is untouched
         const list = newDoc.children[0] as ContainerDocumentNode;
-        expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
+        expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
 
         // Extracted content carries its old list_item number
         const converted = newDoc.children[1] as ContentDocumentNode;
@@ -3693,7 +3613,6 @@ describe('useTreeOperations', () => {
       test('preserves list_item.number on the converted heading node', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3723,7 +3642,6 @@ describe('useTreeOperations', () => {
       test('flattens all list_items into content nodes, preserving each number', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3767,7 +3685,6 @@ describe('useTreeOperations', () => {
       test('preserves null number for unnumbered items', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3795,7 +3712,6 @@ describe('useTreeOperations', () => {
       test('flattens nested list recursively, preserving inner numbers', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3861,7 +3777,6 @@ describe('useTreeOperations', () => {
       test('preserves source order when nested list precedes the content child', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3918,7 +3833,6 @@ describe('useTreeOperations', () => {
       test('preserves the source content format on the flattened content node', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -3962,7 +3876,6 @@ describe('useTreeOperations', () => {
       test('lifts a list_item with multiple content children, attaching the number to the first', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4024,7 +3937,6 @@ describe('useTreeOperations', () => {
       test('synthesizes a placeholder content node for a list_item with no content child', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4063,7 +3975,6 @@ describe('useTreeOperations', () => {
       test('preserves footnote children of the list_item content', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4116,7 +4027,6 @@ describe('useTreeOperations', () => {
       test('list -> heading is still a no-op', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4142,7 +4052,6 @@ describe('useTreeOperations', () => {
       test('unordered preserves the content original number on the new list_item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4166,13 +4075,12 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
 
-        expect(item.number).toBe('Art. 5');
+        expect((item as NumberedDocumentNode).number).toBe('Art. 5');
       });
 
       test('numbered overwrites the content number with the generated sequence', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4196,13 +4104,12 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
 
-        expect(item.number).toBe('1.');
+        expect((item as NumberedDocumentNode).number).toBe('1.');
       });
 
       test('lettered overwrites the content number with the generated sequence', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4226,13 +4133,12 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
 
-        expect(item.number).toBe('a.');
+        expect((item as NumberedDocumentNode).number).toBe('a.');
       });
 
       test('unordered with null content number stays null', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4256,7 +4162,7 @@ describe('useTreeOperations', () => {
         const list = newDoc.children[0] as ContainerDocumentNode;
         const item = list.children[0] as ContainerDocumentNode;
 
-        expect(item.number).toBeNull();
+        expect((item as NumberedDocumentNode).number).toBeNull();
       });
     });
 
@@ -4264,7 +4170,6 @@ describe('useTreeOperations', () => {
       test('content -> unordered list -> content preserves number', () => {
         const startDoc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4286,7 +4191,7 @@ describe('useTreeOperations', () => {
         const afterToList = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
         const list = afterToList.children[0] as ContainerDocumentNode;
         const listItem = list.children[0] as ContainerDocumentNode;
-        expect(listItem.number).toBe('Art. 5');
+        expect((listItem as NumberedDocumentNode).number).toBe('Art. 5');
 
         // Step 2: list_item -> content (rebuild hook over the new doc)
         mockCommit.mockClear();
@@ -4307,7 +4212,6 @@ describe('useTreeOperations', () => {
     test('changes type for multiple content nodes to heading', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -4354,7 +4258,6 @@ describe('useTreeOperations', () => {
     test('handles mixed node types (content + heading -> footnote)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -4401,7 +4304,6 @@ describe('useTreeOperations', () => {
     test('numbers a numbered-list batch sequentially (1., 2., 3.)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -4443,15 +4345,14 @@ describe('useTreeOperations', () => {
       const list = newDoc.children[0] as ContainerDocumentNode;
       expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(3);
-      expect((list.children[0] as ContainerDocumentNode).number).toBe('1.');
-      expect((list.children[1] as ContainerDocumentNode).number).toBe('2.');
-      expect((list.children[2] as ContainerDocumentNode).number).toBe('3.');
+      expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
+      expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
+      expect((list.children[2] as NumberedDocumentNode).number).toBe('3.');
     });
 
     test('letters a lettered-list batch sequentially (a., b., c.)', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -4491,9 +4392,9 @@ describe('useTreeOperations', () => {
 
       const list = newDoc.children[0] as ContainerDocumentNode;
       expect(list.children.length).toBe(3);
-      expect((list.children[0] as ContainerDocumentNode).number).toBe('a.');
-      expect((list.children[1] as ContainerDocumentNode).number).toBe('b.');
-      expect((list.children[2] as ContainerDocumentNode).number).toBe('c.');
+      expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
+      expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
+      expect((list.children[2] as NumberedDocumentNode).number).toBe('c.');
     });
   });
 
@@ -4611,7 +4512,6 @@ describe('useTreeOperations', () => {
       test('rejects moving content directly into list', () => {
         const docWithList: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4646,7 +4546,6 @@ describe('useTreeOperations', () => {
       test('rejects moving heading directly into list', () => {
         const docWithList: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4723,7 +4622,6 @@ describe('useTreeOperations', () => {
       test('allows moving list_item to different list', () => {
         const docWithTwoLists: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4755,7 +4653,6 @@ describe('useTreeOperations', () => {
       test('allows moving content into list_item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4789,7 +4686,6 @@ describe('useTreeOperations', () => {
       test('allows moving nested list into list_item', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4821,7 +4717,6 @@ describe('useTreeOperations', () => {
       test('rejects moving footnote directly into list', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4853,7 +4748,6 @@ describe('useTreeOperations', () => {
       test('rejects moving list directly into list (must be in list_item)', () => {
         const doc: ContainerDocumentNode = {
           id: 'root',
-          number: null,
           type: 'DOCUMENT',
           children: [
             {
@@ -4918,7 +4812,6 @@ describe('useTreeOperations', () => {
     test('returns null when move would be invalid (content to list)', () => {
       const docWithList: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -4978,7 +4871,6 @@ describe('useTreeOperations', () => {
     test('returns list id for valid list_item moves between lists', () => {
       const docWithTwoLists: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5091,7 +4983,6 @@ describe('useTreeOperations', () => {
     test('preserves an allowed format when converting content → footnote (NEWLINES is allowed on both)', () => {
       const docWithMarkdown: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5119,7 +5010,6 @@ describe('useTreeOperations', () => {
     test('resets to TEXT when converting content (MARKDOWN) → heading (MARKDOWN not allowed)', () => {
       const docWithMarkdown: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5149,7 +5039,6 @@ describe('useTreeOperations', () => {
     test('preserves NEWLINES when converting heading → content (still allowed)', () => {
       const docWithNewlines: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5179,7 +5068,6 @@ describe('useTreeOperations', () => {
     // Flat root with four siblings, used by reordering tests.
     const createFlatDocument = (): ContainerDocumentNode => ({
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -5390,7 +5278,6 @@ describe('useTreeOperations', () => {
     // Doc with two adjacent content nodes (p1, p1b) sharing parent h1, plus a heading sibling.
     const createMergeDoc = (): ContainerDocumentNode => ({
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [
         {
@@ -5450,7 +5337,6 @@ describe('useTreeOperations', () => {
       // Build doc with three content siblings under h1 (p1, pmid, p1b) so we can pick non-adjacent ones.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5507,7 +5393,6 @@ describe('useTreeOperations', () => {
     test('does nothing for image nodes', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5551,7 +5436,6 @@ describe('useTreeOperations', () => {
     test('merging content nodes preserves per-language text — empty languages are skipped', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5601,7 +5485,6 @@ describe('useTreeOperations', () => {
       // `\n\n` — otherwise the merge would visually concatenate the prose.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5635,7 +5518,6 @@ describe('useTreeOperations', () => {
     test('merging content nodes concatenates footnote children in source order', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5691,7 +5573,6 @@ describe('useTreeOperations', () => {
     test('merging two heading nodes joins contents with a single space', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5727,7 +5608,6 @@ describe('useTreeOperations', () => {
       // Headings join with whitespace, so there's no need to floor to NEWLINES — TEXT must remain valid.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5760,7 +5640,6 @@ describe('useTreeOperations', () => {
     test('merging heading nodes appends children in source order', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5811,7 +5690,6 @@ describe('useTreeOperations', () => {
     test('merging two footnote nodes joins contents with newlines and floors format to NEWLINES', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5854,7 +5732,6 @@ describe('useTreeOperations', () => {
     test('merging two list_items concatenates their children', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5884,7 +5761,6 @@ describe('useTreeOperations', () => {
     test('merging two lists concatenates list_item children', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5922,7 +5798,6 @@ describe('useTreeOperations', () => {
     test('merges three contiguous content nodes in flat order', () => {
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -5975,7 +5850,6 @@ describe('useTreeOperations', () => {
       // Those children shouldn't block the merge — they come along inside the merged container.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -6015,7 +5889,6 @@ describe('useTreeOperations', () => {
       // those children have different parents and aren't siblings to each other.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {
@@ -6034,7 +5907,6 @@ describe('useTreeOperations', () => {
       // {li, li-content} → filter drops li-content → only li remains → too few to merge.
       const doc: ContainerDocumentNode = {
         id: 'root',
-        number: null,
         type: 'DOCUMENT',
         children: [
           {

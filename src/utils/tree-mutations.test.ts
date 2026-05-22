@@ -4,7 +4,9 @@ import type {
   ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListItemDocumentNode,
   NodeFormat,
+  NumberedDocumentNode,
 } from '../types/document';
 import type { NodePath } from '../types/editor';
 import {
@@ -71,7 +73,6 @@ const list = (id: string, children: ContainerDocumentNode['children']): Containe
 
 const doc = (children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children,
 });
@@ -239,7 +240,6 @@ describe('findPreviousSiblingTarget', () => {
   test('returns the nearest preceding HEADING', () => {
     const parent: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [heading('h1', 'A'), content('p1', 'x'), content('p2', 'y')],
     };
@@ -250,7 +250,6 @@ describe('findPreviousSiblingTarget', () => {
   test('returns a preceding CONTENT node for a FOOTNOTE', () => {
     const parent: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [content('p1', 'x'), heading('hh', 'H')],
     };
@@ -262,7 +261,6 @@ describe('findPreviousSiblingTarget', () => {
   test('returns null when nothing qualifies', () => {
     const parent: ContainerDocumentNode = {
       id: 'root',
-      number: null,
       type: 'DOCUMENT',
       children: [content('p1', 'x'), content('p2', 'y')],
     };
@@ -426,7 +424,7 @@ describe('changeNodeTypeInDoc', () => {
     const list = getNodeAtPath(result!, [0]) as ContainerDocumentNode;
     expect(list.type).toBe('LIST');
     expect(list.children[0].type).toBe('LIST_ITEM');
-    expect(list.children[0].number).toBe('1.');
+    expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
   });
 
   test('flattens a list to content nodes', () => {
@@ -482,7 +480,11 @@ describe('changeNodeTypeInDoc', () => {
     expect(result!.children).toHaveLength(1);
     const merged = result!.children[0] as ContainerDocumentNode;
     expect(merged.type).toBe('LIST');
-    expect(merged.children.map((c) => c.number)).toEqual(['1.', '2.', '3.']);
+    expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
+      '1.',
+      '2.',
+      '3.',
+    ]);
   });
 
   test('returns null for the root node', () => {
@@ -500,7 +502,7 @@ describe('extractAndConvertListItemInDoc', () => {
       children: [listItem('li1', 'one', '1.')],
     };
     const d = doc([list]);
-    const item = getNodeAtPath(d, [0, 0]) as ContainerDocumentNode;
+    const item = getNodeAtPath(d, [0, 0]) as ListItemDocumentNode;
     const result = extractAndConvertListItemInDoc(d, [0, 0], item, 'CONTENT');
     expect(result).not.toBeNull();
     expect(result!.children).toHaveLength(1);
@@ -515,7 +517,7 @@ describe('extractAndConvertListItemInDoc', () => {
       children: [listItem('li1', 'one', '1.'), listItem('li2', 'two', '2.')],
     };
     const d = doc([list]);
-    const item = getNodeAtPath(d, [0, 0]) as ContainerDocumentNode;
+    const item = getNodeAtPath(d, [0, 0]) as ListItemDocumentNode;
     const result = extractAndConvertListItemInDoc(d, [0, 0], item, 'HEADING');
     expect(result).not.toBeNull();
     expect(result!.children[0]).toMatchObject({ id: 'li1', type: 'HEADING', number: '1.' });

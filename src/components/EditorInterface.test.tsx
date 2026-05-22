@@ -16,7 +16,6 @@ vi.mock('../utils/document-utils', async () => {
 
 const createTestDocument = (): ContainerDocumentNode => ({
   id: 'root',
-  number: null,
   type: 'DOCUMENT',
   children: [
     {

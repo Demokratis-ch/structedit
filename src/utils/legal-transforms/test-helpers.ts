@@ -13,7 +13,6 @@ import { generateId } from '../document-utils';
 export function createDoc(children: DocumentNode[]): ContainerDocumentNode {
   return {
     id: generateId(),
-    number: null,
     type: 'DOCUMENT',
     children,
   };

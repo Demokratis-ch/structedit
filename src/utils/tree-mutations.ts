@@ -6,6 +6,7 @@ import type {
   HeadingDocumentNode,
   Language,
   LeafDocumentNode,
+  ListItemDocumentNode,
   NodeFormat,
   ParentType,
 } from '../types/document';
@@ -210,7 +211,7 @@ export function flattenListToContents(list: ContainerDocumentNode): DocumentNode
   const out: DocumentNode[] = [];
   for (const item of list.children) {
     if (item.type !== 'LIST_ITEM') continue;
-    const listItem = item as ContainerDocumentNode;
+    const listItem = item as ListItemDocumentNode;
 
     const flattenedChildren: DocumentNode[] = [];
     let numberAttached = false;
@@ -593,7 +594,7 @@ const hasContents = (
 export const extractAndConvertListItemInDoc = (
   doc: ContainerDocumentNode,
   itemPath: NodePath,
-  item: ContainerDocumentNode,
+  item: ListItemDocumentNode,
   targetType: 'HEADING' | 'CONTENT'
 ): ContainerDocumentNode | null => {
   const listPath = itemPath.slice(0, -1);
@@ -694,7 +695,7 @@ export const changeNodeTypeInDoc = (
       return null;
     }
     // Extract from list and convert
-    return extractAndConvertListItemInDoc(doc, path, node as ContainerDocumentNode, targetType);
+    return extractAndConvertListItemInDoc(doc, path, node as ListItemDocumentNode, targetType);
   }
 
   // Handle list node - can only change list style or flatten to content
