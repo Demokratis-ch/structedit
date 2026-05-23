@@ -1,7 +1,7 @@
 import type {
   BlockDocumentNode,
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
   ListDocumentNode,
@@ -11,7 +11,7 @@ import { generateId } from '../document-utils';
 /**
  * Create a document root node for testing
  */
-export function createDoc(children: BlockDocumentNode[]): ContainerDocumentNode {
+export function createDoc(children: BlockDocumentNode[]): DocumentRootNode {
   return {
     id: generateId(),
     type: 'DOCUMENT',

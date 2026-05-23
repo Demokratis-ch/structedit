@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useAutosave } from '../hooks/useAutosave';
 import { useResizable } from '../hooks/useResizable';
 import { useTreeEditor } from '../hooks/useTreeEditor';
-import type { ContainerDocumentNode, Language } from '../types/document';
+import type { DocumentRootNode, Language } from '../types/document';
 import { buildDocTreeEnvelope, deriveJsonFilename, downloadFile } from '../utils/document-utils';
 import { DragHandle } from './DragHandle';
 import { LeftPane } from './LeftPane';
@@ -10,7 +10,7 @@ import { Toolbar } from './Toolbar';
 import { TreeEditor } from './TreeEditor';
 
 interface EditorInterfaceProps {
-  initialDocument: ContainerDocumentNode;
+  initialDocument: DocumentRootNode;
   documentUrl: string | null;
   documentName?: string | null;
   language?: Language;

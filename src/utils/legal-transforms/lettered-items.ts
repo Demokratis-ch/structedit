@@ -1,7 +1,7 @@
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   Language,
   ListDocumentNode,
 } from '../../types/document';
@@ -128,8 +128,8 @@ function processChildren(children: DocumentNode[], language: Language): Document
  *     content("Regular text")
  */
 export const letteredItemsTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   return withMappedChildren(root, (children) => processChildren(children, language));
 };

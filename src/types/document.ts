@@ -50,9 +50,6 @@ export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_IN
 /** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
 export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
 
-/** Container-only node types: they hold `children` but no `contents`/`format` of their own. */
-export type ContainerDocumentNodeType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM';
-
 /** Leaf node types: they carry `contents` but never `children`. */
 export type LeafDocumentNodeType = 'IMAGE' | 'FOOTNOTE';
 
@@ -163,20 +160,13 @@ export type ParentDocumentNode =
 export type NumberedDocumentNode = Exclude<DocumentNode, DocumentRootNode>;
 
 /**
- * Convenience grouping alias for the container-only node types (tree root + list structure);
- * matches the previous `ContainerDocumentNode` membership exactly. Prefer the specific per-type
- * interfaces in new code — consumers are migrated off this alias in the follow-up to issue #104.
- */
-export type ContainerDocumentNode = DocumentRootNode | ListDocumentNode | ListItemDocumentNode;
-
-/**
  * Convenience grouping alias for the leaf node types. Prefer {@link FootnoteDocumentNode} or
  * {@link ImageDocumentNode} directly in new code.
  */
 export type LeafDocumentNode = FootnoteDocumentNode | ImageDocumentNode;
 
 /** A node type that may legally contain children, plus `null` for the document's root level. */
-export type ParentType = ContainerDocumentNodeType | 'HEADING' | 'CONTENT' | null;
+export type ParentType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM' | 'HEADING' | 'CONTENT' | null;
 
 /**
  * Versioned wrapper around an exported document tree. Lets the export format evolve (and later
@@ -189,9 +179,7 @@ export interface DocTreeMetadata {
 export interface DocTreeEnvelope {
   DocTreeVersion: typeof DOC_TREE_VERSION;
   metadata: DocTreeMetadata;
-  // The deprecated `ContainerDocumentNode` alias still includes the document root; the app-wide
-  // document type is migrated to `DocumentRootNode` as part of the deferred follow-up to #104.
-  document: ContainerDocumentNode;
+  document: DocumentRootNode;
 }
 
 /**
@@ -220,7 +208,7 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
 
 export const DOC_TREE_VERSION = 1 as const;
 
-const CONTAINER_TYPES: ContainerDocumentNodeType[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
+const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
 const LEAF_TYPES: LeafDocumentNodeType[] = ['IMAGE', 'FOOTNOTE'];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
@@ -240,10 +228,7 @@ const ALLOWED_CHILDREN = {
   LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
-} as const satisfies Record<
-  ContainerDocumentNodeType | 'HEADING' | 'CONTENT',
-  DocumentNode['type'][]
->;
+} as const satisfies Record<NonNullable<ParentType>, DocumentNode['type'][]>;
 
 /**
  * Compile-time guard: the runtime `ALLOWED_CHILDREN` table and the typed `children` unions encode
@@ -322,12 +307,12 @@ const isValidNodeInternal = (
   if (parentType !== null && !canBeChildOf(type, parentType)) return false;
 
   // Container nodes
-  if (CONTAINER_TYPES.includes(type as ContainerDocumentNodeType)) {
+  if (CONTAINER_TYPES.includes(type as 'DOCUMENT' | 'LIST' | 'LIST_ITEM')) {
     if (!Array.isArray(node.children)) return false;
     if ('contents' in node) return false;
     if ('format' in node) return false;
     return node.children.every((child) =>
-      isValidNodeInternal(child, type as ContainerDocumentNodeType, seenIds)
+      isValidNodeInternal(child, type as 'DOCUMENT' | 'LIST' | 'LIST_ITEM', seenIds)
     );
   }
 

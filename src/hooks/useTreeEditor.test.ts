@@ -1,15 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import { useTreeEditor } from './useTreeEditor';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [
@@ -311,7 +312,7 @@ describe('useTreeEditor', () => {
 
   test('indentSelected indents all selected nodes', () => {
     // Create doc: root > [h1, p1, p2]
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -396,7 +397,7 @@ describe('useTreeEditor', () => {
   });
 
   test('outdentSelected tabs a heading stuck in a list out of the list (issue #101 #4)', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -453,14 +454,14 @@ describe('useTreeEditor', () => {
     // The heading is lifted out to sit after the list; the list keeps its first item.
     expect(result.current.document.children.map((c) => c.type)).toEqual(['LIST', 'HEADING']);
     expect(result.current.document.children[1].id).toBe('stuck');
-    const list = result.current.document.children[0] as ContainerDocumentNode;
+    const list = result.current.document.children[0] as ListDocumentNode;
     expect(list.children.map((c) => c.id)).toEqual(['li1']);
     expect(isValidDocument(result.current.document)).toBe(true);
   });
 
   describe('moveSelectedToTop / moveSelectedToBottom', () => {
     // Flat doc: root > [a, b, c, d]
-    const createFlatDoc = (): ContainerDocumentNode => ({
+    const createFlatDoc = (): DocumentRootNode => ({
       id: 'root',
       type: 'DOCUMENT',
       children: ['a', 'b', 'c', 'd'].map(

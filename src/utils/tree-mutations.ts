@@ -1,8 +1,8 @@
 import type {
-  ContainerDocumentNode,
   ContentBearingNodeType,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
   LeafDocumentNode,
@@ -85,7 +85,7 @@ export const keepOutermostIds = (ids: string[], nodeIndex: Map<string, NodePath>
  */
 export const resolveMergeTargets = (
   ids: readonly string[],
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   nodeIndex: Map<string, NodePath>
 ): NodePath[] | null => {
   if (ids.length < 2) return null;
@@ -130,7 +130,7 @@ export const resolveMergeTargets = (
  */
 export const canMergeIdsInDoc = (
   ids: readonly string[],
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   nodeIndex: Map<string, NodePath>
 ): boolean => resolveMergeTargets(ids, doc, nodeIndex) !== null;
 
@@ -209,7 +209,7 @@ export const carryFormatOrDefault = (
  * after that content node. Other list_item children (extra content nodes,
  * headings, leaves) are lifted in source order.
  */
-export function flattenListToContents(list: ContainerDocumentNode): DocumentNode[] {
+export function flattenListToContents(list: ListDocumentNode): DocumentNode[] {
   const out: DocumentNode[] = [];
   for (const item of list.children) {
     if (item.type !== 'LIST_ITEM') continue;
@@ -275,9 +275,9 @@ export function flattenListToContents(list: ContainerDocumentNode): DocumentNode
  * (e.g. a malformed list_item not inside a list), so odd inputs are left alone.
  */
 export function liftNodeOutOfListItem(
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   path: NodePath
-): ContainerDocumentNode | null {
+): DocumentRootNode | null {
   const itemPath = path.slice(0, -1);
   const listPath = itemPath.slice(0, -1);
 
@@ -362,7 +362,7 @@ export function createNewSiblingNode(parent: DocumentNode, language: Language): 
           children: [],
         } as ContentDocumentNode,
       ],
-    } as ContainerDocumentNode;
+    } as ListItemDocumentNode;
   }
 
   return {
@@ -405,10 +405,10 @@ export const findPreviousSiblingTarget = (
  * Returns the new document, or null if the operation can't be performed.
  */
 export const indentNodeInDoc = (
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   idx: Map<string, NodePath>,
   id: string
-): ContainerDocumentNode | null => {
+): DocumentRootNode | null => {
   const path = idx.get(id);
   if (!path || path.length === 0) return null;
 
@@ -476,10 +476,10 @@ export const indentNodeInDoc = (
  * Returns the new document, or null if the operation can't be performed.
  */
 export const outdentNodeInDoc = (
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   idx: Map<string, NodePath>,
   id: string
-): ContainerDocumentNode | null => {
+): DocumentRootNode | null => {
   const path = idx.get(id);
   if (!path || path.length <= 1) {
     return null;
@@ -580,14 +580,14 @@ const hasContents = (
  * Returns the new document, or null if the operation can't be performed.
  */
 export const extractAndConvertListItemInDoc = (
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   itemPath: NodePath,
   item: ListItemDocumentNode,
   targetType: 'HEADING' | 'CONTENT'
-): ContainerDocumentNode | null => {
+): DocumentRootNode | null => {
   const listPath = itemPath.slice(0, -1);
   const itemIndexInList = itemPath[itemPath.length - 1];
-  const list = getNodeAtPath(doc, listPath) as ContainerDocumentNode;
+  const list = getNodeAtPath(doc, listPath) as ListDocumentNode;
 
   if (!list || list.type !== 'LIST') return null;
 
@@ -649,12 +649,12 @@ export const extractAndConvertListItemInDoc = (
  * Returns the new document, or null if the operation can't be performed.
  */
 export const changeNodeTypeInDoc = (
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   idx: Map<string, NodePath>,
   id: string,
   targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
   listStyle?: ListStyle
-): ContainerDocumentNode | null => {
+): DocumentRootNode | null => {
   const path = idx.get(id);
   if (!path || path.length === 0) return null; // Can't change root
 
@@ -872,9 +872,9 @@ export const changeNodeTypeInDoc = (
  */
 export const mergeNodesInDoc = (
   ids: readonly string[],
-  doc: ContainerDocumentNode,
+  doc: DocumentRootNode,
   nodeIndex: Map<string, NodePath>
-): ContainerDocumentNode | null => {
+): DocumentRootNode | null => {
   const paths = resolveMergeTargets(ids, doc, nodeIndex);
   if (!paths) return null;
 

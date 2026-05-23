@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import type {
   BlockDocumentNode,
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
@@ -74,13 +74,13 @@ const list = (id: string, children: ListItemDocumentNode[]): ListDocumentNode =>
   children,
 });
 
-const doc = (children: BlockDocumentNode[]): ContainerDocumentNode => ({
+const doc = (children: BlockDocumentNode[]): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children,
 });
 
-const idx = (d: ContainerDocumentNode): Map<string, NodePath> => buildIndices(d).nodeIndex;
+const idx = (d: DocumentRootNode): Map<string, NodePath> => buildIndices(d).nodeIndex;
 
 describe('keepOutermostIds', () => {
   test('drops a descendant id when its ancestor is also present, preserving order', () => {
@@ -130,7 +130,7 @@ describe('resolveMergeTargets', () => {
   });
 
   test('filters out descendant ids (outermost wins) without blocking the merge', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -170,7 +170,7 @@ describe('carryFormatOrDefault', () => {
 
 describe('flattenListToContents', () => {
   test('turns each list_item into a content node carrying its number', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -184,7 +184,7 @@ describe('flattenListToContents', () => {
   });
 
   test('synthesizes a placeholder content node when a list_item has no content child', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -196,13 +196,13 @@ describe('flattenListToContents', () => {
   });
 
   test('recursively flattens nested lists after the carrying content node', () => {
-    const nested: ContainerDocumentNode = {
+    const nested: ListDocumentNode = {
       id: 'nested',
       number: null,
       type: 'LIST',
       children: [listItem('li1a', 'inner', 'a.')],
     };
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -224,8 +224,8 @@ describe('flattenListToContents', () => {
 
 describe('createNewSiblingNode', () => {
   test('creates a LIST_ITEM with a CONTENT child when the parent is a LIST', () => {
-    const parent: ContainerDocumentNode = { id: 'l', number: null, type: 'LIST', children: [] };
-    const node = createNewSiblingNode(parent, 'de') as ContainerDocumentNode;
+    const parent: ListDocumentNode = { id: 'l', number: null, type: 'LIST', children: [] };
+    const node = createNewSiblingNode(parent, 'de') as ListItemDocumentNode;
     expect(node.type).toBe('LIST_ITEM');
     expect(node.children[0].type).toBe('CONTENT');
     expect((node.children[0] as ContentDocumentNode).contents).toEqual({ de: '' });
@@ -241,7 +241,7 @@ describe('createNewSiblingNode', () => {
 
 describe('findPreviousSiblingTarget', () => {
   test('returns the nearest preceding HEADING', () => {
-    const parent: ContainerDocumentNode = {
+    const parent: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [heading('h1', 'A'), content('p1', 'x'), content('p2', 'y')],
@@ -251,7 +251,7 @@ describe('findPreviousSiblingTarget', () => {
   });
 
   test('returns a preceding CONTENT node for a FOOTNOTE', () => {
-    const parent: ContainerDocumentNode = {
+    const parent: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [content('p1', 'x'), heading('hh', 'H')],
@@ -262,7 +262,7 @@ describe('findPreviousSiblingTarget', () => {
   });
 
   test('returns null when nothing qualifies', () => {
-    const parent: ContainerDocumentNode = {
+    const parent: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [content('p1', 'x'), content('p2', 'y')],
@@ -282,7 +282,7 @@ describe('indentNodeInDoc', () => {
   });
 
   test('nests a list_item under the preceding list_item via a new nested list', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -291,8 +291,8 @@ describe('indentNodeInDoc', () => {
     const d = doc([list]);
     const result = indentNodeInDoc(d, idx(d), 'li2');
     expect(result).not.toBeNull();
-    const li1 = getNodeAtPath(result!, [0, 0]) as ContainerDocumentNode;
-    const nested = li1.children.find((c) => c.type === 'LIST') as ContainerDocumentNode;
+    const li1 = getNodeAtPath(result!, [0, 0]) as ListItemDocumentNode;
+    const nested = li1.children.find((c) => c.type === 'LIST') as ListDocumentNode;
     expect(nested).toBeDefined();
     expect(nested.children.map((c) => c.id)).toEqual(['li2']);
   });
@@ -314,7 +314,7 @@ describe('outdentNodeInDoc', () => {
   });
 
   test('lifts a node out of a list_item, splitting the list around it (issue #101)', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -345,7 +345,7 @@ describe('outdentNodeInDoc', () => {
     // outer list > li1 [content, inner list > [li1a]] , li2
     // Outdenting li1a makes it a sibling of li1; the emptied inner list is removed.
     const inner = list('inner', [listItem('li1a', 'nested')]);
-    const li1: ContainerDocumentNode = {
+    const li1: ListItemDocumentNode = {
       id: 'li1',
       number: '1.',
       type: 'LIST_ITEM',
@@ -354,11 +354,11 @@ describe('outdentNodeInDoc', () => {
     const d = doc([list('outer', [li1, listItem('li2', 'two', '2.')])]);
     const result = outdentNodeInDoc(d, idx(d), 'li1a');
     expect(result).not.toBeNull();
-    const outer = getNodeAtPath(result!, [0]) as ContainerDocumentNode;
+    const outer = getNodeAtPath(result!, [0]) as ListDocumentNode;
     // li1a is now a sibling of li1, between it and li2
     expect(outer.children.map((c) => c.id)).toEqual(['li1', 'li1a', 'li2']);
     // the emptied nested list inside li1 was dropped
-    const li1After = outer.children[0] as ContainerDocumentNode;
+    const li1After = outer.children[0] as ListItemDocumentNode;
     expect(li1After.children.some((c) => c.type === 'LIST')).toBe(false);
   });
 
@@ -370,7 +370,7 @@ describe('outdentNodeInDoc', () => {
 
 describe('liftNodeOutOfListItem', () => {
   test('splits the list_item and list around the lifted node, preserving order', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -424,14 +424,14 @@ describe('changeNodeTypeInDoc', () => {
     const d = doc([content('p1', 'x')]);
     const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'LIST', 'numbered');
     expect(result).not.toBeNull();
-    const list = getNodeAtPath(result!, [0]) as ContainerDocumentNode;
+    const list = getNodeAtPath(result!, [0]) as ListDocumentNode;
     expect(list.type).toBe('LIST');
     expect(list.children[0].type).toBe('LIST_ITEM');
     expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
   });
 
   test('flattens a list to content nodes', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -445,7 +445,7 @@ describe('changeNodeTypeInDoc', () => {
   });
 
   test('extracts a list_item to a content node, preserving its number', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -481,7 +481,7 @@ describe('changeNodeTypeInDoc', () => {
     const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'LIST', 'numbered');
     expect(result).not.toBeNull();
     expect(result!.children).toHaveLength(1);
-    const merged = result!.children[0] as ContainerDocumentNode;
+    const merged = result!.children[0] as ListDocumentNode;
     expect(merged.type).toBe('LIST');
     expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
       '1.',
@@ -498,7 +498,7 @@ describe('changeNodeTypeInDoc', () => {
 
 describe('extractAndConvertListItemInDoc', () => {
   test('replaces a single-item list with the converted node', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -513,7 +513,7 @@ describe('extractAndConvertListItemInDoc', () => {
   });
 
   test('inserts the converted first item before the surviving list', () => {
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: 'list1',
       number: null,
       type: 'LIST',
@@ -525,7 +525,7 @@ describe('extractAndConvertListItemInDoc', () => {
     expect(result).not.toBeNull();
     expect(result!.children[0]).toMatchObject({ id: 'li1', type: 'HEADING', number: '1.' });
     expect(result!.children[1].type).toBe('LIST');
-    expect((result!.children[1] as ContainerDocumentNode).children).toHaveLength(1);
+    expect((result!.children[1] as ListDocumentNode).children).toHaveLength(1);
   });
 });
 
@@ -596,7 +596,7 @@ describe('mergeNodesInDoc', () => {
     const result = mergeNodesInDoc(['l1', 'l2'], d, idx(d));
     expect(result).not.toBeNull();
     expect(result!.children).toHaveLength(1);
-    const merged = result!.children[0] as ContainerDocumentNode;
+    const merged = result!.children[0] as ListDocumentNode;
     expect(merged.type).toBe('LIST');
     expect(merged.id).toBe('l1');
     expect(merged.children.map((c) => c.id)).toEqual(['a', 'b', 'c']);

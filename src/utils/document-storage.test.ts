@@ -1,6 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   __setStorageEstimatorForTesting,
   __setWriteFailHookForTesting,
@@ -15,7 +15,7 @@ import {
   updateEntryTree,
 } from './document-storage';
 
-function makeTree(text = 'hello'): ContainerDocumentNode {
+function makeTree(text = 'hello'): DocumentRootNode {
   return {
     id: 'root',
     type: 'DOCUMENT',

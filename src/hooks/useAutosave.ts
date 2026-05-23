@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useToast } from '../components/ui/Toast';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   formatQuotaMessage,
   StorageQuotaUnresolvableError,
@@ -23,13 +23,13 @@ const DEBOUNCE_MS = 500;
  */
 export function useAutosave(
   currentEntryId: string | null,
-  tree: ContainerDocumentNode | null
+  tree: DocumentRootNode | null
 ): { flush: () => Promise<void> } {
   const { showToast } = useToast();
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
 
-  const pendingRef = useRef<{ id: string; tree: ContainerDocumentNode } | null>(null);
+  const pendingRef = useRef<{ id: string; tree: DocumentRootNode } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const performWrite = useCallback((): Promise<void> => {

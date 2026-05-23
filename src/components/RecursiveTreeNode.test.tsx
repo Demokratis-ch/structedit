@@ -3,10 +3,11 @@ import type React from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListDocumentNode,
+  ListItemDocumentNode,
 } from '../types/document';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import {
@@ -180,7 +181,7 @@ describe('RecursiveTreeNode', () => {
 
     test('list item bullet with null number triggers onNumberDoubleClick on double-click', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: ContainerDocumentNode = {
+      const node: ListItemDocumentNode = {
         id: 'li-no-num',
         number: null,
         type: 'LIST_ITEM',
@@ -249,7 +250,7 @@ describe('RecursiveTreeNode', () => {
     });
 
     test('list node with null number renders a dashed placeholder badge', () => {
-      const node: ContainerDocumentNode = {
+      const node: ListDocumentNode = {
         id: 'list-no-num',
         number: null,
         type: 'LIST',
@@ -263,7 +264,7 @@ describe('RecursiveTreeNode', () => {
 
     test('list node with a number renders a solid badge', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: ContainerDocumentNode = {
+      const node: ListDocumentNode = {
         id: 'list-with-num',
         number: 'A.',
         type: 'LIST',
@@ -493,7 +494,7 @@ describe('RecursiveTreeNode', () => {
     });
 
     test('container-only node (LIST_ITEM) shows just the type, no format', () => {
-      const node: ContainerDocumentNode = {
+      const node: ListItemDocumentNode = {
         id: 'li',
         number: '1.',
         type: 'LIST_ITEM',

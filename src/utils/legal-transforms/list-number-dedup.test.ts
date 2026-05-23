@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type ContainerDocumentNode,
   type ContentDocumentNode,
   type HeadingDocumentNode,
   isValidDocument,
   type ListDocumentNode,
+  type ListItemDocumentNode,
   type NumberedDocumentNode,
 } from '../../types/document';
 import { generateId, parseHtmlToTree } from '../document-utils';
@@ -22,7 +22,7 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('1');
     expect((listNode.children[1] as NumberedDocumentNode).number).toBe('2');
   });
@@ -34,8 +34,8 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    const listItem = listNode.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
+    const listItem = listNode.children[0] as ListItemDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
     expect(contentNode.contents.de).toBe('Dieser Erlass regelt das Bildungswesen.');
   });
@@ -90,11 +90,11 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('1.');
     expect((listNode.children[1] as NumberedDocumentNode).number).toBe('2.');
 
-    const content0 = (listNode.children[0] as ContainerDocumentNode)
+    const content0 = (listNode.children[0] as ListItemDocumentNode)
       .children[0] as ContentDocumentNode;
     expect(content0.contents.de).toBe('No leading number here');
   });
@@ -110,7 +110,7 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('1');
     expect((listNode.children[1] as NumberedDocumentNode).number).toBe('1bis');
     expect((listNode.children[2] as NumberedDocumentNode).number).toBe('2');
@@ -129,7 +129,7 @@ describe('listNumberDedupTransform', () => {
     const result = listNumberDedupTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    const listNode = h.children[0] as ContainerDocumentNode;
+    const listNode = h.children[0] as ListDocumentNode;
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('1');
     expect((listNode.children[1] as NumberedDocumentNode).number).toBe('2');
   });
@@ -156,7 +156,7 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect(listNode.children).toHaveLength(0);
   });
 
@@ -185,8 +185,8 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const outerList = result.children[0] as ContainerDocumentNode;
-    const outerItem = outerList.children[0] as ContainerDocumentNode;
+    const outerList = result.children[0] as ListDocumentNode;
+    const outerItem = outerList.children[0] as ListItemDocumentNode;
 
     // Outer item should be deduped
     expect((outerItem as NumberedDocumentNode).number).toBe('1');
@@ -194,15 +194,15 @@ describe('listNumberDedupTransform', () => {
     expect(outerContent.contents.de).toBe('Outer text');
 
     // Inner list should also be deduped
-    const innerList = outerItem.children[1] as ContainerDocumentNode;
+    const innerList = outerItem.children[1] as ListDocumentNode;
     expect((innerList.children[0] as NumberedDocumentNode).number).toBe('1');
     expect((innerList.children[1] as NumberedDocumentNode).number).toBe('2');
 
-    const innerContent0 = (innerList.children[0] as ContainerDocumentNode)
+    const innerContent0 = (innerList.children[0] as ListItemDocumentNode)
       .children[0] as ContentDocumentNode;
     expect(innerContent0.contents.de).toBe('Inner first');
 
-    const innerContent1 = (innerList.children[1] as ContainerDocumentNode)
+    const innerContent1 = (innerList.children[1] as ListItemDocumentNode)
       .children[0] as ContentDocumentNode;
     expect(innerContent1.contents.de).toBe('Inner second');
   });
@@ -226,12 +226,12 @@ describe('listNumberDedupTransform', () => {
 
     const result = listNumberDedupTransform(input, 'de');
 
-    const outerList = result.children[0] as ContainerDocumentNode;
-    const outerItem = outerList.children[0] as ContainerDocumentNode;
+    const outerList = result.children[0] as ListDocumentNode;
+    const outerItem = outerList.children[0] as ListItemDocumentNode;
     // Should not have undefined in children
     expect(outerItem.children.every((c) => c !== undefined)).toBe(true);
     // The nested list should still be processed
-    const innerList = outerItem.children[0] as ContainerDocumentNode;
+    const innerList = outerItem.children[0] as ListDocumentNode;
     expect(innerList.type).toBe('LIST');
     expect((innerList.children[0] as NumberedDocumentNode).number).toBe('1');
   });
@@ -372,7 +372,7 @@ describe('listNumberDedupTransform', () => {
       expect(result.children[1].type).toBe('CONTENT');
       expect(result.children[2].type).toBe('LIST');
 
-      const firstList = result.children[0] as ContainerDocumentNode;
+      const firstList = result.children[0] as ListDocumentNode;
       expect(firstList.children).toHaveLength(1);
       expect((firstList.children[0] as NumberedDocumentNode).number).toBe('1.');
 
@@ -380,7 +380,7 @@ describe('listNumberDedupTransform', () => {
       expect(absatz.number).toBe('^2^');
       expect(absatz.contents.de).toBe('Absatz text');
 
-      const secondList = result.children[2] as ContainerDocumentNode;
+      const secondList = result.children[2] as ListDocumentNode;
       expect(secondList.children).toHaveLength(1);
       expect((secondList.children[0] as NumberedDocumentNode).number).toBe('3.');
       expect(isValidDocument(result)).toBe(true);
@@ -422,9 +422,9 @@ describe('listNumberDedupTransform', () => {
 
       // Stays as list with list_item; markup stripped, number set on the list_item.
       expect(result.children).toHaveLength(1);
-      const outerList = result.children[0] as ContainerDocumentNode;
+      const outerList = result.children[0] as ListDocumentNode;
       expect(outerList.type).toBe('LIST');
-      const li = outerList.children[0] as ContainerDocumentNode;
+      const li = outerList.children[0] as ListItemDocumentNode;
       expect(li.type).toBe('LIST_ITEM');
       expect((li as NumberedDocumentNode).number).toBe('1');
       const content = li.children[0] as ContentDocumentNode;
@@ -540,7 +540,7 @@ describe('listNumberDedupTransform', () => {
       const result = listNumberDedupTransform(input, 'de');
 
       expect(result.children[0].type).toBe('LIST');
-      expect((result.children[0] as ContainerDocumentNode).id).toBe(originalId);
+      expect((result.children[0] as ListDocumentNode).id).toBe(originalId);
     });
 
     it('downgrades format to TEXT when stripping leaves no inline marks', () => {

@@ -2,10 +2,10 @@
 // Rendered via EditorInterface since TreeEditor requires the useTreeEditor hook output as a prop.
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import { EditorInterface } from './EditorInterface';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [
@@ -300,7 +300,7 @@ describe('double-click inline editing', () => {
   // while any node is in edit mode.
   test('all node wrappers drop draggable while any node is editing', async () => {
     vi.useFakeTimers();
-    const nestedDoc: ContainerDocumentNode = {
+    const nestedDoc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -449,7 +449,7 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a NEWLINES-format node inserts \\n via execCommand', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -506,7 +506,7 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a MARKDOWN_MINIMAL-format heading is a no-op', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -563,7 +563,7 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a MARKDOWN-format node inserts \\n via execCommand', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -659,7 +659,7 @@ describe('double-click inline editing', () => {
   test('Shift+Enter inserts \\n in MARKDOWN-format edit mode (same as Enter)', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -892,7 +892,7 @@ describe('node operations via keyboard', () => {
 
   test('Tab indents selected node under previous sibling', () => {
     // Need heading followed by content at same level for indent to work
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -945,7 +945,7 @@ describe('node operations via keyboard', () => {
   });
 
   test('Shift+Tab outdents selected node', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -1057,7 +1057,7 @@ describe('edit mode behaviors', () => {
     vi.useFakeTimers();
 
     // Create document with an empty content node
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -1122,7 +1122,7 @@ describe('edit mode behaviors', () => {
 });
 
 describe('empty document', () => {
-  const createEmptyDocument = (): ContainerDocumentNode => ({
+  const createEmptyDocument = (): DocumentRootNode => ({
     id: 'root',
     type: 'DOCUMENT',
     children: [],
@@ -1165,7 +1165,7 @@ describe('empty document', () => {
 });
 
 describe('drag and drop reordering', () => {
-  const createThreeNodeDocument = (): ContainerDocumentNode => ({
+  const createThreeNodeDocument = (): DocumentRootNode => ({
     id: 'root',
     type: 'DOCUMENT',
     children: [
@@ -1356,7 +1356,7 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   test('clicking Bold while editing a MARKDOWN_MINIMAL heading wraps the selected text and updates the tree', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -1424,7 +1424,7 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   test('Google Docs–style keyboard shortcuts toggle the corresponding mark on the editing contenteditable', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -1533,7 +1533,7 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   });
 
   test('clicking Bold while editing a number input commits to the tree without waiting for blur', async () => {
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [

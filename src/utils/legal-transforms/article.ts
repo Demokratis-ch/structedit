@@ -1,7 +1,7 @@
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
 } from '../../types/document';
@@ -98,8 +98,8 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
  *       content("Article content")
  */
 export const articleTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   return withMappedChildren(root, (children) => processChildren(children, language));
 };

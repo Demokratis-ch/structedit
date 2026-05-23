@@ -1,8 +1,9 @@
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   Language,
+  ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
 } from '../../types/document';
@@ -134,7 +135,7 @@ function processListItem(listItem: ListItemDocumentNode, language: Language): Pr
  * contiguous segments — the original list id stays on the first emitted segment, any
  * subsequent list segments get fresh ids.
  */
-function processList(listNode: ContainerDocumentNode, language: Language): DocumentNode[] {
+function processList(listNode: ListDocumentNode, language: Language): DocumentNode[] {
   const processed = listNode.children.map((item): ProcessedListItem => {
     if (item.type !== 'LIST_ITEM') {
       return { kind: 'LIST_ITEM', node: item };
@@ -222,8 +223,8 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
  *   (the list is dissolved)
  */
 export const listNumberDedupTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   return withMappedChildren(root, (children) => processChildren(children, language));
 };

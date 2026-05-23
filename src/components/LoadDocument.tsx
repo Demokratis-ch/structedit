@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowRight, Loader2, Upload } from 'lucide-react';
 import type React from 'react';
 import { useRef, useState } from 'react';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   createEntry,
   formatQuotaMessage,
@@ -17,7 +17,7 @@ import { Textarea } from './ui/textarea';
 
 interface LoadDocumentProps {
   onConvert: (
-    doc: ContainerDocumentNode,
+    doc: DocumentRootNode,
     url: string | null,
     html: string | undefined,
     filename: string | null,
@@ -45,7 +45,7 @@ export function LoadDocument({
   const persistInitialEntry = async (
     name: string,
     subtitle: string | null,
-    tree: ContainerDocumentNode,
+    tree: DocumentRootNode,
     source: ReturnType<typeof processTextInput>['source']
   ): Promise<string | null> => {
     const id = crypto.randomUUID();

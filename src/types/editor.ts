@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, DocumentNode, Language } from './document';
+import type { DocumentNode, DocumentRootNode, Language } from './document';
 
 /**
  * Path from root to a node, represented as array of child indices.
@@ -32,7 +32,7 @@ export interface FlattenedNode {
  * Complete editor state for the tree-based editor.
  */
 export interface TreeEditorState {
-  document: ContainerDocumentNode;
+  document: DocumentRootNode;
   selection: EditorSelection;
   editingId: string | null;
   language: Language;

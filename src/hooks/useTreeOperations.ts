@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import type {
-  ContainerDocumentNode,
   ContentBearingNodeType,
   DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
   LeafDocumentNode,
@@ -35,8 +35,8 @@ import {
 export type MoveResult = { success: true } | { success: false; reason: string };
 
 interface UseTreeOperationsProps {
-  document: ContainerDocumentNode;
-  commit: (doc: ContainerDocumentNode, saveHistory?: boolean) => void;
+  document: DocumentRootNode;
+  commit: (doc: DocumentRootNode, saveHistory?: boolean) => void;
   nodeIndex: Map<string, NodePath>;
   parentIndex: Map<string, string>;
   language: Language;

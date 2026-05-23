@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ContainerDocumentNode, HeadingDocumentNode } from '../../types/document';
+import type { DocumentRootNode, HeadingDocumentNode } from '../../types/document';
 import { romanSectionTransform } from './roman-section';
 import { content, createDoc, heading, list } from './test-helpers';
 
@@ -53,7 +53,7 @@ describe('romanSectionTransform', () => {
     const input = heading('Some heading', [content('I. This should not become heading')]);
 
     // HeadingDocumentNode is a valid input but transform should only affect document roots
-    const result = romanSectionTransform(input as unknown as ContainerDocumentNode, 'de');
+    const result = romanSectionTransform(input as unknown as DocumentRootNode, 'de');
 
     expect(result.children[0].type).toBe('CONTENT');
   });

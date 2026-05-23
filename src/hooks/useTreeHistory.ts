@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import { buildIndices } from '../utils/tree-utils';
 
 const MAX_HISTORY_LENGTH = 50;
 
-export const useTreeHistory = (initialDocument: ContainerDocumentNode) => {
-  const [document, setDocument] = useState<ContainerDocumentNode>(initialDocument);
-  const [history, setHistory] = useState<ContainerDocumentNode[]>([initialDocument]);
+export const useTreeHistory = (initialDocument: DocumentRootNode) => {
+  const [document, setDocument] = useState<DocumentRootNode>(initialDocument);
+  const [history, setHistory] = useState<DocumentRootNode[]>([initialDocument]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
   /**
@@ -15,7 +15,7 @@ export const useTreeHistory = (initialDocument: ContainerDocumentNode) => {
    * @param saveHistory - Whether to save to undo history (default true)
    */
   const commit = useCallback(
-    (newDoc: ContainerDocumentNode, saveHistory = true) => {
+    (newDoc: DocumentRootNode, saveHistory = true) => {
       setDocument(newDoc);
 
       if (saveHistory) {
@@ -77,7 +77,7 @@ export const useTreeHistory = (initialDocument: ContainerDocumentNode) => {
   /**
    * Reset history with a new document.
    */
-  const reset = useCallback((newDoc: ContainerDocumentNode) => {
+  const reset = useCallback((newDoc: DocumentRootNode) => {
     setDocument(newDoc);
     setHistory([newDoc]);
     setHistoryIndex(0);
