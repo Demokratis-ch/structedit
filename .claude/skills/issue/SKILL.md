@@ -10,7 +10,7 @@ You are about to work on GitHub issue $ARGUMENTS.
 
 Run:
 ```bash
-gh issue view $ARGUMENTS
+gh issue view --json number,title,body,state,labels,comments $ARGUMENTS
 ```
 
 Read the full output carefully: title, description, comments, labels.
