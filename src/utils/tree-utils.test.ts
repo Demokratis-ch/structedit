@@ -4,6 +4,7 @@ import type {
   ContentDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListItemDocumentNode,
 } from '../types/document';
 import {
   buildIndices,
@@ -22,7 +23,7 @@ const createListItem = (
   id: string,
   number: string | null,
   content: string
-): ContainerDocumentNode => ({
+): ListItemDocumentNode => ({
   id,
   number,
   type: 'LIST_ITEM',
@@ -460,7 +461,7 @@ describe('flattenForRendering', () => {
             createListItem('item1', '1.', 'First item'),
             createListItem('item2', '2.', 'Second item'),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -669,7 +670,7 @@ describe('nested lists', () => {
     itemContent: string,
     nestedListId: string,
     nestedItems: { id: string; number: string | null; content: string }[]
-  ): ContainerDocumentNode => ({
+  ): ListItemDocumentNode => ({
     id: itemId,
     number: itemNumber,
     type: 'LIST_ITEM',
@@ -687,7 +688,7 @@ describe('nested lists', () => {
         number: null,
         type: 'LIST',
         children: nestedItems.map((ni) => createListItem(ni.id, ni.number, ni.content)),
-      } as ContainerDocumentNode,
+      },
     ],
   });
 
@@ -714,7 +715,7 @@ describe('nested lists', () => {
             ),
             createListItem('item3', '3.', 'Third item'),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -752,7 +753,7 @@ describe('nested lists', () => {
               { id: 'sub1', number: 'a.', content: 'Sub A' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -786,7 +787,7 @@ describe('nested lists', () => {
               { id: 'sub1', number: 'a.', content: 'Sub' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -815,7 +816,7 @@ describe('nested lists', () => {
               { id: 'sub1', number: 'a.', content: 'Original' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -853,7 +854,7 @@ describe('nested lists', () => {
               { id: 'sub2', number: 'b.', content: 'Sub B' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -879,7 +880,7 @@ describe('nested lists', () => {
               { id: 'sub1', number: 'a.', content: 'Sub A' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 
@@ -907,7 +908,7 @@ describe('nested lists', () => {
               { id: 'sub2', number: 'b.', content: 'Sub B' },
             ]),
           ],
-        } as ContainerDocumentNode,
+        },
       ],
     };
 

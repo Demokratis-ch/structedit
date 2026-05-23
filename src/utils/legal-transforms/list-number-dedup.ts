@@ -2,13 +2,13 @@ import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
-  HeadingDocumentNode,
   Language,
   ListItemDocumentNode,
   NodeFormat,
 } from '../../types/document';
 import { generateId } from '../document-utils';
 import { hasInlineMarkdownMarks } from '../format-render';
+import { withMappedChildren } from '../tree-utils';
 import type { TreeTransform } from './types';
 
 const SWISS_SUFFIX = '(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)?';
@@ -55,10 +55,7 @@ function processListItem(listItem: ListItemDocumentNode, language: Language): Pr
   if (firstChild.type !== 'CONTENT') {
     return {
       kind: 'LIST_ITEM',
-      node: {
-        ...listItem,
-        children: processChildren(listItem.children, language),
-      },
+      node: withMappedChildren(listItem, (children) => processChildren(children, language)),
     };
   }
 
@@ -102,11 +99,10 @@ function processListItem(listItem: ListItemDocumentNode, language: Language): Pr
     };
     return {
       kind: 'LIST_ITEM',
-      node: {
-        ...listItem,
-        number: supMatch[1],
-        children: [newFirstChild, ...processChildren(listItem.children.slice(1), language)],
-      },
+      node: withMappedChildren({ ...listItem, number: supMatch[1] }, (children) => [
+        newFirstChild,
+        ...processChildren(children.slice(1), language),
+      ]),
     };
   }
 
@@ -119,21 +115,17 @@ function processListItem(listItem: ListItemDocumentNode, language: Language): Pr
     };
     return {
       kind: 'LIST_ITEM',
-      node: {
-        ...listItem,
-        number: numMatch[1],
-        children: [newFirstChild, ...processChildren(listItem.children.slice(1), language)],
-      },
+      node: withMappedChildren({ ...listItem, number: numMatch[1] }, (children) => [
+        newFirstChild,
+        ...processChildren(children.slice(1), language),
+      ]),
     };
   }
 
   // No leading number — just recurse into the rest of the item.
   return {
     kind: 'LIST_ITEM',
-    node: {
-      ...listItem,
-      children: processChildren(listItem.children, language),
-    },
+    node: withMappedChildren(listItem, (children) => processChildren(children, language)),
   };
 }
 
@@ -157,11 +149,12 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
 
   const flush = () => {
     if (buffer.length === 0) return;
-    result.push({
-      ...listNode,
-      id: firstSegment ? listNode.id : generateId(),
-      children: buffer,
-    });
+    result.push(
+      withMappedChildren(
+        { ...listNode, id: firstSegment ? listNode.id : generateId() },
+        () => buffer
+      )
+    );
     buffer = [];
     firstSegment = false;
   };
@@ -179,7 +172,7 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
   // Preserve the original (possibly empty) list when nothing converted, so an empty
   // input list still appears in the output.
   if (result.length === 0) {
-    return [{ ...listNode, children: [] }];
+    return [withMappedChildren(listNode, () => [])];
   }
 
   return result;
@@ -192,7 +185,7 @@ function processChildren(children: DocumentNode[], language: Language): Document
   const result: DocumentNode[] = [];
   for (const child of children) {
     if (child.type === 'LIST') {
-      result.push(...processList(child as ContainerDocumentNode, language));
+      result.push(...processList(child, language));
     } else {
       result.push(processNode(child, language));
     }
@@ -204,11 +197,7 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
   if (!('children' in node) || !node.children || node.children.length === 0) {
     return node;
   }
-  const containerNode = node as ContainerDocumentNode | HeadingDocumentNode | ContentDocumentNode;
-  return {
-    ...containerNode,
-    children: processChildren(containerNode.children, language),
-  };
+  return withMappedChildren(node, (children) => processChildren(children, language));
 }
 
 /**
@@ -236,8 +225,5 @@ export const listNumberDedupTransform: TreeTransform = (
   root: ContainerDocumentNode,
   language: Language
 ): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: processChildren(root.children, language),
-  };
+  return withMappedChildren(root, (children) => processChildren(children, language));
 };

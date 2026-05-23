@@ -1,4 +1,5 @@
 import type {
+  BlockDocumentNode,
   ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
@@ -15,8 +16,7 @@ import type { TreeTransform } from './types';
  */
 function getRomanSectionMatch(node: DocumentNode): { number: string; rest: string } | null {
   if (node.type !== 'CONTENT') return null;
-  const contentNode = node as ContentDocumentNode;
-  const text = extractCleanText(contentNode.contents.de || '');
+  const text = extractCleanText(node.contents.de || '');
   const result = matchRomanSection(text);
   if (result.matched && result.number && result.rest !== undefined) {
     return { number: result.number, rest: result.rest };
@@ -54,7 +54,7 @@ export const romanSectionTransform: TreeTransform = (
     return root;
   }
 
-  const newChildren: DocumentNode[] = [];
+  const newChildren: BlockDocumentNode[] = [];
   let currentSection: HeadingDocumentNode | null = null;
 
   for (const child of root.children) {

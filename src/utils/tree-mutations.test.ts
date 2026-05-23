@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import type {
+  BlockDocumentNode,
   ContainerDocumentNode,
   ContentDocumentNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
   NumberedDocumentNode,
@@ -49,14 +52,14 @@ const listItem = (
   id: string,
   text: string,
   number: string | null = null
-): ContainerDocumentNode => ({
+): ListItemDocumentNode => ({
   id,
   number,
   type: 'LIST_ITEM',
   children: [content(`${id}-c`, text)],
 });
 
-const footnote = (id: string, text: string, format: NodeFormat = 'TEXT'): LeafDocumentNode => ({
+const footnote = (id: string, text: string, format: NodeFormat = 'TEXT'): FootnoteDocumentNode => ({
   id,
   number: null,
   type: 'FOOTNOTE',
@@ -64,14 +67,14 @@ const footnote = (id: string, text: string, format: NodeFormat = 'TEXT'): LeafDo
   contents: { de: text },
 });
 
-const list = (id: string, children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
+const list = (id: string, children: ListItemDocumentNode[]): ListDocumentNode => ({
   id,
   number: null,
   type: 'LIST',
   children,
 });
 
-const doc = (children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
+const doc = (children: BlockDocumentNode[]): ContainerDocumentNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children,
@@ -528,7 +531,7 @@ describe('extractAndConvertListItemInDoc', () => {
 
 describe('mergeNodesInDoc', () => {
   test('merges contiguous content siblings, joining text and appending children', () => {
-    const p1: ContentDocumentNode = { ...content('p1', 'one'), children: [content('p1a', 'kid')] };
+    const p1: ContentDocumentNode = { ...content('p1', 'one'), children: [footnote('p1a', 'kid')] };
     const p2 = content('p2', 'two');
     const d = doc([p1, p2]);
     const result = mergeNodesInDoc(['p1', 'p2'], d, idx(d));

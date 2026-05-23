@@ -63,18 +63,15 @@ export type LeafDocumentNodeType = 'IMAGE' | 'FOOTNOTE';
 export interface DocumentRootNode {
   id: string;
   type: 'DOCUMENT';
-  // Runtime validation restricts the allowed child types (see ALLOWED_CHILDREN). Tightening this
-  // field's type to the exact child union is tracked as a follow-up to issue #104 (point 3).
-  children: DocumentNode[];
+  children: BlockDocumentNode[];
 }
 
-/** An ordered or unordered list. Its children are exclusively `LIST_ITEM` nodes (enforced at runtime). */
+/** An ordered or unordered list. Its children are exclusively `LIST_ITEM` nodes. */
 export interface ListDocumentNode {
   id: string;
   number: string | null;
   type: 'LIST';
-  // See note on DocumentRootNode.children — child types are enforced at runtime, not yet in the type.
-  children: DocumentNode[];
+  children: ListItemDocumentNode[];
 }
 
 /** A single item within a `LIST`. Its own text lives in a child `CONTENT` node. */
@@ -82,8 +79,7 @@ export interface ListItemDocumentNode {
   id: string;
   number: string | null;
   type: 'LIST_ITEM';
-  // See note on DocumentRootNode.children.
-  children: DocumentNode[];
+  children: BlockDocumentNode[];
 }
 
 /** A heading. Has both content and children because headings define the document's structure. */
@@ -93,13 +89,12 @@ export interface HeadingDocumentNode {
   type: 'HEADING';
   contents: LocalizedText;
   format: NodeFormat;
-  // See note on DocumentRootNode.children.
-  children: DocumentNode[];
+  children: BlockDocumentNode[];
 }
 
 /**
- * A block of content (e.g. a paragraph). Has text and may carry `FOOTNOTE` children only
- * (enforced at runtime), making it a hybrid of a content node and a container.
+ * A block of content (e.g. a paragraph). Has text and may carry `FOOTNOTE` children only,
+ * making it a hybrid of a content node and a container.
  */
 export interface ContentDocumentNode {
   id: string;
@@ -107,9 +102,7 @@ export interface ContentDocumentNode {
   type: 'CONTENT';
   contents: LocalizedText;
   format: NodeFormat;
-  // Runtime validation allows only FOOTNOTE children here (see ALLOWED_CHILDREN). See the note
-  // on DocumentRootNode.children regarding tightening this type.
-  children: DocumentNode[];
+  children: FootnoteDocumentNode[];
 }
 
 /** A footnote. A leaf: it has text but no children. */
@@ -139,6 +132,29 @@ export type DocumentNode =
   | ContentDocumentNode
   | FootnoteDocumentNode
   | ImageDocumentNode;
+
+/**
+ * The block-level nodes allowed directly under `DOCUMENT`, `HEADING`, and `LIST_ITEM` (the
+ * `children` element type of all three). This is the typed counterpart of the `ALLOWED_CHILDREN`
+ * rows for those parents; a compile-time guard keeps the two in sync (see below).
+ */
+export type BlockDocumentNode =
+  | HeadingDocumentNode
+  | ListDocumentNode
+  | ContentDocumentNode
+  | FootnoteDocumentNode
+  | ImageDocumentNode;
+
+/**
+ * Every node that carries a `children` array — i.e. the nodes a tree path can descend through.
+ * Used by the generic immutable tree helpers (see `withMappedChildren` in `tree-utils.ts`).
+ */
+export type ParentDocumentNode =
+  | DocumentRootNode
+  | ListDocumentNode
+  | ListItemDocumentNode
+  | HeadingDocumentNode
+  | ContentDocumentNode;
 
 /**
  * Any node that carries a `number` — i.e. every node type except the tree root. The root is the
@@ -214,17 +230,39 @@ const VALID_FORMATS: NodeFormat[] = [
   'MARKDOWN',
 ];
 
-/** Mapping of parent types to their allowed child types. */
-const ALLOWED_CHILDREN: Record<
-  ContainerDocumentNodeType | 'HEADING' | 'CONTENT',
-  DocumentNode['type'][]
-> = {
+/**
+ * Mapping of parent types to their allowed child types. `as const` preserves each row's literal
+ * element types so the drift guard below can compare them against the typed `children` unions.
+ */
+const ALLOWED_CHILDREN = {
   DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
   HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
   LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
-};
+} as const satisfies Record<
+  ContainerDocumentNodeType | 'HEADING' | 'CONTENT',
+  DocumentNode['type'][]
+>;
+
+/**
+ * Compile-time guard: the runtime `ALLOWED_CHILDREN` table and the typed `children` unions encode
+ * the same parent→child rules, so they cannot silently drift. If a child type is added to one but
+ * not the other, the corresponding `SameSet` resolves to `false` and this alias fails to compile.
+ * Type-only — erased at runtime.
+ */
+type AllowedChildType<P extends keyof typeof ALLOWED_CHILDREN> =
+  (typeof ALLOWED_CHILDREN)[P][number];
+type TypedChildType<P extends ParentDocumentNode> = P['children'][number]['type'];
+type SameSet<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type AssertTrue<T extends true> = T;
+export type _AllowedChildrenMatchesTypes = AssertTrue<
+  SameSet<AllowedChildType<'DOCUMENT'>, TypedChildType<DocumentRootNode>>
+> &
+  AssertTrue<SameSet<AllowedChildType<'HEADING'>, TypedChildType<HeadingDocumentNode>>> &
+  AssertTrue<SameSet<AllowedChildType<'LIST_ITEM'>, TypedChildType<ListItemDocumentNode>>> &
+  AssertTrue<SameSet<AllowedChildType<'LIST'>, TypedChildType<ListDocumentNode>>> &
+  AssertTrue<SameSet<AllowedChildType<'CONTENT'>, TypedChildType<ContentDocumentNode>>>;
 
 /**
  * ================================ 3. Functions ================================
@@ -240,7 +278,8 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
   // Root level (null parent) uses DOCUMENT rules
   const effectiveParentType = parentType ?? 'DOCUMENT';
-  const allowedChildren = ALLOWED_CHILDREN[effectiveParentType];
+  // Widen the `as const` row to a plain type[] so `.includes` accepts any node type.
+  const allowedChildren: readonly DocumentNode['type'][] = ALLOWED_CHILDREN[effectiveParentType];
   return allowedChildren?.includes(childType) ?? false;
 };
 

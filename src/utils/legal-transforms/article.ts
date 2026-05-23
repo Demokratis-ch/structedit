@@ -6,6 +6,7 @@ import type {
   Language,
 } from '../../types/document';
 import { generateId } from '../document-utils';
+import { withMappedChildren } from '../tree-utils';
 import { extractCleanText, matchArticle } from './patterns';
 import type { TreeTransform } from './types';
 
@@ -35,11 +36,9 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
     // First, recursively transform any nested containers
     let processedChild = child;
     if ('children' in child && child.children && child.children.length > 0) {
-      const containerChild = child as ContainerDocumentNode | HeadingDocumentNode;
-      processedChild = {
-        ...containerChild,
-        children: processChildren(containerChild.children, _language),
-      };
+      processedChild = withMappedChildren(child, (children) =>
+        processChildren(children, _language)
+      );
     }
 
     // Then check for article pattern at this level
@@ -102,8 +101,5 @@ export const articleTransform: TreeTransform = (
   root: ContainerDocumentNode,
   language: Language
 ): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: processChildren(root.children, language),
-  };
+  return withMappedChildren(root, (children) => processChildren(children, language));
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_FORMATS,
+  type BlockDocumentNode,
   type ContentDocumentNode,
   canBeChildOf,
   canHaveFormat,
@@ -19,6 +20,7 @@ import {
   type ListItemDocumentNode,
   type NodeFormat,
   type NumberedDocumentNode,
+  type ParentDocumentNode,
 } from './document';
 
 /**
@@ -62,6 +64,28 @@ type _TypeAssertions = [
   // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
   Expect<Equal<HasKey<NumberedDocumentNode, 'number'>, true>>,
   Expect<Equal<Extract<NumberedDocumentNode, DocumentRootNode>, never>>,
+  // Each `children` field is typed to its exact allowed child union (issue #114): the parent→child
+  // rules `ALLOWED_CHILDREN`/`canBeChildOf` enforce at runtime are now also encoded in the types.
+  Expect<Equal<ListDocumentNode['children'], ListItemDocumentNode[]>>,
+  Expect<Equal<ContentDocumentNode['children'], FootnoteDocumentNode[]>>,
+  Expect<Equal<DocumentRootNode['children'], BlockDocumentNode[]>>,
+  Expect<Equal<HeadingDocumentNode['children'], BlockDocumentNode[]>>,
+  Expect<Equal<ListItemDocumentNode['children'], BlockDocumentNode[]>>,
+  // `BlockDocumentNode` is the block-level union; `ParentDocumentNode` is exactly the nodes that
+  // carry `children` (every node type except the two leaves).
+  Expect<
+    Equal<
+      BlockDocumentNode,
+      | HeadingDocumentNode
+      | ListDocumentNode
+      | ContentDocumentNode
+      | FootnoteDocumentNode
+      | ImageDocumentNode
+    >
+  >,
+  Expect<
+    Equal<Exclude<DocumentNode, ParentDocumentNode>, FootnoteDocumentNode | ImageDocumentNode>
+  >,
 ];
 
 describe('Document validation', () => {

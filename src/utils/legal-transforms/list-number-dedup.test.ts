@@ -4,6 +4,7 @@ import {
   type ContentDocumentNode,
   type HeadingDocumentNode,
   isValidDocument,
+  type ListDocumentNode,
   type NumberedDocumentNode,
 } from '../../types/document';
 import { generateId, parseHtmlToTree } from '../document-utils';
@@ -249,7 +250,7 @@ describe('listNumberDedupTransform', () => {
     // (i.e. what document-utils produces for <li><sup>N</sup> ... </li>).
     const supList = (
       items: { itemNumber: string | null; mdContent: string; format?: 'TEXT' | 'MARKDOWN' }[]
-    ): ContainerDocumentNode => ({
+    ): ListDocumentNode => ({
       id: generateId(),
       number: null,
       type: 'LIST' as const,

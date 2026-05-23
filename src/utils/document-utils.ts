@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import {
+  type BlockDocumentNode,
   type ContainerDocumentNode,
   type ContentDocumentNode,
   DOC_TREE_VERSION,
@@ -8,6 +9,8 @@ import {
   type DocumentRootNode,
   type HeadingDocumentNode,
   type Language,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
   type NodeFormat,
 } from '../types/document';
 import {
@@ -155,13 +158,14 @@ export const parseHtmlToTree = (
 
   // Stack to track current parent at each heading level
   // Index 0 = document root, 1 = h1-level, 2 = h2-level, etc.
-  const parentStack: (ContainerDocumentNode | HeadingDocumentNode)[] = [root];
+  // Only the root and headings are ever pushed; both carry block-level children.
+  const parentStack: (DocumentRootNode | HeadingDocumentNode)[] = [root];
 
-  const getCurrentParent = (): ContainerDocumentNode | HeadingDocumentNode => {
+  const getCurrentParent = (): DocumentRootNode | HeadingDocumentNode => {
     return parentStack[parentStack.length - 1];
   };
 
-  const addChild = (node: DocumentNode) => {
+  const addChild = (node: BlockDocumentNode) => {
     getCurrentParent().children.push(node);
   };
 
@@ -219,8 +223,8 @@ export const parseHtmlToTree = (
     return html.trim();
   };
 
-  const processListElement = (domNode: Node, tagName: string): ContainerDocumentNode => {
-    const list: ContainerDocumentNode = {
+  const processListElement = (domNode: Node, tagName: string): ListDocumentNode => {
+    const list: ListDocumentNode = {
       id: generateId(),
       number: null,
       type: 'LIST',
@@ -232,7 +236,7 @@ export const parseHtmlToTree = (
     items.forEach((li, index) => {
       const customStyle =
         li instanceof HTMLElement ? li.getAttribute('data-list-style-type') : null;
-      const listItem: ContainerDocumentNode = {
+      const listItem: ListItemDocumentNode = {
         id: generateId(),
         number: customStyle || (tagName === 'ol' ? `${index + 1}.` : null),
         type: 'LIST_ITEM',
@@ -244,14 +248,15 @@ export const parseHtmlToTree = (
         const format = chooseFormat('CONTENT', rawHtml);
         const text = htmlToMarkdown(rawHtml, format);
         if (text) {
-          listItem.children.push({
+          const contentChild: ContentDocumentNode = {
             id: generateId(),
             number: null,
             type: 'CONTENT',
             format,
             contents: { [language]: text },
             children: [],
-          } as ContentDocumentNode);
+          };
+          listItem.children.push(contentChild);
         }
       }
 
