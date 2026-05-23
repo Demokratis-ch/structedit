@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  ListDocumentNode,
+  ListItemDocumentNode,
   NumberedDocumentNode,
 } from '../../types/document';
 import { letteredItemsTransform } from './lettered-items';
@@ -16,7 +17,7 @@ describe('letteredItemsTransform', () => {
 
     expect(result.children).toHaveLength(1);
     expect(result.children[0].type).toBe('LIST');
-    expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
+    expect((result.children[0] as ListDocumentNode).children).toHaveLength(2);
   });
 
   it('sets correct number on list items', () => {
@@ -24,7 +25,7 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
   });
 
@@ -33,8 +34,8 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    const listItem = listNode.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
+    const listItem = listNode.children[0] as ListItemDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
     expect(contentNode.contents.de).toBe('First item text');
   });
@@ -48,11 +49,10 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect(listNode.type).toBe('LIST');
-    const first = (listNode.children[0] as ContainerDocumentNode)
-      .children[0] as ContentDocumentNode;
-    const second = (listNode.children[1] as ContainerDocumentNode)
+    const first = (listNode.children[0] as ListItemDocumentNode).children[0] as ContentDocumentNode;
+    const second = (listNode.children[1] as ListItemDocumentNode)
       .children[0] as ContentDocumentNode;
     expect(first.contents.de).toBe('First item');
     expect(second.contents.de).toBe('Second item');
@@ -70,10 +70,10 @@ describe('letteredItemsTransform', () => {
 
     expect(result.children).toHaveLength(3);
     expect(result.children[0].type).toBe('LIST');
-    expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
+    expect((result.children[0] as ListDocumentNode).children).toHaveLength(2);
     expect(result.children[1].type).toBe('CONTENT');
     expect(result.children[2].type).toBe('LIST');
-    expect((result.children[2] as ContainerDocumentNode).children).toHaveLength(1);
+    expect((result.children[2] as ListDocumentNode).children).toHaveLength(1);
   });
 
   it('applies recursively to nested containers', () => {
@@ -179,7 +179,7 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect(listNode.children).toHaveLength(4);
     expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
     expect((listNode.children[3] as NumberedDocumentNode).number).toBe('z.');
@@ -190,11 +190,11 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     const listItem = listNode.children[0];
     expect(listItem.type).toBe('LIST_ITEM');
-    expect((listItem as ContainerDocumentNode).children).toHaveLength(1);
-    expect((listItem as ContainerDocumentNode).children[0].type).toBe('CONTENT');
+    expect((listItem as ListItemDocumentNode).children).toHaveLength(1);
+    expect((listItem as ListItemDocumentNode).children[0].type).toBe('CONTENT');
   });
 
   it('handles deeply nested structure', () => {
@@ -219,8 +219,8 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    const listItem = listNode.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
+    const listItem = listNode.children[0] as ListItemDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
     expect(contentNode.contents.de).toBe('Bold item');
   });

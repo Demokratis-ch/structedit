@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
 import {
@@ -40,7 +41,7 @@ const createListItem = (
 });
 
 // Helper to create test documents
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [
@@ -340,7 +341,7 @@ describe('buildIndices', () => {
   });
 
   test('handles deeply nested structure', () => {
-    const deepDoc: ContainerDocumentNode = {
+    const deepDoc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -449,7 +450,7 @@ describe('flattenForRendering', () => {
   });
 
   test('includes list_item children in flattening', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -475,7 +476,7 @@ describe('flattenForRendering', () => {
 
 describe('mergeAdjacentLists', () => {
   test('merges two adjacent lists into one', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -498,14 +499,14 @@ describe('mergeAdjacentLists', () => {
 
     expect(result.children.length).toBe(1);
     expect(result.children[0].type).toBe('LIST');
-    const mergedList = result.children[0] as ContainerDocumentNode;
+    const mergedList = result.children[0] as ListDocumentNode;
     expect(mergedList.children.length).toBe(2);
     expect(mergedList.children[0].id).toBe('item1');
     expect(mergedList.children[1].id).toBe('item2');
   });
 
   test('merges three adjacent lists into one', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -533,12 +534,12 @@ describe('mergeAdjacentLists', () => {
     const result = mergeAdjacentLists(doc, []);
 
     expect(result.children.length).toBe(1);
-    const mergedList = result.children[0] as ContainerDocumentNode;
+    const mergedList = result.children[0] as ListDocumentNode;
     expect(mergedList.children.length).toBe(3);
   });
 
   test('does not merge non-adjacent lists', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -571,7 +572,7 @@ describe('mergeAdjacentLists', () => {
   });
 
   test('returns unchanged document when no lists to merge', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -600,7 +601,7 @@ describe('mergeAdjacentLists', () => {
   });
 
   test('merges lists within nested container', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -632,12 +633,12 @@ describe('mergeAdjacentLists', () => {
 
     const heading = result.children[0] as HeadingDocumentNode;
     expect(heading.children.length).toBe(1);
-    const mergedList = heading.children[0] as ContainerDocumentNode;
+    const mergedList = heading.children[0] as ListDocumentNode;
     expect(mergedList.children.length).toBe(2);
   });
 
   test('preserves first list id when merging', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -693,7 +694,7 @@ describe('nested lists', () => {
   });
 
   test('supports nested lists (list inside list_item)', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -739,7 +740,7 @@ describe('nested lists', () => {
   });
 
   test('flattens nested lists correctly', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -774,7 +775,7 @@ describe('nested lists', () => {
   });
 
   test('computes correct depth for nested list items', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -803,7 +804,7 @@ describe('nested lists', () => {
   });
 
   test('can access and update nested list items', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -840,7 +841,7 @@ describe('nested lists', () => {
   });
 
   test('can remove nested list items', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -861,13 +862,13 @@ describe('nested lists', () => {
     // Remove first nested item
     const updated = removeNodeAtPath(doc, [0, 0, 1, 0]);
 
-    const nestedList = getNodeAtPath(updated, [0, 0, 1]) as ContainerDocumentNode;
+    const nestedList = getNodeAtPath(updated, [0, 0, 1]) as ListDocumentNode;
     expect(nestedList.children.length).toBe(1);
     expect(nestedList.children[0].id).toBe('sub2');
   });
 
   test('can insert items into nested list', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -887,13 +888,13 @@ describe('nested lists', () => {
     const newItem = createListItem('sub2', 'b.', 'Sub B');
     const updated = insertNodeAtPath(doc, [0, 0, 1], 1, newItem);
 
-    const nestedList = getNodeAtPath(updated, [0, 0, 1]) as ContainerDocumentNode;
+    const nestedList = getNodeAtPath(updated, [0, 0, 1]) as ListDocumentNode;
     expect(nestedList.children.length).toBe(2);
     expect(nestedList.children[1].id).toBe('sub2');
   });
 
   test('can move nested list item to parent list', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -916,12 +917,12 @@ describe('nested lists', () => {
     const updated = moveNode(doc, [0, 1, 1, 0], [0], 2);
 
     // sub1 should now be in parent list at index 2
-    const parentList = getNodeAtPath(updated, [0]) as ContainerDocumentNode;
+    const parentList = getNodeAtPath(updated, [0]) as ListDocumentNode;
     expect(parentList.children.length).toBe(3);
     expect(parentList.children[2].id).toBe('sub1');
 
     // nested list should only have sub2 now
-    const nestedList = getNodeAtPath(updated, [0, 1, 1]) as ContainerDocumentNode;
+    const nestedList = getNodeAtPath(updated, [0, 1, 1]) as ListDocumentNode;
     expect(nestedList.children.length).toBe(1);
     expect(nestedList.children[0].id).toBe('sub2');
   });
@@ -972,7 +973,7 @@ describe('changeNodeFormat', () => {
   });
 
   test('no-ops when target node is a container (no format)', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [

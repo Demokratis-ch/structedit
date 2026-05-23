@@ -1,7 +1,6 @@
 import DOMPurify from 'dompurify';
 import {
   type BlockDocumentNode,
-  type ContainerDocumentNode,
   type ContentDocumentNode,
   DOC_TREE_VERSION,
   type DocTreeEnvelope,
@@ -37,7 +36,7 @@ export const deriveJsonFilename = (filename: string | null | undefined): string 
  * from the source filename (extension stripped) and keyed by `language`.
  */
 export const buildDocTreeEnvelope = (
-  document: ContainerDocumentNode,
+  document: DocumentRootNode,
   options: { language: Language; filename?: string | null }
 ): DocTreeEnvelope => {
   const stripped = options.filename ? stripFileExtension(options.filename).trim() : '';
@@ -89,7 +88,7 @@ export const preserveListStyleType = (html: string): string => {
  * PDF→HTML output that is only positioned <span>s) so the UI can warn instead
  * of silently opening an empty editor.
  */
-export const isEmptyDocument = (doc: ContainerDocumentNode): boolean => {
+export const isEmptyDocument = (doc: DocumentRootNode): boolean => {
   const hasText = (node: DocumentNode): boolean => {
     // A label like "Art. 5" or "I." that legal transforms moved into `number` is
     // still real content even when `contents` is empty. (The document root has no `number`.)
@@ -115,7 +114,7 @@ export const isEmptyDocument = (doc: ContainerDocumentNode): boolean => {
 export const parseHtmlToTree = (
   html: string,
   language: Language = detectLanguage(html)
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   const preprocessedHtml = preserveListStyleType(html);
   const cleanHtml = DOMPurify.sanitize(preprocessedHtml, {
     ALLOWED_TAGS: [
@@ -360,7 +359,7 @@ export const parseHtmlToTree = (
 export const parseHtmlLegalToTree = (
   html: string,
   language: Language = detectLanguage(html)
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   const tree = parseHtmlToTree(html, language);
   return applySwissLegalTransforms(tree, language);
 };

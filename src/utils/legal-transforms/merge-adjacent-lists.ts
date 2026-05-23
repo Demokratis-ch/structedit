@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, DocumentNode, Language } from '../../types/document';
+import type { DocumentNode, DocumentRootNode, Language } from '../../types/document';
 import { withMappedChildren } from '../tree-utils';
 import type { TreeTransform } from './types';
 
@@ -45,8 +45,8 @@ function recurseIntoContainer(node: DocumentNode): DocumentNode {
 }
 
 export const mergeAdjacentListsTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   _language: Language
-): ContainerDocumentNode => {
-  return recurseIntoContainer(root) as ContainerDocumentNode;
+): DocumentRootNode => {
+  return recurseIntoContainer(root) as DocumentRootNode;
 };

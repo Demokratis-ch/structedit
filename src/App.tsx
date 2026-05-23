@@ -4,10 +4,10 @@ import { Header } from './components/Header';
 import { LoadDocument } from './components/LoadDocument';
 import { Toast } from './components/ui/Toast';
 import { useRecentDocuments } from './hooks/useRecentDocuments';
-import type { ContainerDocumentNode } from './types/document';
+import type { DocumentRootNode } from './types/document';
 
 function App() {
-  const [document, setDocument] = useState<ContainerDocumentNode | null>(null);
+  const [document, setDocument] = useState<DocumentRootNode | null>(null);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [currentEntryId, setCurrentEntryId] = useState<string | null>(null);
@@ -24,7 +24,7 @@ function App() {
   const { entries, loadEntry, deleteEntry, refresh: refreshRecents } = useRecentDocuments();
 
   const handleConvert = (
-    doc: ContainerDocumentNode,
+    doc: DocumentRootNode,
     url: string | null,
     _html: string | undefined,
     name: string | null,

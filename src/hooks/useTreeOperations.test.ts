@@ -2,10 +2,11 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, type MockedFunction, test, vi } from 'vitest';
 import type {
   BlockDocumentNode,
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   LeafDocumentNode,
+  ListDocumentNode,
   ListItemDocumentNode,
   NumberedDocumentNode,
 } from '../types/document';
@@ -15,7 +16,7 @@ import { buildIndices, getNodeAtPath } from '../utils/tree-utils';
 import { useTreeOperations } from './useTreeOperations';
 
 // Helper to create a test document
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [
@@ -85,7 +86,7 @@ const createListItem = (
   ],
 });
 
-const createDocumentWithList = (): ContainerDocumentNode => ({
+const createDocumentWithList = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [
@@ -112,8 +113,8 @@ const createDocumentWithList = (): ContainerDocumentNode => ({
 });
 
 describe('useTreeOperations', () => {
-  let mockCommit: MockedFunction<(doc: ContainerDocumentNode, saveHistory?: boolean) => void>;
-  let document: ContainerDocumentNode;
+  let mockCommit: MockedFunction<(doc: DocumentRootNode, saveHistory?: boolean) => void>;
+  let document: DocumentRootNode;
   let _indices: { nodeIndex: Map<string, NodePath>; parentIndex: Map<string, string> };
 
   beforeEach(() => {
@@ -122,7 +123,7 @@ describe('useTreeOperations', () => {
     _indices = buildIndices(document);
   });
 
-  const renderTreeOperations = (doc: ContainerDocumentNode = document) => {
+  const renderTreeOperations = (doc: DocumentRootNode = document) => {
     const idx = buildIndices(doc);
     return renderHook(() =>
       useTreeOperations({
@@ -144,7 +145,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
 
       // New node should be inserted after p1 (index 1)
@@ -164,7 +165,7 @@ describe('useTreeOperations', () => {
         result.current.addNodeAfter('p1');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[1] as LeafDocumentNode;
       expect(newNode.type).toBe('CONTENT');
@@ -178,12 +179,12 @@ describe('useTreeOperations', () => {
         result.current.addNodeAfter('li1');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
 
       expect(list.children.length).toBe(4);
-      const newItem = list.children[1] as LeafDocumentNode;
+      const newItem = list.children[1] as ListItemDocumentNode;
       expect(newItem.type).toBe('LIST_ITEM');
     });
   });
@@ -197,7 +198,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
 
       // New node should be inserted before h2 (was at index 1, now at index 2)
@@ -217,7 +218,7 @@ describe('useTreeOperations', () => {
         result.current.addNodeBefore('p1');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[0] as LeafDocumentNode;
       expect(newNode.type).toBe('CONTENT');
@@ -232,13 +233,13 @@ describe('useTreeOperations', () => {
         result.current.addNodeBefore('li2');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
 
       expect(list.children.length).toBe(4);
       // New item should be at index 1 (before li2 which shifts to index 2)
-      const newItem = list.children[1] as ContainerDocumentNode;
+      const newItem = list.children[1] as ListItemDocumentNode;
       expect(newItem.type).toBe('LIST_ITEM');
       expect(list.children[2].id).toBe('li2');
     });
@@ -254,7 +255,7 @@ describe('useTreeOperations', () => {
       expect(newId).toBeDefined();
       expect(typeof newId).toBe('string');
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       expect(h1.children[0].id).toBe(newId);
     });
@@ -279,7 +280,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
 
       expect(h1.children.length).toBe(1);
@@ -293,7 +294,7 @@ describe('useTreeOperations', () => {
         result.current.removeNodes(['h2']); // Has p2 as child
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
 
       expect(h1.children.length).toBe(1);
@@ -311,7 +312,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
 
       // h1 should have no children left
@@ -327,14 +328,14 @@ describe('useTreeOperations', () => {
         result.current.updateNodeContents('p1', 'Updated content');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const p1 = getNodeAtPath(newDoc, [0, 0]) as LeafDocumentNode;
       expect(p1.contents.de).toBe('Updated content');
     });
 
     test('preserves other languages', () => {
       // Create a document with multi-language content
-      const multiLangDoc: ContainerDocumentNode = {
+      const multiLangDoc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -355,7 +356,7 @@ describe('useTreeOperations', () => {
         result.current.updateNodeContents('p1', 'Neuer Text');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const p1 = newDoc.children[0] as LeafDocumentNode;
       expect(p1.contents.de).toBe('Neuer Text');
       expect(p1.contents.en).toBe('English'); // Preserved
@@ -365,7 +366,7 @@ describe('useTreeOperations', () => {
   describe('indentNodes (Tab)', () => {
     test('moves content under previous sibling heading', () => {
       // Create doc with h1, then content at same level
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -394,7 +395,7 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['p1']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // p1 should now be a child of h1
       expect(newDoc.children.length).toBe(1);
       const h1 = newDoc.children[0] as HeadingDocumentNode;
@@ -416,7 +417,7 @@ describe('useTreeOperations', () => {
 
     test('moves heading under previous sibling heading', () => {
       // Create two sibling headings at root level
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -445,7 +446,7 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['h2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.length).toBe(1);
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       expect(h1.children.length).toBe(1);
@@ -460,9 +461,9 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
 
       // li2 has been pulled out of the outer list, so only li1 and li3 remain.
       expect(list.children.length).toBe(2);
@@ -470,10 +471,10 @@ describe('useTreeOperations', () => {
       expect(list.children[1].id).toBe('li3');
 
       // li1 now ends with a nested list whose only child is li2.
-      const li1 = list.children[0] as ContainerDocumentNode;
+      const li1 = list.children[0] as ListItemDocumentNode;
       const li1Last = li1.children[li1.children.length - 1];
       expect(li1Last.type).toBe('LIST');
-      const nested = li1Last as ContainerDocumentNode;
+      const nested = li1Last as ListDocumentNode;
       expect(nested.children.length).toBe(1);
       expect(nested.children[0].id).toBe('li2');
     });
@@ -486,18 +487,18 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['li2', 'li3']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
 
       // Only li1 remains at the outer level; li2 and li3 are nested under it.
       expect(list.children.length).toBe(1);
       expect(list.children[0].id).toBe('li1');
 
-      const li1 = list.children[0] as ContainerDocumentNode;
+      const li1 = list.children[0] as ListItemDocumentNode;
       const li1Last = li1.children[li1.children.length - 1];
       expect(li1Last.type).toBe('LIST');
-      const nested = li1Last as ContainerDocumentNode;
+      const nested = li1Last as ListDocumentNode;
       expect(nested.children.length).toBe(2);
       expect(nested.children[0].id).toBe('li2');
       expect(nested.children[1].id).toBe('li3');
@@ -506,7 +507,7 @@ describe('useTreeOperations', () => {
     test('appends list_item to existing nested list under preceding sibling', () => {
       // li1 already has a nested list with liA inside. Indenting li2 should
       // append it to that existing list, not create a new sibling list.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -548,12 +549,12 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
       expect(list1.children.length).toBe(1);
 
-      const li1 = list1.children[0] as ContainerDocumentNode;
-      const nested = li1.children.find((c) => c.type === 'LIST') as ContainerDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'LIST') as ListDocumentNode;
       // Same nested list (same id), now with both items inside.
       expect(nested.id).toBe('oldNested');
       expect(nested.children.length).toBe(2);
@@ -571,20 +572,20 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['li1', 'li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
 
       // li1 stays at outer level, li2 is now nested under it, li3 still at outer level.
       expect(list.children.map((c) => c.id)).toEqual(['li1', 'li3']);
-      const li1 = list.children[0] as ContainerDocumentNode;
-      const nested = li1.children[li1.children.length - 1] as ContainerDocumentNode;
+      const li1 = list.children[0] as ListItemDocumentNode;
+      const nested = li1.children[li1.children.length - 1] as ListDocumentNode;
       expect(nested.type).toBe('LIST');
       expect(nested.children.map((c) => c.id)).toEqual(['li2']);
     });
 
     test('does nothing when list_item has no preceding sibling', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -609,7 +610,7 @@ describe('useTreeOperations', () => {
     test("preserves the list_item's own nested children when indenting", () => {
       // li2 carries its own nested list (with liA). After indenting li2, the
       // new sublist under li1 should contain li2 unchanged — including liA.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -651,23 +652,23 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
-      const li1 = list1.children[0] as ContainerDocumentNode;
-      const newSublist = li1.children[li1.children.length - 1] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
+      const newSublist = li1.children[li1.children.length - 1] as ListDocumentNode;
       expect(newSublist.type).toBe('LIST');
 
-      const movedLi2 = newSublist.children[0] as ContainerDocumentNode;
+      const movedLi2 = newSublist.children[0] as ListItemDocumentNode;
       expect(movedLi2.id).toBe('li2');
       // li2 still has its content + its own nested list
       const movedNested = movedLi2.children.find((c) => c.id === 'li2-nested');
       expect(movedNested).toBeDefined();
-      expect((movedNested as ContainerDocumentNode).children[0].id).toBe('liA');
+      expect((movedNested as ListDocumentNode).children[0].id).toBe('liA');
     });
 
     test('indents multiple sibling nodes under previous heading', () => {
       // doc: h1, p1, p2 at root level → both p1 and p2 should move under h1
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -705,7 +706,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // Only h1 remains at root
       expect(newDoc.children.length).toBe(1);
       const h1 = newDoc.children[0] as HeadingDocumentNode;
@@ -718,7 +719,7 @@ describe('useTreeOperations', () => {
     test('skips nodes that cannot be indented in a batch', () => {
       // doc: p1, h1 → p1 has no previous heading, h1 has no previous heading
       // Neither can be indented
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -754,7 +755,7 @@ describe('useTreeOperations', () => {
       // doc: HeadingA, HeadingB(HeadingC, HeadingD). Selecting B together with
       // its children C and D and indenting must nest B under A while leaving C
       // and D as direct siblings under B — not re-nesting D under C.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -800,7 +801,7 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['B', 'C', 'D']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(isValidDocument(newDoc)).toBe(true);
 
       // A is the only root child; B nested under it.
@@ -825,7 +826,7 @@ describe('useTreeOperations', () => {
         contents: { de: id },
         children,
       });
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -844,7 +845,7 @@ describe('useTreeOperations', () => {
         result.current.indentNodes(['B', 'C', 'E', 'Y', 'Z']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(isValidDocument(newDoc)).toBe(true);
 
       // A and X remain at root; B nested under A, Y nested under X.
@@ -873,7 +874,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['p1']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // Should have 3 children now: h1, p1, h1b
       expect(newDoc.children.length).toBe(3);
       expect(newDoc.children[0].id).toBe('h1');
@@ -905,7 +906,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['h2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // Should have 3 children: h1, h2, h1b
       expect(newDoc.children.length).toBe(3);
       expect(newDoc.children[0].id).toBe('h1');
@@ -914,7 +915,7 @@ describe('useTreeOperations', () => {
     });
 
     test('moves list_item out of nested list', () => {
-      const nestedListDoc: ContainerDocumentNode = {
+      const nestedListDoc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -944,15 +945,15 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
 
       // li2 is hoisted into list1 and the (now-empty) malformed inner list is dropped.
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2']);
     });
 
     test('does nothing when outdenting list_item would place it outside any list', () => {
-      const docWithTopLevelList: ContainerDocumentNode = {
+      const docWithTopLevelList: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -978,7 +979,7 @@ describe('useTreeOperations', () => {
     });
 
     test('does nothing when outdenting list_item in list under heading would violate rules', () => {
-      const docWithListUnderHeading: ContainerDocumentNode = {
+      const docWithListUnderHeading: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1012,7 +1013,7 @@ describe('useTreeOperations', () => {
     test('outdents list_item out of a properly nested list under preceding sibling', () => {
       // list1[li1{content, nested[li2]}, li3] → shift-tab on li2 →
       // list1[li1{content}, li2, li3]  (empty nested list is dropped)
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1054,21 +1055,21 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
 
       // list1 now has [li1, li2, li3] in order
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2', 'li3']);
 
       // li1's nested list is gone (it became empty after li2 left)
-      const li1 = list1.children[0] as ContainerDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
       expect(li1.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
     test('keeps nested list when other items remain after outdent', () => {
       // list1[li1{nested[li2, li3]}] → shift-tab on li2 →
       // list1[li1{nested[li3]}, li2]
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1101,12 +1102,12 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2']);
 
-      const li1 = list1.children[0] as ContainerDocumentNode;
-      const nested = li1.children.find((c) => c.type === 'LIST') as ContainerDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
+      const nested = li1.children.find((c) => c.type === 'LIST') as ListDocumentNode;
       expect(nested).toBeDefined();
       expect(nested.children.map((c) => c.id)).toEqual(['li3']);
     });
@@ -1114,7 +1115,7 @@ describe('useTreeOperations', () => {
     test('outdents from a doubly-nested list one level at a time', () => {
       // list1[li1{nested1[li2{nested2[li3]}]}] → shift-tab on li3 →
       // list1[li1{nested1[li2, li3]}]   (li3 moves up one level, into nested1)
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1161,21 +1162,21 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li3']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
-      const li1 = list1.children[0] as ContainerDocumentNode;
-      const nested1 = li1.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
+      const nested1 = li1.children[0] as ListDocumentNode;
 
       // li3 sits next to li2 in nested1; nested2 is gone (it became empty).
       expect(nested1.children.map((c) => c.id)).toEqual(['li2', 'li3']);
-      const li2 = nested1.children[0] as ContainerDocumentNode;
+      const li2 = nested1.children[0] as ListItemDocumentNode;
       expect(li2.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
     test('outdents two list_items from nested list, dropping empty list', () => {
       // list1[li1{nested[li2, li3]}] → shift-tab on [li2, li3] →
       // list1[li1, li2, li3]  (no nested list left)
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1208,11 +1209,11 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li2', 'li3']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
       expect(list1.children.map((c) => c.id)).toEqual(['li1', 'li2', 'li3']);
 
-      const li1 = list1.children[0] as ContainerDocumentNode;
+      const li1 = list1.children[0] as ListItemDocumentNode;
       expect(li1.children.some((c) => c.type === 'LIST')).toBe(false);
     });
 
@@ -1225,7 +1226,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // Should have: h1, p1, h2 (with p2 child), h1b
       expect(newDoc.children.length).toBe(4);
       expect(newDoc.children[0].id).toBe('h1');
@@ -1242,7 +1243,7 @@ describe('useTreeOperations', () => {
       // doc: HeadingA(HeadingB(HeadingC, HeadingD)). Selecting B together with
       // its children C and D and outdenting must lift B to be a sibling of A,
       // carrying C and D along unchanged — not scatter them or reverse order.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1289,7 +1290,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['B', 'C', 'D']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(isValidDocument(newDoc)).toBe(true);
 
       // B lifted to be a sibling of A, after it.
@@ -1307,7 +1308,7 @@ describe('useTreeOperations', () => {
       // with its nested descendant liA and outdenting must lift li1 to be a
       // sibling of outerLi, carrying nested2/liA along — liA must not be
       // processed separately.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1370,16 +1371,16 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li1', 'liA']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(isValidDocument(newDoc)).toBe(true);
 
       // li1 popped out to be a sibling of outerLi in the outer list.
-      const list1 = newDoc.children[0] as ContainerDocumentNode;
+      const list1 = newDoc.children[0] as ListDocumentNode;
       expect(list1.children.map((c) => c.id)).toEqual(['outerLi', 'li1']);
 
       // li1 still carries its own nested2 list with liA unchanged.
-      const li1 = list1.children[1] as ContainerDocumentNode;
-      const nested2 = li1.children.find((c) => c.id === 'nested2') as ContainerDocumentNode;
+      const li1 = list1.children[1] as ListItemDocumentNode;
+      const nested2 = li1.children.find((c) => c.id === 'nested2') as ListDocumentNode;
       expect(nested2).toBeDefined();
       expect(nested2.children.map((c) => c.id)).toEqual(['liA']);
     });
@@ -1406,7 +1407,7 @@ describe('useTreeOperations', () => {
     });
 
     test('lifts a heading out of the last list_item, placing it after the list (no split)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1432,12 +1433,12 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // No content follows the heading, so no trailing list is created.
       expect(newDoc.children.map((c) => c.id)).toEqual(['list1', 'H']);
-      const list = newDoc.children[0] as ContainerDocumentNode;
+      const list = newDoc.children[0] as ListDocumentNode;
       expect(list.children.map((c) => c.id)).toEqual(['li1', 'li2']);
-      const li2 = list.children[1] as ContainerDocumentNode;
+      const li2 = list.children[1] as ListItemDocumentNode;
       // The surviving list_item keeps its id and number.
       expect((li2 as NumberedDocumentNode).number).toBe('2.');
       expect(li2.children.map((c) => c.id)).toEqual(['li2-content']);
@@ -1445,7 +1446,7 @@ describe('useTreeOperations', () => {
     });
 
     test('lifts a heading out of a middle list_item, splitting the list around it', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1471,22 +1472,22 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
       expect(newDoc.children[1].id).toBe('H');
-      const before = newDoc.children[0] as ContainerDocumentNode;
+      const before = newDoc.children[0] as ListDocumentNode;
       expect(before.id).toBe('list1');
       expect(before.children.map((c) => c.id)).toEqual(['li1']);
-      const li1 = before.children[0] as ContainerDocumentNode;
+      const li1 = before.children[0] as ListItemDocumentNode;
       expect(li1.children.map((c) => c.id)).toEqual(['li1-content']);
-      const after = newDoc.children[2] as ContainerDocumentNode;
+      const after = newDoc.children[2] as ListDocumentNode;
       expect(after.id).not.toBe('list1');
       expect(after.children.map((c) => c.id)).toEqual(['li2']);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('drops an emptied middle list_item when its only child is lifted out', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1513,11 +1514,11 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
-      const before = newDoc.children[0] as ContainerDocumentNode;
+      const before = newDoc.children[0] as ListDocumentNode;
       expect(before.children.map((c) => c.id)).toEqual(['li1']);
-      const after = newDoc.children[2] as ContainerDocumentNode;
+      const after = newDoc.children[2] as ListDocumentNode;
       expect(after.children.map((c) => c.id)).toEqual(['li2']);
       // The emptied list_item is gone entirely.
       expect(JSON.stringify(newDoc)).not.toContain('liH');
@@ -1525,7 +1526,7 @@ describe('useTreeOperations', () => {
     });
 
     test('splits the list_item itself when the lifted node sits between content', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1550,17 +1551,17 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'LIST']);
 
-      const beforeItem = (newDoc.children[0] as ContainerDocumentNode)
-        .children[0] as ContainerDocumentNode;
+      const beforeItem = (newDoc.children[0] as ListDocumentNode)
+        .children[0] as ListItemDocumentNode;
       expect(beforeItem.id).toBe('li1');
       expect((beforeItem as NumberedDocumentNode).number).toBe('1.');
       expect(beforeItem.children.map((c) => c.id)).toEqual(['c-a']);
 
-      const afterItem = (newDoc.children[2] as ContainerDocumentNode)
-        .children[0] as ContainerDocumentNode;
+      const afterItem = (newDoc.children[2] as ListDocumentNode)
+        .children[0] as ListItemDocumentNode;
       // Tail fragment gets a fresh id and no number to avoid a duplicate label.
       expect(afterItem.id).not.toBe('li1');
       expect((afterItem as NumberedDocumentNode).number).toBeNull();
@@ -1571,7 +1572,7 @@ describe('useTreeOperations', () => {
     });
 
     test('lifts a heading out of the first list_item, placing it before the list', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1597,9 +1598,9 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['H', 'list1']);
-      const after = newDoc.children[1] as ContainerDocumentNode;
+      const after = newDoc.children[1] as ListDocumentNode;
       // No "before" list, so the surviving list reuses the original id.
       expect(after.id).toBe('list1');
       expect(after.children.map((c) => c.id)).toEqual(['li2']);
@@ -1609,7 +1610,7 @@ describe('useTreeOperations', () => {
     });
 
     test('replaces a single-item single-child list with just the lifted node', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1634,13 +1635,13 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['H']);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('keeps document order when lifting from a list nested under a heading', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1678,7 +1679,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const t = newDoc.children[0] as HeadingDocumentNode;
       expect(t.children.map((c) => c.type)).toEqual([
         'CONTENT',
@@ -1688,15 +1689,15 @@ describe('useTreeOperations', () => {
         'CONTENT',
       ]);
       expect(t.children[0].id).toBe('pre');
-      expect((t.children[1] as ContainerDocumentNode).children.map((c) => c.id)).toEqual(['li1']);
+      expect((t.children[1] as ListDocumentNode).children.map((c) => c.id)).toEqual(['li1']);
       expect(t.children[2].id).toBe('H');
-      expect((t.children[3] as ContainerDocumentNode).children.map((c) => c.id)).toEqual(['li2']);
+      expect((t.children[3] as ListDocumentNode).children.map((c) => c.id)).toEqual(['li2']);
       expect(t.children[4].id).toBe('post');
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('lifts a normal list item content out of the list', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1714,17 +1715,17 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['li1-content']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['CONTENT', 'LIST']);
       expect(newDoc.children[0].id).toBe('li1-content');
-      const after = newDoc.children[1] as ContainerDocumentNode;
+      const after = newDoc.children[1] as ListDocumentNode;
       expect(after.id).toBe('list1');
       expect(after.children.map((c) => c.id)).toEqual(['li2']);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('lifts a footnote trapped directly in a list_item out of the list', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1758,14 +1759,14 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['fn']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'FOOTNOTE']);
       expect(newDoc.children[1].id).toBe('fn');
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('lifts multiple sibling nodes out of the same list_item, preserving order', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1795,23 +1796,23 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H1', 'H2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.type)).toEqual(['LIST', 'HEADING', 'HEADING', 'LIST']);
       expect(newDoc.children[1].id).toBe('H1');
       expect(newDoc.children[2].id).toBe('H2');
-      const before = newDoc.children[0] as ContainerDocumentNode;
-      expect((before.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+      const before = newDoc.children[0] as ListDocumentNode;
+      expect((before.children[0] as ListItemDocumentNode).children.map((c) => c.id)).toEqual([
         'c-a',
       ]);
-      const after = newDoc.children[3] as ContainerDocumentNode;
-      expect((after.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+      const after = newDoc.children[3] as ListDocumentNode;
+      expect((after.children[0] as ListItemDocumentNode).children.map((c) => c.id)).toEqual([
         'c-b',
       ]);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('preserves the lifted node subtree (a heading with body content)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1845,7 +1846,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['H']);
       const h = newDoc.children[0] as HeadingDocumentNode;
       // The lifted node keeps its number and its whole subtree.
@@ -1855,7 +1856,7 @@ describe('useTreeOperations', () => {
     });
 
     test('lifts two non-adjacent nodes out of the same list_item, preserving order', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1880,20 +1881,20 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['H1', 'H2']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // Order H1, (list holding the middle content), H2 is preserved.
       expect(newDoc.children.map((c) => c.type)).toEqual(['HEADING', 'LIST', 'HEADING']);
       expect(newDoc.children[0].id).toBe('H1');
       expect(newDoc.children[2].id).toBe('H2');
-      const midList = newDoc.children[1] as ContainerDocumentNode;
-      expect((midList.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+      const midList = newDoc.children[1] as ListDocumentNode;
+      expect((midList.children[0] as ListItemDocumentNode).children.map((c) => c.id)).toEqual([
         'c-mid',
       ]);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('lifts a nested list out of a list_item as a sibling of the outer list', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1926,20 +1927,20 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['inner']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // The two lists are left adjacent and unmerged; order (x, then nested) holds.
       expect(newDoc.children.map((c) => c.id)).toEqual(['outer', 'inner']);
-      const outer = newDoc.children[0] as ContainerDocumentNode;
-      expect((outer.children[0] as ContainerDocumentNode).children.map((c) => c.id)).toEqual([
+      const outer = newDoc.children[0] as ListDocumentNode;
+      expect((outer.children[0] as ListItemDocumentNode).children.map((c) => c.id)).toEqual([
         'c-x',
       ]);
-      const inner = newDoc.children[1] as ContainerDocumentNode;
+      const inner = newDoc.children[1] as ListDocumentNode;
       expect(inner.children.map((c) => c.id)).toEqual(['lia']);
       expect(isValidDocument(newDoc)).toBe(true);
     });
 
     test('does not lift when the list_item is not inside a list (malformed)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1965,7 +1966,7 @@ describe('useTreeOperations', () => {
 
   describe('indentNodes footnote into content', () => {
     test('moves footnote under previous sibling content', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -1994,7 +1995,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // Footnote should now be child of content
       expect(newDoc.children.length).toBe(1);
@@ -2004,7 +2005,7 @@ describe('useTreeOperations', () => {
     });
 
     test('does nothing when previous sibling is not content or heading', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -2036,7 +2037,7 @@ describe('useTreeOperations', () => {
     });
 
     test('moves footnote under previous sibling heading', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -2065,7 +2066,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // Footnote should now be child of heading
       expect(newDoc.children.length).toBe(1);
@@ -2077,7 +2078,7 @@ describe('useTreeOperations', () => {
 
   describe('outdentNodes footnote from content', () => {
     test('moves footnote to be sibling of parent content', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -2107,7 +2108,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // Should have 2 children: p1, fn1
       expect(newDoc.children.length).toBe(2);
@@ -2120,7 +2121,7 @@ describe('useTreeOperations', () => {
     });
 
     test('preserves other footnote siblings when outdenting', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -2156,7 +2157,7 @@ describe('useTreeOperations', () => {
         result.current.outdentNodes(['fn1']);
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // Should have 2 children: p1, fn1
       expect(newDoc.children.length).toBe(2);
@@ -2173,7 +2174,7 @@ describe('useTreeOperations', () => {
   describe('changeNodeTypes', () => {
     describe('content -> heading', () => {
       test('converts content to heading with empty children', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2195,7 +2196,7 @@ describe('useTreeOperations', () => {
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as HeadingDocumentNode;
 
         expect(converted.type).toBe('HEADING');
@@ -2204,7 +2205,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves id, number, and contents', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2225,7 +2226,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'HEADING');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as HeadingDocumentNode;
 
         expect(converted.id).toBe('p1');
@@ -2235,7 +2236,7 @@ describe('useTreeOperations', () => {
       });
 
       test('does nothing when already a heading', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2262,7 +2263,7 @@ describe('useTreeOperations', () => {
 
     describe('heading -> content', () => {
       test('converts heading without children to content', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2284,7 +2285,7 @@ describe('useTreeOperations', () => {
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.type).toBe('CONTENT');
@@ -2295,7 +2296,7 @@ describe('useTreeOperations', () => {
       });
 
       test('lifts children as siblings after converted node', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2341,7 +2342,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['h1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have 4 children: converted h1, p1, p2, h2
         expect(newDoc.children.length).toBe(4);
@@ -2353,7 +2354,7 @@ describe('useTreeOperations', () => {
       });
 
       test('does nothing when already content', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2380,7 +2381,7 @@ describe('useTreeOperations', () => {
 
     describe('content -> list', () => {
       test('wraps content in list with single list_item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2401,16 +2402,16 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have a list at root level
         expect(newDoc.children.length).toBe(1);
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ListDocumentNode;
         expect(list.type).toBe('LIST');
 
         // List should contain one list_item with child content node
         expect(list.children.length).toBe(1);
-        const item = list.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
         expect(item.type).toBe('LIST_ITEM');
         // The original content node becomes a child with its id preserved
         const itemContent = item.children[0] as LeafDocumentNode;
@@ -2420,7 +2421,7 @@ describe('useTreeOperations', () => {
       });
 
       test('sets correct number for numbered list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2441,14 +2442,14 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
         expect((item as NumberedDocumentNode).number).toBe('1.');
       });
 
       test('sets correct number for lettered list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2469,14 +2470,14 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'lettered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
         expect((item as NumberedDocumentNode).number).toBe('a.');
       });
 
       test('sets null number for unordered list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2497,16 +2498,16 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
         expect((item as NumberedDocumentNode).number).toBeNull();
       });
     });
 
     describe('heading -> list', () => {
       test('wraps heading in list, lifts children after list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2536,16 +2537,16 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['h1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have 2 children: the new list and the lifted p1
         expect(newDoc.children.length).toBe(2);
 
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ListDocumentNode;
         expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
 
-        const item = list.children[0] as ContainerDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
         expect(item.type).toBe('LIST_ITEM');
         // The original heading content is now in the child content node
         const itemContent = item.children[0] as LeafDocumentNode;
@@ -2558,7 +2559,7 @@ describe('useTreeOperations', () => {
 
     describe('list_item -> content', () => {
       test('replaces entire list when only item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2577,7 +2578,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // List should be replaced with content node
         expect(newDoc.children.length).toBe(1);
@@ -2588,7 +2589,7 @@ describe('useTreeOperations', () => {
       });
 
       test('extracts item and inserts after list when multiple items', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2610,13 +2611,13 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li2'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have list and extracted content
         expect(newDoc.children.length).toBe(2);
 
         // List should still exist with one item
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ListDocumentNode;
         expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
         expect(list.children[0].id).toBe('li1');
@@ -2630,7 +2631,7 @@ describe('useTreeOperations', () => {
 
     describe('list_item -> heading', () => {
       test('replaces entire list when only item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2649,7 +2650,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(1);
         const converted = newDoc.children[0] as HeadingDocumentNode;
@@ -2659,7 +2660,7 @@ describe('useTreeOperations', () => {
       });
 
       test('extracts item and inserts after list when multiple items', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2681,7 +2682,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(2);
 
@@ -2691,7 +2692,7 @@ describe('useTreeOperations', () => {
         expect(converted.id).toBe('li1');
 
         // List with remaining item should follow
-        const list = newDoc.children[1] as ContainerDocumentNode;
+        const list = newDoc.children[1] as ListDocumentNode;
         expect(list.type).toBe('LIST');
         expect(list.children.length).toBe(1);
         expect(list.children[0].id).toBe('li2');
@@ -2700,7 +2701,7 @@ describe('useTreeOperations', () => {
 
     describe('list_item style change (single item only)', () => {
       test('changes only selected item to numbered, leaves siblings unchanged', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2723,8 +2724,8 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li2'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         // Only li2 (index 1) should change
         expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
@@ -2733,7 +2734,7 @@ describe('useTreeOperations', () => {
       });
 
       test('changes only selected item to lettered', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2752,8 +2753,8 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'LIST', 'lettered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         // Only li1 (index 0) should change
         expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
@@ -2761,7 +2762,7 @@ describe('useTreeOperations', () => {
       });
 
       test('changes only selected item to unordered', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2780,8 +2781,8 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'LIST', 'unordered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         // Only li1 (index 0) should change
         expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
@@ -2791,7 +2792,7 @@ describe('useTreeOperations', () => {
 
     describe('list node style change', () => {
       test('list node + numbered: changes all children to 1., 2., 3.', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2814,8 +2815,8 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
         expect((list.children[1] as NumberedDocumentNode).number).toBe('2.');
@@ -2823,7 +2824,7 @@ describe('useTreeOperations', () => {
       });
 
       test('list node + unordered: sets all children numbers to null', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2842,15 +2843,15 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'LIST', 'unordered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         expect((list.children[0] as NumberedDocumentNode).number).toBeNull();
         expect((list.children[1] as NumberedDocumentNode).number).toBeNull();
       });
 
       test('list node + lettered: changes all children to a., b., c.', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2873,8 +2874,8 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'LIST', 'lettered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
 
         expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
         expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
@@ -2882,7 +2883,7 @@ describe('useTreeOperations', () => {
       });
 
       test('list node + non-list target: does nothing', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2920,7 +2921,7 @@ describe('useTreeOperations', () => {
         // list -> content is valid (issue #80: flattens with number preservation),
         // and list -> heading is a no-op (covered elsewhere). list -> footnote
         // remains unsupported because there's no meaningful semantics for it.
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2945,7 +2946,7 @@ describe('useTreeOperations', () => {
 
     describe('adjacent list merging', () => {
       test('merges with preceding list when converting to list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -2972,21 +2973,21 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have merged into one list
         expect(newDoc.children.length).toBe(1);
         expect(newDoc.children[0].type).toBe('LIST');
-        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        const mergedList = newDoc.children[0] as ListDocumentNode;
         expect(mergedList.children.length).toBe(2);
         expect(mergedList.children[0].id).toBe('li1');
         // The converted content's id is now in the child content node
-        const newItem = mergedList.children[1] as ContainerDocumentNode;
+        const newItem = mergedList.children[1] as ListItemDocumentNode;
         expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
       });
 
       test('merges with following list when converting to list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3013,21 +3014,21 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have merged into one list
         expect(newDoc.children.length).toBe(1);
         expect(newDoc.children[0].type).toBe('LIST');
-        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        const mergedList = newDoc.children[0] as ListDocumentNode;
         expect(mergedList.children.length).toBe(2);
         // The converted content's id is now in the child content node
-        const newItem = mergedList.children[0] as ContainerDocumentNode;
+        const newItem = mergedList.children[0] as ListItemDocumentNode;
         expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
         expect(mergedList.children[1].id).toBe('li1');
       });
 
       test('merges with both surrounding lists when converting to list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3060,22 +3061,22 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have merged all three into one list
         expect(newDoc.children.length).toBe(1);
         expect(newDoc.children[0].type).toBe('LIST');
-        const mergedList = newDoc.children[0] as ContainerDocumentNode;
+        const mergedList = newDoc.children[0] as ListDocumentNode;
         expect(mergedList.children.length).toBe(3);
         expect(mergedList.children[0].id).toBe('li1');
         // The converted content's id is now in the child content node
-        const newItem = mergedList.children[1] as ContainerDocumentNode;
+        const newItem = mergedList.children[1] as ListItemDocumentNode;
         expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
         expect(mergedList.children[2].id).toBe('li2');
       });
 
       test('does not merge lists separated by other nodes', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3110,7 +3111,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have 3 children: list1, heading, and new list
         expect(newDoc.children.length).toBe(3);
@@ -3122,7 +3123,7 @@ describe('useTreeOperations', () => {
 
     describe('content -> footnote', () => {
       test('converts content to footnote (leaf node without children)', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3144,7 +3145,7 @@ describe('useTreeOperations', () => {
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as LeafDocumentNode;
 
         expect(converted.type).toBe('FOOTNOTE');
@@ -3155,7 +3156,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves id, number, and contents', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3176,7 +3177,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'FOOTNOTE');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as LeafDocumentNode;
 
         expect(converted.id).toBe('p1');
@@ -3186,7 +3187,7 @@ describe('useTreeOperations', () => {
       });
 
       test('lifts footnote children when converting content with footnotes', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3230,7 +3231,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'FOOTNOTE');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have 4 children: converted p1, fn1, fn2, p2
         expect(newDoc.children.length).toBe(4);
@@ -3242,7 +3243,7 @@ describe('useTreeOperations', () => {
       });
 
       test('does nothing when already footnote', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3268,7 +3269,7 @@ describe('useTreeOperations', () => {
 
     describe('heading -> footnote', () => {
       test('converts heading to footnote and lifts children', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3314,7 +3315,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['h1'], 'FOOTNOTE');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Should have 4 children: converted h1, p1, p2, h2
         expect(newDoc.children.length).toBe(4);
@@ -3327,7 +3328,7 @@ describe('useTreeOperations', () => {
       });
 
       test('converts heading without children to footnote', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3348,7 +3349,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['h1'], 'FOOTNOTE');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as LeafDocumentNode;
 
         expect(converted.type).toBe('FOOTNOTE');
@@ -3361,7 +3362,7 @@ describe('useTreeOperations', () => {
 
     describe('footnote -> content', () => {
       test('converts footnote to content (adds empty children array)', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3382,7 +3383,7 @@ describe('useTreeOperations', () => {
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.type).toBe('CONTENT');
@@ -3393,7 +3394,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves multi-language contents', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3413,7 +3414,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['fn1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.contents.de).toBe('German');
@@ -3424,7 +3425,7 @@ describe('useTreeOperations', () => {
 
     describe('footnote conversion edge cases', () => {
       test('cannot convert list to footnote', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3447,7 +3448,7 @@ describe('useTreeOperations', () => {
       });
 
       test('cannot convert list_item to footnote', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3473,7 +3474,7 @@ describe('useTreeOperations', () => {
     // Issue #80: lossless number preservation between lists and content nodes.
     describe('list_item -> content (number preservation, issue #80)', () => {
       test('preserves list_item.number on the converted content node when it is the only item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3492,7 +3493,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.type).toBe('CONTENT');
@@ -3501,7 +3502,7 @@ describe('useTreeOperations', () => {
       });
 
       test('handles a list_item with no content child (empty contents, default format)', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3527,7 +3528,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.type).toBe('CONTENT');
@@ -3538,7 +3539,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves the list_item content format when converting to content', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3573,7 +3574,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.format).toBe('MARKDOWN');
@@ -3581,7 +3582,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves list_item.number when extracted from a multi-item list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3603,10 +3604,10 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li2'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         // Remaining list_item is untouched
-        const list = newDoc.children[0] as ContainerDocumentNode;
+        const list = newDoc.children[0] as ListDocumentNode;
         expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
 
         // Extracted content carries its old list_item number
@@ -3618,7 +3619,7 @@ describe('useTreeOperations', () => {
 
     describe('list_item -> heading (number preservation, issue #80)', () => {
       test('preserves list_item.number on the converted heading node', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3637,7 +3638,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['li1'], 'HEADING');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as HeadingDocumentNode;
 
         expect(converted.type).toBe('HEADING');
@@ -3647,7 +3648,7 @@ describe('useTreeOperations', () => {
 
     describe('list -> content (issue #80)', () => {
       test('flattens all list_items into content nodes, preserving each number', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3670,7 +3671,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(3);
 
@@ -3690,7 +3691,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves null number for unnumbered items', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3709,7 +3710,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(2);
         expect((newDoc.children[0] as ContentDocumentNode).number).toBeNull();
@@ -3717,7 +3718,7 @@ describe('useTreeOperations', () => {
       });
 
       test('flattens nested list recursively, preserving inner numbers', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3762,7 +3763,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(4);
 
@@ -3782,7 +3783,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves source order when nested list precedes the content child', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3823,7 +3824,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(2);
 
@@ -3838,7 +3839,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves the source content format on the flattened content node', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3873,7 +3874,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.format).toBe('MARKDOWN');
@@ -3881,7 +3882,7 @@ describe('useTreeOperations', () => {
       });
 
       test('lifts a list_item with multiple content children, attaching the number to the first', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3924,7 +3925,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(2);
 
@@ -3942,7 +3943,7 @@ describe('useTreeOperations', () => {
       });
 
       test('synthesizes a placeholder content node for a list_item with no content child', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -3968,7 +3969,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
         expect(newDoc.children.length).toBe(1);
         const placeholder = newDoc.children[0] as ContentDocumentNode;
@@ -3980,7 +3981,7 @@ describe('useTreeOperations', () => {
       });
 
       test('preserves footnote children of the list_item content', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4023,7 +4024,7 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['list1'], 'CONTENT');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const converted = newDoc.children[0] as ContentDocumentNode;
 
         expect(converted.children.length).toBe(1);
@@ -4032,7 +4033,7 @@ describe('useTreeOperations', () => {
       });
 
       test('list -> heading is still a no-op', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4057,7 +4058,7 @@ describe('useTreeOperations', () => {
 
     describe('content -> list (number preservation, issue #80)', () => {
       test('unordered preserves the content original number on the new list_item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4078,15 +4079,15 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
 
         expect((item as NumberedDocumentNode).number).toBe('Art. 5');
       });
 
       test('numbered overwrites the content number with the generated sequence', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4107,15 +4108,15 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'numbered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
 
         expect((item as NumberedDocumentNode).number).toBe('1.');
       });
 
       test('lettered overwrites the content number with the generated sequence', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4136,15 +4137,15 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'lettered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
 
         expect((item as NumberedDocumentNode).number).toBe('a.');
       });
 
       test('unordered with null content number stays null', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4165,9 +4166,9 @@ describe('useTreeOperations', () => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
 
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = newDoc.children[0] as ContainerDocumentNode;
-        const item = list.children[0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = newDoc.children[0] as ListDocumentNode;
+        const item = list.children[0] as ListItemDocumentNode;
 
         expect((item as NumberedDocumentNode).number).toBeNull();
       });
@@ -4175,7 +4176,7 @@ describe('useTreeOperations', () => {
 
     describe('roundtrip content <-> unordered list (issue #80)', () => {
       test('content -> unordered list -> content preserves number', () => {
-        const startDoc: ContainerDocumentNode = {
+        const startDoc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4195,9 +4196,9 @@ describe('useTreeOperations', () => {
         act(() => {
           result.current.changeNodeTypes(['p1'], 'LIST', 'unordered');
         });
-        const afterToList = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-        const list = afterToList.children[0] as ContainerDocumentNode;
-        const listItem = list.children[0] as ContainerDocumentNode;
+        const afterToList = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const list = afterToList.children[0] as ListDocumentNode;
+        const listItem = list.children[0] as ListItemDocumentNode;
         expect((listItem as NumberedDocumentNode).number).toBe('Art. 5');
 
         // Step 2: list_item -> content (rebuild hook over the new doc)
@@ -4206,7 +4207,7 @@ describe('useTreeOperations', () => {
         act(() => {
           result2.current.changeNodeTypes([listItem.id], 'CONTENT');
         });
-        const afterRoundtrip = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const afterRoundtrip = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const finalContent = afterRoundtrip.children[0] as ContentDocumentNode;
 
         expect(finalContent.type).toBe('CONTENT');
@@ -4217,7 +4218,7 @@ describe('useTreeOperations', () => {
 
   describe('changeNodeTypes (batch)', () => {
     test('changes type for multiple content nodes to heading', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4256,14 +4257,14 @@ describe('useTreeOperations', () => {
 
       // Single commit for all three changes
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children[0].type).toBe('HEADING');
       expect(newDoc.children[1].type).toBe('HEADING');
       expect(newDoc.children[2].type).toBe('HEADING');
     });
 
     test('handles mixed node types (content + heading -> footnote)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4293,7 +4294,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children[0].type).toBe('FOOTNOTE');
       expect(newDoc.children[1].type).toBe('FOOTNOTE');
     });
@@ -4309,7 +4310,7 @@ describe('useTreeOperations', () => {
     });
 
     test('numbers a numbered-list batch sequentially (1., 2., 3.)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4346,10 +4347,10 @@ describe('useTreeOperations', () => {
         result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'LIST', 'numbered');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       expect(newDoc.children.length).toBe(1);
-      const list = newDoc.children[0] as ContainerDocumentNode;
+      const list = newDoc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(3);
       expect((list.children[0] as NumberedDocumentNode).number).toBe('1.');
@@ -4358,7 +4359,7 @@ describe('useTreeOperations', () => {
     });
 
     test('letters a lettered-list batch sequentially (a., b., c.)', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4395,9 +4396,9 @@ describe('useTreeOperations', () => {
         result.current.changeNodeTypes(['p1', 'p2', 'p3'], 'LIST', 'lettered');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
-      const list = newDoc.children[0] as ContainerDocumentNode;
+      const list = newDoc.children[0] as ListDocumentNode;
       expect(list.children.length).toBe(3);
       expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
       expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
@@ -4415,7 +4416,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // h1b should now be first, h1 second
       expect(newDoc.children.length).toBe(2);
@@ -4433,7 +4434,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // h1b should now be inside h1, after p1
       const h1 = newDoc.children[0] as HeadingDocumentNode;
@@ -4453,7 +4454,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       expect(h1.children.length).toBe(2);
@@ -4471,7 +4472,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
 
       // p2 should now be at root level after h1b
       expect(newDoc.children.length).toBe(3);
@@ -4517,7 +4518,7 @@ describe('useTreeOperations', () => {
 
     describe('parent-child validation', () => {
       test('rejects moving content directly into list', () => {
-        const docWithList: ContainerDocumentNode = {
+        const docWithList: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4551,7 +4552,7 @@ describe('useTreeOperations', () => {
       });
 
       test('rejects moving heading directly into list', () => {
-        const docWithList: ContainerDocumentNode = {
+        const docWithList: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4619,15 +4620,15 @@ describe('useTreeOperations', () => {
         });
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
-        const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
         const h1 = newDoc.children[0] as HeadingDocumentNode;
-        const list = h1.children[0] as ContainerDocumentNode;
+        const list = h1.children[0] as ListDocumentNode;
         expect(list.children[0].id).toBe('li3');
         expect(list.children[1].id).toBe('li1');
       });
 
       test('allows moving list_item to different list', () => {
-        const docWithTwoLists: ContainerDocumentNode = {
+        const docWithTwoLists: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4658,7 +4659,7 @@ describe('useTreeOperations', () => {
       });
 
       test('allows moving content into list_item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4691,7 +4692,7 @@ describe('useTreeOperations', () => {
       });
 
       test('allows moving nested list into list_item', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4722,7 +4723,7 @@ describe('useTreeOperations', () => {
       });
 
       test('rejects moving footnote directly into list', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4753,7 +4754,7 @@ describe('useTreeOperations', () => {
       });
 
       test('rejects moving list directly into list (must be in list_item)', () => {
-        const doc: ContainerDocumentNode = {
+        const doc: DocumentRootNode = {
           id: 'root',
           type: 'DOCUMENT',
           children: [
@@ -4817,7 +4818,7 @@ describe('useTreeOperations', () => {
     });
 
     test('returns null when move would be invalid (content to list)', () => {
-      const docWithList: ContainerDocumentNode = {
+      const docWithList: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4876,7 +4877,7 @@ describe('useTreeOperations', () => {
     });
 
     test('returns list id for valid list_item moves between lists', () => {
-      const docWithTwoLists: ContainerDocumentNode = {
+      const docWithTwoLists: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -4912,7 +4913,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const p1 = h1.children[0] as ContentDocumentNode;
       expect(p1.format).toBe('MARKDOWN');
@@ -4949,7 +4950,7 @@ describe('useTreeOperations', () => {
         result.current.addNodeAfter('p1');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[1] as ContentDocumentNode;
       expect(newNode.type).toBe('CONTENT');
@@ -4963,7 +4964,7 @@ describe('useTreeOperations', () => {
         result.current.addNodeBefore('h2');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const newNode = h1.children[1] as ContentDocumentNode;
       expect(newNode.format).toBe('TEXT');
@@ -4977,10 +4978,10 @@ describe('useTreeOperations', () => {
         result.current.addNodeAfter('li1');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
-      const newItem = list.children[1] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
+      const newItem = list.children[1] as ListItemDocumentNode;
       const inner = newItem.children[0] as ContentDocumentNode;
       expect(inner.format).toBe('TEXT');
     });
@@ -4988,7 +4989,7 @@ describe('useTreeOperations', () => {
 
   describe('changeNodeTypes — format preservation/reset', () => {
     test('preserves an allowed format when converting content → footnote (NEWLINES is allowed on both)', () => {
-      const docWithMarkdown: ContainerDocumentNode = {
+      const docWithMarkdown: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5008,14 +5009,14 @@ describe('useTreeOperations', () => {
         result.current.changeNodeTypes(['p'], 'FOOTNOTE');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const f = newDoc.children[0] as LeafDocumentNode;
       expect(f.type).toBe('FOOTNOTE');
       expect(f.format).toBe('NEWLINES');
     });
 
     test('resets to TEXT when converting content (MARKDOWN) → heading (MARKDOWN not allowed)', () => {
-      const docWithMarkdown: ContainerDocumentNode = {
+      const docWithMarkdown: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5035,7 +5036,7 @@ describe('useTreeOperations', () => {
         result.current.changeNodeTypes(['p'], 'HEADING');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h = newDoc.children[0] as HeadingDocumentNode;
       expect(h.type).toBe('HEADING');
       expect(h.format).toBe('TEXT');
@@ -5044,7 +5045,7 @@ describe('useTreeOperations', () => {
     });
 
     test('preserves NEWLINES when converting heading → content (still allowed)', () => {
-      const docWithNewlines: ContainerDocumentNode = {
+      const docWithNewlines: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5064,7 +5065,7 @@ describe('useTreeOperations', () => {
         result.current.changeNodeTypes(['h'], 'CONTENT');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const c = newDoc.children[0] as ContentDocumentNode;
       expect(c.type).toBe('CONTENT');
       expect(c.format).toBe('NEWLINES');
@@ -5073,7 +5074,7 @@ describe('useTreeOperations', () => {
 
   describe('moveNodesToBoundary', () => {
     // Flat root with four siblings, used by reordering tests.
-    const createFlatDocument = (): ContainerDocumentNode => ({
+    const createFlatDocument = (): DocumentRootNode => ({
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -5121,7 +5122,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['C', 'A', 'B', 'D']);
     });
 
@@ -5133,7 +5134,7 @@ describe('useTreeOperations', () => {
         result.current.moveNodesToBoundary(['A'], 'bottom');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['B', 'C', 'D', 'A']);
     });
 
@@ -5145,7 +5146,7 @@ describe('useTreeOperations', () => {
         result.current.moveNodesToBoundary(['B', 'C'], 'top');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['B', 'C', 'A', 'D']);
     });
 
@@ -5157,7 +5158,7 @@ describe('useTreeOperations', () => {
         result.current.moveNodesToBoundary(['B', 'C'], 'bottom');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['A', 'D', 'B', 'C']);
     });
 
@@ -5173,7 +5174,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
       const h1 = newDoc.children[1] as HeadingDocumentNode;
       // p1 was already first inside h1; relative order untouched.
@@ -5220,7 +5221,7 @@ describe('useTreeOperations', () => {
         result.current.moveNodesToBoundary(['nonexistent', 'C'], 'top');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['C', 'A', 'B', 'D']);
     });
 
@@ -5233,9 +5234,9 @@ describe('useTreeOperations', () => {
         result.current.moveNodesToBoundary(['li3'], 'top');
       });
 
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const list = h1.children[0] as ContainerDocumentNode;
+      const list = h1.children[0] as ListDocumentNode;
       expect(list.children.map((c) => c.id)).toEqual(['li3', 'li1', 'li2']);
     });
 
@@ -5253,7 +5254,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       // h1 moved to bottom of root.
       expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
       // p2 is the only child of h2, so it stays put — h1's subtree is unchanged.
@@ -5273,7 +5274,7 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['h1b', 'h1']);
       // p1 is still the first child of h1 — no actual change inside h1.
       const h1 = newDoc.children[1] as HeadingDocumentNode;
@@ -5283,7 +5284,7 @@ describe('useTreeOperations', () => {
 
   describe('mergeNodes', () => {
     // Doc with two adjacent content nodes (p1, p1b) sharing parent h1, plus a heading sibling.
-    const createMergeDoc = (): ContainerDocumentNode => ({
+    const createMergeDoc = (): DocumentRootNode => ({
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -5342,7 +5343,7 @@ describe('useTreeOperations', () => {
 
     test('does nothing when selected siblings are non-contiguous', () => {
       // Build doc with three content siblings under h1 (p1, pmid, p1b) so we can pick non-adjacent ones.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5398,7 +5399,7 @@ describe('useTreeOperations', () => {
     });
 
     test('does nothing for image nodes', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5431,7 +5432,7 @@ describe('useTreeOperations', () => {
         result.current.mergeNodes(['p1', 'p1b']);
       });
       expect(mockCommit).toHaveBeenCalledTimes(1);
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       // p1b should be removed; p1 should now hold the joined content.
       expect(h1.children.map((c) => c.id)).toEqual(['p1', 'h2']);
@@ -5441,7 +5442,7 @@ describe('useTreeOperations', () => {
     });
 
     test('merging content nodes preserves per-language text — empty languages are skipped', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5467,7 +5468,7 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['pA', 'pB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as ContentDocumentNode;
       // de: pB is empty so result is just 'D-A' (no leading/trailing newline).
       expect(merged.contents.de).toBe('D-A');
@@ -5481,7 +5482,7 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['p1', 'p1b']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
       const merged = h1.children[0] as ContentDocumentNode;
       expect(merged.format).toBe('NEWLINES');
@@ -5490,7 +5491,7 @@ describe('useTreeOperations', () => {
     test('merging NEWLINES+MARKDOWN content nodes uses MARKDOWN and joins with a blank line', () => {
       // A single `\n` renders as a space in markdown, so paragraph breaks need
       // `\n\n` — otherwise the merge would visually concatenate the prose.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5516,14 +5517,14 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['pA', 'pB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as ContentDocumentNode;
       expect(merged.format).toBe('MARKDOWN');
       expect(merged.contents.de).toBe('a\n\nb');
     });
 
     test('merging content nodes concatenates footnote children in source order', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5572,13 +5573,13 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['pA', 'pB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as ContentDocumentNode;
       expect(merged.children.map((c) => c.id)).toEqual(['fnA1', 'fnB1', 'fnB2']);
     });
 
     test('merging two heading nodes joins contents with a single space', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5604,7 +5605,7 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['hA', 'hB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as HeadingDocumentNode;
       expect(merged.id).toBe('hA');
       expect(merged.number).toBe('1');
@@ -5613,7 +5614,7 @@ describe('useTreeOperations', () => {
 
     test('merging heading nodes does not promote format above its allowed set (TEXT stays TEXT)', () => {
       // Headings join with whitespace, so there's no need to floor to NEWLINES — TEXT must remain valid.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5639,13 +5640,13 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['hA', 'hB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as HeadingDocumentNode;
       expect(merged.format).toBe('TEXT');
     });
 
     test('merging heading nodes appends children in source order', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5689,13 +5690,13 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['hA', 'hB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const merged = newDoc.children[0] as HeadingDocumentNode;
       expect(merged.children.map((c) => c.id)).toEqual(['pA1', 'pB1']);
     });
 
     test('merging two footnote nodes joins contents with newlines and floors format to NEWLINES', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5728,7 +5729,7 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['fnA', 'fnB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const holder = newDoc.children[0] as ContentDocumentNode;
       expect(holder.children.map((c) => c.id)).toEqual(['fnA']);
       const merged = holder.children[0] as LeafDocumentNode;
@@ -5737,7 +5738,7 @@ describe('useTreeOperations', () => {
     });
 
     test('merging two list_items concatenates their children', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5757,16 +5758,16 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['liA', 'liB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list = newDoc.children[0] as ListDocumentNode;
       // liB removed; liA absorbed liB's child content.
       expect(list.children.map((c) => c.id)).toEqual(['liA', 'liC']);
-      const merged = list.children[0] as ContainerDocumentNode;
+      const merged = list.children[0] as ListItemDocumentNode;
       expect(merged.children.map((c) => c.id)).toEqual(['liA-content', 'liB-content']);
     });
 
     test('merging two lists concatenates list_item children', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5788,9 +5789,9 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['listA', 'listB']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['listA']);
-      const merged = newDoc.children[0] as ContainerDocumentNode;
+      const merged = newDoc.children[0] as ListDocumentNode;
       expect(merged.children.map((c) => c.id)).toEqual(['liA1', 'liB1', 'liB2']);
     });
 
@@ -5803,7 +5804,7 @@ describe('useTreeOperations', () => {
     });
 
     test('merges three contiguous content nodes in flat order', () => {
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5837,7 +5838,7 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(['pA', 'pB', 'pC']);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       expect(newDoc.children.map((c) => c.id)).toEqual(['pA']);
       const merged = newDoc.children[0] as ContentDocumentNode;
       expect(merged.contents.de).toBe('A\nB\nC');
@@ -5855,7 +5856,7 @@ describe('useTreeOperations', () => {
     test('tolerates descendants in the selection: merges list_items even when their content children are also selected', () => {
       // Shift-click over list_items typically picks up nested content children too.
       // Those children shouldn't block the merge — they come along inside the merged container.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5879,11 +5880,11 @@ describe('useTreeOperations', () => {
       act(() => {
         result.current.mergeNodes(selection);
       });
-      const newDoc = mockCommit.mock.calls[0][0] as ContainerDocumentNode;
-      const list = newDoc.children[0] as ContainerDocumentNode;
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const list = newDoc.children[0] as ListDocumentNode;
       // liB and liC are gone; liA absorbed their content children in order.
       expect(list.children.map((c) => c.id)).toEqual(['liA']);
-      const merged = list.children[0] as ContainerDocumentNode;
+      const merged = list.children[0] as ListItemDocumentNode;
       expect(merged.children.map((c) => c.id)).toEqual([
         'liA-content',
         'liB-content',
@@ -5894,7 +5895,7 @@ describe('useTreeOperations', () => {
     test('rejects when the selection has no qualifying ancestors (only descendants of different parents)', () => {
       // Selecting only content children of two different list_items should still fail —
       // those children have different parents and aren't siblings to each other.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [
@@ -5912,7 +5913,7 @@ describe('useTreeOperations', () => {
 
     test('rejects when ancestor and lone descendant collapse to a single id', () => {
       // {li, li-content} → filter drops li-content → only li remains → too few to merge.
-      const doc: ContainerDocumentNode = {
+      const doc: DocumentRootNode = {
         id: 'root',
         type: 'DOCUMENT',
         children: [

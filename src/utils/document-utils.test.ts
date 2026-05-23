@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type ContainerDocumentNode,
   type ContentDocumentNode,
   DOC_TREE_VERSION,
   type DocumentNode,
+  type DocumentRootNode,
   type HeadingDocumentNode,
   isValidDocTreeEnvelope,
   type LeafDocumentNode,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
   type NumberedDocumentNode,
+  type ParentDocumentNode,
 } from '../types/document';
 import {
   buildDocTreeEnvelope,
@@ -34,7 +37,7 @@ describe('deriveJsonFilename', () => {
 });
 
 describe('buildDocTreeEnvelope', () => {
-  const tree: ContainerDocumentNode = {
+  const tree: DocumentRootNode = {
     id: 'root',
     type: 'DOCUMENT',
     children: [
@@ -214,10 +217,10 @@ describe('Document Utils', () => {
       const html = '<ul><li>Item 1</li><li>Item 2</li></ul>';
       const doc = parseHtmlToTree(html);
       expect(doc.children.length).toBe(1);
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(2);
-      const item1 = list.children[0] as ContainerDocumentNode;
+      const item1 = list.children[0] as ListItemDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBeNull(); // ul has no numbering
       // Content is now in a child content node
@@ -229,15 +232,15 @@ describe('Document Utils', () => {
     it('converts ol with numbering in number field', () => {
       const html = '<ol><li>First</li><li>Second</li></ol>';
       const doc = parseHtmlToTree(html);
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
-      const item1 = list.children[0] as ContainerDocumentNode;
+      const item1 = list.children[0] as ListItemDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBe('1.');
       // Content is now in a child content node
       const item1Content = item1.children[0] as LeafDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
-      const item2 = list.children[1] as ContainerDocumentNode;
+      const item2 = list.children[1] as ListItemDocumentNode;
       expect((item2 as NumberedDocumentNode).number).toBe('2.');
     });
 
@@ -248,13 +251,13 @@ describe('Document Utils', () => {
 <li style="list-style-type: 'c) ';">Third item</li>
 </ol>`;
       const doc = parseHtmlToTree(html);
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
-      const item1 = list.children[0] as ContainerDocumentNode;
+      const item1 = list.children[0] as ListItemDocumentNode;
       expect((item1 as NumberedDocumentNode).number).toBe('a)');
-      const item2 = list.children[1] as ContainerDocumentNode;
+      const item2 = list.children[1] as ListItemDocumentNode;
       expect((item2 as NumberedDocumentNode).number).toBe('b)');
-      const item3 = list.children[2] as ContainerDocumentNode;
+      const item3 = list.children[2] as ListItemDocumentNode;
       expect((item3 as NumberedDocumentNode).number).toBe('c)');
     });
 
@@ -272,12 +275,12 @@ describe('Document Utils', () => {
         <li>Er regelt zudem die schulpsychologische Versorgung im Bereich der Volksschule und die <br />ergänzenden Angebote.</li>
       </ol>`;
       const doc = parseHtmlToTree(html);
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(3);
 
       // Second item should have content + nested list
-      const item2 = list.children[1] as ContainerDocumentNode;
+      const item2 = list.children[1] as ListItemDocumentNode;
       expect(item2.type).toBe('LIST_ITEM');
       expect(item2.children.length).toBe(2); // content + nested list
 
@@ -285,11 +288,11 @@ describe('Document Utils', () => {
       expect(item2Content.type).toBe('CONTENT');
       expect(item2Content.contents.de).toContain('Er gilt für:');
 
-      const nestedList = item2.children[1] as ContainerDocumentNode;
+      const nestedList = item2.children[1] as ListDocumentNode;
       expect(nestedList.type).toBe('LIST');
       expect(nestedList.children.length).toBe(4);
 
-      const nestedItem1 = nestedList.children[0] as ContainerDocumentNode;
+      const nestedItem1 = nestedList.children[0] as ListItemDocumentNode;
       expect(nestedItem1.type).toBe('LIST_ITEM');
       expect((nestedItem1 as NumberedDocumentNode).number).toBe('1.');
       const nestedItem1Content = nestedItem1.children[0] as ContentDocumentNode;
@@ -308,8 +311,8 @@ describe('Document Utils', () => {
     it('preserves <sup> in list item content as MARKDOWN', () => {
       const html = '<ol><li><sup>1</sup> Dieser Erlass regelt das Bildungswesen.</li></ol>';
       const doc = parseHtmlToTree(html);
-      const list = doc.children[0] as ContainerDocumentNode;
-      const item = list.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
+      const item = list.children[0] as ListItemDocumentNode;
       const content = item.children[0] as ContentDocumentNode;
       expect(content.type).toBe('CONTENT');
       expect(content.format).toBe('MARKDOWN');
@@ -665,9 +668,9 @@ describe('Document Utils', () => {
       const html = '<p>a. First item</p><p>b. Second item</p>';
       const doc = parseHtmlLegalToTree(html);
       // Should be converted to a list with lettered items
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
-      const item1 = list.children[0] as ContainerDocumentNode;
+      const item1 = list.children[0] as ListItemDocumentNode;
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBe('a.');
       // Content is now in a child content node
@@ -693,12 +696,12 @@ describe('Document Utils', () => {
     it('accumulates multiple lettered items into single list', () => {
       const html = '<p>a. first</p><p>b. second</p><p>c. third</p>';
       const doc = parseHtmlLegalToTree(html);
-      const list = doc.children[0] as ContainerDocumentNode;
+      const list = doc.children[0] as ListDocumentNode;
       expect(list.type).toBe('LIST');
       expect(list.children.length).toBe(3);
-      expect((list.children[0] as LeafDocumentNode).number).toBe('a.');
-      expect((list.children[1] as LeafDocumentNode).number).toBe('b.');
-      expect((list.children[2] as LeafDocumentNode).number).toBe('c.');
+      expect((list.children[0] as ListItemDocumentNode).number).toBe('a.');
+      expect((list.children[1] as ListItemDocumentNode).number).toBe('b.');
+      expect((list.children[2] as ListItemDocumentNode).number).toBe('c.');
     });
 
     it('detects multiple roman numeral sections', () => {
@@ -781,11 +784,11 @@ describe('Document Utils', () => {
       expect(hasHeadings).toBe(true);
 
       // Find the ol list and verify list-style-type is preserved
-      const allLists: ContainerDocumentNode[] = [];
+      const allLists: ListDocumentNode[] = [];
       const collectLists = (node: DocumentNode) => {
-        if (node.type === 'LIST') allLists.push(node as ContainerDocumentNode);
+        if (node.type === 'LIST') allLists.push(node);
         if ('children' in node) {
-          for (const child of (node as ContainerDocumentNode).children) {
+          for (const child of node.children) {
             collectLists(child);
           }
         }
@@ -819,13 +822,11 @@ describe('Document Utils', () => {
       expect(doc.children.length).toBeGreaterThan(0);
 
       // Check that some nodes exist (headings from legal patterns)
-      const flattenNodes = (
-        node: ContainerDocumentNode | HeadingDocumentNode
-      ): (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] => {
-        const result: (ContainerDocumentNode | HeadingDocumentNode | LeafDocumentNode)[] = [node];
+      const flattenNodes = (node: ParentDocumentNode): DocumentNode[] => {
+        const result: DocumentNode[] = [node];
         for (const child of node.children) {
           if ('children' in child) {
-            result.push(...flattenNodes(child as ContainerDocumentNode | HeadingDocumentNode));
+            result.push(...flattenNodes(child));
           } else {
             result.push(child);
           }
@@ -860,12 +861,12 @@ describe('isEmptyDocument', () => {
   };
 
   it('returns true for a DOCUMENT with no children', () => {
-    const doc: ContainerDocumentNode = { id: 'root', type: 'DOCUMENT', children: [] };
+    const doc: DocumentRootNode = { id: 'root', type: 'DOCUMENT', children: [] };
     expect(isEmptyDocument(doc)).toBe(true);
   });
 
   it('returns true for a tree whose only nodes carry no text', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [
@@ -899,7 +900,7 @@ describe('isEmptyDocument', () => {
   it('treats a node whose only text lives in `number` as non-empty', () => {
     // Swiss legal transforms move labels like "Art. 5" into `number`, leaving
     // `contents` empty — that is still real content, not an empty import.
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
       type: 'DOCUMENT',
       children: [

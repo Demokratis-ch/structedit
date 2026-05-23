@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
+  ListDocumentNode,
   NumberedDocumentNode,
 } from '../../types/document';
 import { applySwissLegalTransforms, composeTransforms } from './index';
@@ -10,7 +11,7 @@ import { content, createDoc, heading, list } from './test-helpers';
 
 describe('composeTransforms', () => {
   it('applies transforms left to right', () => {
-    const addPrefix = (root: ContainerDocumentNode) => ({
+    const addPrefix = (root: DocumentRootNode) => ({
       ...root,
       children: root.children.map((c) =>
         c.type === 'CONTENT'
@@ -18,7 +19,7 @@ describe('composeTransforms', () => {
           : c
       ),
     });
-    const addSuffix = (root: ContainerDocumentNode) => ({
+    const addSuffix = (root: DocumentRootNode) => ({
       ...root,
       children: root.children.map((c) =>
         c.type === 'CONTENT'
@@ -45,7 +46,7 @@ describe('composeTransforms', () => {
   });
 
   it('works with single transform', () => {
-    const upper = (root: ContainerDocumentNode) => ({
+    const upper = (root: DocumentRootNode) => ({
       ...root,
       children: root.children.map((c) =>
         c.type === 'CONTENT'
@@ -94,7 +95,7 @@ describe('applySwissLegalTransforms', () => {
     expect(article.children[0].type).toBe('LIST');
 
     // List should have 2 items
-    const list = article.children[0] as ContainerDocumentNode;
+    const list = article.children[0] as ListDocumentNode;
     expect(list.children).toHaveLength(2);
     expect((list.children[0] as NumberedDocumentNode).number).toBe('a.');
     expect((list.children[1] as NumberedDocumentNode).number).toBe('b.');
@@ -136,7 +137,7 @@ describe('applySwissLegalTransforms', () => {
 
     expect(result.children).toHaveLength(1);
     expect(result.children[0].type).toBe('LIST');
-    const merged = result.children[0] as ContainerDocumentNode;
+    const merged = result.children[0] as ListDocumentNode;
     expect(merged.children).toHaveLength(2);
   });
 
@@ -171,7 +172,7 @@ describe('applySwissLegalTransforms', () => {
     const result = applySwissLegalTransforms(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    const merged = result.children[0] as ContainerDocumentNode;
+    const merged = result.children[0] as ListDocumentNode;
     expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
       'a)',
       'b)',

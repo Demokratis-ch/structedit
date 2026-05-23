@@ -1,9 +1,9 @@
 import {
   type BlockDocumentNode,
-  type ContainerDocumentNode,
   type ContentBearingNodeType,
   canHaveFormat,
   type DocumentNode,
+  type DocumentRootNode,
   type FootnoteDocumentNode,
   type ListItemDocumentNode,
   type NodeFormat,
@@ -58,13 +58,13 @@ export function getNodeAtPath(root: DocumentNode, path: NodePath): DocumentNode 
  * Uses structural sharing for efficiency.
  */
 export function updateNodeAtPath(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   path: NodePath,
   updater: (node: DocumentNode) => DocumentNode
-): ContainerDocumentNode {
+): DocumentRootNode {
   // The root passed in is always a container; the recursion below descends through any parent
   // node (headings/content carry children too), so the single boundary cast restores that fact.
-  return updateParentAtPath(root, path, updater) as ContainerDocumentNode;
+  return updateParentAtPath(root, path, updater) as DocumentRootNode;
 }
 
 /**
@@ -101,10 +101,10 @@ function updateParentAtPath(
  * children })` shape — the per-type child cast is handled by {@link withMappedChildren}.
  */
 export function updateChildrenAtPath(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   path: NodePath,
   map: (children: DocumentNode[]) => DocumentNode[]
-): ContainerDocumentNode {
+): DocumentRootNode {
   return updateNodeAtPath(root, path, (node) =>
     'children' in node ? withMappedChildren(node, map) : node
   );
@@ -118,10 +118,10 @@ const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', '
  * contents untouched. Returns the same root reference if no change was applied.
  */
 export function changeNodeFormat(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   path: NodePath,
   format: NodeFormat
-): ContainerDocumentNode {
+): DocumentRootNode {
   const node = getNodeAtPath(root, path);
   if (!node) return root;
   if (!CONTENT_BEARING_TYPES.includes(node.type as ContentBearingNodeType)) return root;
@@ -133,11 +133,11 @@ export function changeNodeFormat(
  * Insert a node at a specific position.
  */
 export function insertNodeAtPath(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   parentPath: NodePath,
   index: number,
   newNode: DocumentNode
-): ContainerDocumentNode {
+): DocumentRootNode {
   return updateNodeAtPath(root, parentPath, (parent) => {
     if (!('children' in parent)) {
       throw new Error('Cannot insert into leaf node');
@@ -153,10 +153,7 @@ export function insertNodeAtPath(
 /**
  * Remove a node at path.
  */
-export function removeNodeAtPath(
-  root: ContainerDocumentNode,
-  path: NodePath
-): ContainerDocumentNode {
+export function removeNodeAtPath(root: DocumentRootNode, path: NodePath): DocumentRootNode {
   if (path.length === 0) {
     throw new Error('Cannot remove root');
   }
@@ -180,11 +177,11 @@ export function removeNodeAtPath(
  * Move a node from one location to another.
  */
 export function moveNode(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   fromPath: NodePath,
   toParentPath: NodePath,
   toIndex: number
-): ContainerDocumentNode {
+): DocumentRootNode {
   const node = getNodeAtPath(root, fromPath);
   if (!node) {
     throw new Error('Source node not found');
@@ -237,7 +234,7 @@ export function moveNode(
 /**
  * Build lookup indices for efficient tree operations.
  */
-export function buildIndices(root: ContainerDocumentNode): {
+export function buildIndices(root: DocumentRootNode): {
   nodeIndex: Map<string, NodePath>;
   parentIndex: Map<string, string>;
 } {
@@ -265,10 +262,7 @@ export function buildIndices(root: ContainerDocumentNode): {
  * Merge adjacent list siblings within a parent container.
  * Combines consecutive lists into a single list.
  */
-export function mergeAdjacentLists(
-  root: ContainerDocumentNode,
-  parentPath: NodePath
-): ContainerDocumentNode {
+export function mergeAdjacentLists(root: DocumentRootNode, parentPath: NodePath): DocumentRootNode {
   const parent = parentPath.length === 0 ? root : getNodeAtPath(root, parentPath);
   if (!parent || !('children' in parent)) return root;
 
@@ -303,7 +297,7 @@ export function mergeAdjacentLists(
 /**
  * Flatten tree to array for rendering, computing connector line metadata.
  */
-export function flattenForRendering(root: ContainerDocumentNode): FlattenedNode[] {
+export function flattenForRendering(root: DocumentRootNode): FlattenedNode[] {
   const result: FlattenedNode[] = [];
 
   function walk(

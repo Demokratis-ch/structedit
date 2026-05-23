@@ -1,10 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import {
-  type ContainerDocumentNode,
-  DOC_TREE_VERSION,
-  isValidDocTreeEnvelope,
-} from '../types/document';
+import { DOC_TREE_VERSION, type DocumentRootNode, isValidDocTreeEnvelope } from '../types/document';
 import { EditorInterface } from './EditorInterface';
 
 const downloadFileSpy = vi.fn();
@@ -14,7 +10,7 @@ vi.mock('../utils/document-utils', async () => {
   return { ...actual, downloadFile: (...args: unknown[]) => downloadFileSpy(...args) };
 });
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children: [

@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, Language } from '../../types/document';
+import type { DocumentRootNode, Language } from '../../types/document';
 import { articleTransform } from './article';
 import { headingNumberExtractTransform } from './heading-number-extract';
 import { letteredItemsTransform } from './lettered-items';
@@ -40,7 +40,7 @@ export interface LegalTransformConfig {
  * Applies transforms left-to-right.
  */
 export function composeTransforms(...transforms: TreeTransform[]): TreeTransform {
-  return (root: ContainerDocumentNode, language: Language): ContainerDocumentNode =>
+  return (root: DocumentRootNode, language: Language): DocumentRootNode =>
     transforms.reduce((tree, transform) => transform(tree, language), root);
 }
 
@@ -62,10 +62,10 @@ export function composeTransforms(...transforms: TreeTransform[]): TreeTransform
  * @returns A new transformed tree
  */
 export function applySwissLegalTransforms(
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language,
   config: LegalTransformConfig = {}
-): ContainerDocumentNode {
+): DocumentRootNode {
   const {
     mergeAdjacentLists = true,
     headingNumberExtract = true,

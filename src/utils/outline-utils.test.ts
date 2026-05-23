@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import type { BlockDocumentNode, ContainerDocumentNode } from '../types/document';
+import type { BlockDocumentNode, DocumentRootNode } from '../types/document';
 import { getDocumentOutline } from './outline-utils';
 
-const makeDoc = (...children: BlockDocumentNode[]): ContainerDocumentNode => ({
+const makeDoc = (...children: BlockDocumentNode[]): DocumentRootNode => ({
   id: 'root',
   type: 'DOCUMENT',
   children,

@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, Language } from '../types/document';
+import type { DocumentRootNode, Language } from '../types/document';
 import { migrateEntry, SCHEMA_VERSION } from './document-storage-migrations';
 
 export const MAX_RECENTS = 20;
@@ -24,7 +24,7 @@ export interface StoredDocumentEntry {
   name: string;
   subtitle: string | null;
   language: Language;
-  tree: ContainerDocumentNode;
+  tree: DocumentRootNode;
   source: StoredEntrySource;
   createdAt: number;
   updatedAt: number;
@@ -64,7 +64,7 @@ export interface CreateEntryInput {
   name: string;
   subtitle: string | null;
   language: Language;
-  tree: ContainerDocumentNode;
+  tree: DocumentRootNode;
   source: StoredEntrySource;
 }
 
@@ -202,7 +202,7 @@ export async function closeDb(): Promise<void> {
   }
 }
 
-function computeByteSize(tree: ContainerDocumentNode, source: StoredEntrySource): number {
+function computeByteSize(tree: DocumentRootNode, source: StoredEntrySource): number {
   const treeBytes = new TextEncoder().encode(JSON.stringify(tree)).byteLength;
   const sourceBytes =
     typeof source.bytes === 'string'
@@ -315,11 +315,11 @@ async function attemptCreate(entry: StoredDocumentEntry): Promise<void> {
   await awaitTransaction(tx);
 }
 
-export function updateEntryTree(id: string, tree: ContainerDocumentNode): Promise<void> {
+export function updateEntryTree(id: string, tree: DocumentRootNode): Promise<void> {
   return trackWrite(updateEntryTreeImpl(id, tree));
 }
 
-async function updateEntryTreeImpl(id: string, tree: ContainerDocumentNode): Promise<void> {
+async function updateEntryTreeImpl(id: string, tree: DocumentRootNode): Promise<void> {
   try {
     await attemptUpdate(id, tree);
   } catch (err) {
@@ -336,7 +336,7 @@ async function updateEntryTreeImpl(id: string, tree: ContainerDocumentNode): Pro
   // refreshed on the next structural change or on view transition.
 }
 
-async function attemptUpdate(id: string, tree: ContainerDocumentNode): Promise<void> {
+async function attemptUpdate(id: string, tree: DocumentRootNode): Promise<void> {
   checkWriteFailHook();
 
   const db = await openDb();
@@ -359,7 +359,7 @@ async function attemptUpdate(id: string, tree: ContainerDocumentNode): Promise<v
 
 async function projectUpdatedEntry(
   id: string,
-  tree: ContainerDocumentNode
+  tree: DocumentRootNode
 ): Promise<StoredDocumentEntry | null> {
   const db = await openDb();
   const tx = db.transaction(STORE, 'readonly');

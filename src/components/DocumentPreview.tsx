@@ -2,9 +2,10 @@ import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useResizable } from '../hooks/useResizable';
 import type {
-  ContainerDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   Language,
+  ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
 } from '../types/document';
@@ -40,7 +41,7 @@ function MarkupBlock({ source, format }: { source: string; format: NodeFormat })
 }
 
 interface DocumentPreviewProps {
-  document: ContainerDocumentNode;
+  document: DocumentRootNode;
   language: Language;
   onHeadingClick?: (nodeId: string) => void;
 }
@@ -335,7 +336,7 @@ function ListNode({
   language,
   headingDepth,
 }: {
-  node: ContainerDocumentNode;
+  node: ListDocumentNode;
   language: Language;
   headingDepth: number;
 }) {

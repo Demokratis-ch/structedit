@@ -1,11 +1,11 @@
 import * as Tabs from '@radix-ui/react-tabs';
-import type { ContainerDocumentNode, Language } from '../types/document';
+import type { DocumentRootNode, Language } from '../types/document';
 import { DocumentPreview } from './DocumentPreview';
 import { SourcePreview } from './SourcePreview';
 
 interface LeftPaneProps {
   documentUrl: string | null;
-  document: ContainerDocumentNode;
+  document: DocumentRootNode;
   language: Language;
   onHeadingClick: (nodeId: string) => void;
 }

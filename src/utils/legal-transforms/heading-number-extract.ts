@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, DocumentNode, Language } from '../../types/document';
+import type { DocumentNode, DocumentRootNode, Language } from '../../types/document';
 import { withMappedChildren } from '../tree-utils';
 import {
   extractCleanText,
@@ -76,9 +76,9 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
  * `number` field on headings that already exist.
  */
 export const headingNumberExtractTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   return withMappedChildren(root, (children) =>
     children.map((child) => processNode(child, language))
   );
