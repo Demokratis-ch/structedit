@@ -3,9 +3,10 @@ import type {
   ContentDocumentNode,
   DocumentNode,
   DocumentRootNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
+  ImageDocumentNode,
   Language,
-  LeafDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
@@ -136,7 +137,9 @@ export const canMergeIdsInDoc = (
 
 /** Per-language join. Empty strings on either side don't introduce stray separators. */
 const mergeContentsFromNodes = (
-  nodes: ReadonlyArray<HeadingDocumentNode | ContentDocumentNode | LeafDocumentNode>,
+  nodes: ReadonlyArray<
+    HeadingDocumentNode | ContentDocumentNode | FootnoteDocumentNode | ImageDocumentNode
+  >,
   separator: string
 ): Partial<Record<Language, string>> => {
   const languages = new Set<Language>();
@@ -571,7 +574,7 @@ export const getNumberForStyle = (style: ListStyle, index: number): string | nul
 /** Check if a node has contents (is leaf, heading, or content - not pure container). */
 const hasContents = (
   node: DocumentNode
-): node is LeafDocumentNode | HeadingDocumentNode | ContentDocumentNode => {
+): node is FootnoteDocumentNode | ImageDocumentNode | HeadingDocumentNode | ContentDocumentNode => {
   return 'contents' in node;
 };
 
@@ -723,7 +726,7 @@ export const changeNodeTypeInDoc = (
     const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'FOOTNOTE');
 
     // Create footnote node (leaf - no children)
-    const footnoteNode: LeafDocumentNode = {
+    const footnoteNode: FootnoteDocumentNode = {
       id: node.id,
       number: node.number,
       type: 'FOOTNOTE',
@@ -912,7 +915,7 @@ export const mergeNodesInDoc = (
       children: contents.flatMap((n) => n.children),
     };
   } else if (firstNode.type === 'FOOTNOTE') {
-    const footnotes = nodes as LeafDocumentNode[];
+    const footnotes = nodes as FootnoteDocumentNode[];
     const format = mergeFormatOf(
       footnotes.map((n) => n.format),
       'FOOTNOTE'

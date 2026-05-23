@@ -159,12 +159,6 @@ export type ParentDocumentNode =
  */
 export type NumberedDocumentNode = Exclude<DocumentNode, DocumentRootNode>;
 
-/**
- * Convenience grouping alias for the leaf node types. Prefer {@link FootnoteDocumentNode} or
- * {@link ImageDocumentNode} directly in new code.
- */
-export type LeafDocumentNode = FootnoteDocumentNode | ImageDocumentNode;
-
 /** A node type that may legally contain children, plus `null` for the document's root level. */
 export type ParentType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM' | 'HEADING' | 'CONTENT' | null;
 

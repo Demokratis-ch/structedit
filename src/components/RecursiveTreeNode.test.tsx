@@ -4,8 +4,8 @@ import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
   ContentDocumentNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
@@ -199,7 +199,7 @@ describe('RecursiveTreeNode', () => {
     });
 
     test('footnote with null number renders a dashed placeholder badge', () => {
-      const node: LeafDocumentNode = {
+      const node: FootnoteDocumentNode = {
         id: 'fn-no-num',
         number: null,
         type: 'FOOTNOTE',
@@ -284,7 +284,7 @@ describe('RecursiveTreeNode', () => {
 
     test('footnote with a number renders a solid badge that is double-clickable', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: LeafDocumentNode = {
+      const node: FootnoteDocumentNode = {
         id: 'fn-with-num',
         number: 'i.',
         type: 'FOOTNOTE',

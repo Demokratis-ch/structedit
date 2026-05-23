@@ -5,7 +5,6 @@ import type {
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
@@ -581,7 +580,7 @@ describe('mergeNodesInDoc', () => {
     expect(result).not.toBeNull();
     const parent = getNodeAtPath(result!, [0]) as HeadingDocumentNode;
     expect(parent.children).toHaveLength(1);
-    const merged = parent.children[0] as LeafDocumentNode;
+    const merged = parent.children[0] as FootnoteDocumentNode;
     expect(merged.type).toBe('FOOTNOTE');
     expect(merged.id).toBe('f1');
     expect(merged.contents.de).toBe('a\nb');
