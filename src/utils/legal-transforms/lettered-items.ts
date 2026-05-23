@@ -2,10 +2,11 @@ import type {
   ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
-  HeadingDocumentNode,
   Language,
+  ListDocumentNode,
 } from '../../types/document';
 import { generateId } from '../document-utils';
+import { withMappedChildren } from '../tree-utils';
 import { extractCleanText, matchLetteredItem } from './patterns';
 import type { TreeTransform } from './types';
 
@@ -14,8 +15,7 @@ import type { TreeTransform } from './types';
  */
 function getLetterMatch(node: DocumentNode): { letter: string; content: string } | null {
   if (node.type !== 'CONTENT') return null;
-  const contentNode = node as ContentDocumentNode;
-  const text = extractCleanText(contentNode.contents.de || '');
+  const text = extractCleanText(node.contents.de || '');
   const match = matchLetteredItem(text);
   if (match.matched && match.letter && match.content !== undefined) {
     return { letter: match.letter, content: match.content };
@@ -39,7 +39,7 @@ function stripLetterPrefix(htmlContent: string): string {
 function createList(
   items: { number: string; originalContent: ContentDocumentNode }[],
   language: Language
-): ContainerDocumentNode {
+): ListDocumentNode {
   return {
     id: generateId(),
     number: null,
@@ -71,11 +71,7 @@ function processChildren(children: DocumentNode[], language: Language): Document
   // First, recursively apply to all container children
   const transformedChildren = children.map((child) => {
     if ('children' in child && child.children && child.children.length > 0) {
-      const containerChild = child as ContainerDocumentNode | HeadingDocumentNode;
-      return {
-        ...containerChild,
-        children: processChildren(containerChild.children, language),
-      };
+      return withMappedChildren(child, (grandchildren) => processChildren(grandchildren, language));
     }
     return child;
   });
@@ -135,8 +131,5 @@ export const letteredItemsTransform: TreeTransform = (
   root: ContainerDocumentNode,
   language: Language
 ): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: processChildren(root.children, language),
-  };
+  return withMappedChildren(root, (children) => processChildren(children, language));
 };

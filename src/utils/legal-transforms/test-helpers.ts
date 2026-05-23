@@ -1,16 +1,17 @@
 import type {
+  BlockDocumentNode,
   ContainerDocumentNode,
   ContentDocumentNode,
-  DocumentNode,
   HeadingDocumentNode,
   Language,
+  ListDocumentNode,
 } from '../../types/document';
 import { generateId } from '../document-utils';
 
 /**
  * Create a document root node for testing
  */
-export function createDoc(children: DocumentNode[]): ContainerDocumentNode {
+export function createDoc(children: BlockDocumentNode[]): ContainerDocumentNode {
   return {
     id: generateId(),
     type: 'DOCUMENT',
@@ -37,7 +38,7 @@ export function content(text: string, lang: Language = 'de'): ContentDocumentNod
  */
 export function heading(
   text: string,
-  children: DocumentNode[] = [],
+  children: BlockDocumentNode[] = [],
   lang: Language = 'de'
 ): HeadingDocumentNode {
   return {
@@ -53,7 +54,7 @@ export function heading(
 /**
  * Create a list node for testing
  */
-export function list(items: { number: string | null; content: string }[]): ContainerDocumentNode {
+export function list(items: { number: string | null; content: string }[]): ListDocumentNode {
   return {
     id: generateId(),
     number: null,

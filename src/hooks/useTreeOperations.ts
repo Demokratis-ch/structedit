@@ -28,6 +28,7 @@ import {
   insertNodeAtPath,
   moveNode,
   removeNodeAtPath,
+  updateChildrenAtPath,
   updateNodeAtPath,
 } from '../utils/tree-utils';
 
@@ -401,10 +402,7 @@ export const useTreeOperations = ({
         const noChange = newChildren.every((c, i) => c === children[i]);
         if (noChange) continue;
 
-        doc = updateNodeAtPath(doc, parentPath, (n) => ({
-          ...n,
-          children: newChildren,
-        }));
+        doc = updateChildrenAtPath(doc, parentPath, () => newChildren);
         changed = true;
       }
 

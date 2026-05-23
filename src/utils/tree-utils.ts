@@ -1,11 +1,40 @@
 import {
+  type BlockDocumentNode,
   type ContainerDocumentNode,
   type ContentBearingNodeType,
   canHaveFormat,
   type DocumentNode,
+  type FootnoteDocumentNode,
+  type ListItemDocumentNode,
   type NodeFormat,
+  type ParentDocumentNode,
 } from '../types/document';
 import type { FlattenedNode, NodePath } from '../types/editor';
+
+/**
+ * Rebuild a parent node with a transformed children array, preserving the node's concrete type.
+ *
+ * The `map` callback operates at the widened `DocumentNode[]` level so generic walkers and tree
+ * transforms need not know which concrete parent they hold; the cast back to the exact child union
+ * (`ListItemDocumentNode[]` / `FootnoteDocumentNode[]` / `BlockDocumentNode[]`) is asserted here,
+ * keyed off the runtime `type` discriminant. Every immutable children-rebuild routes through this
+ * one helper rather than sprinkling casts at each call site — the cast trusts the callback to
+ * return nodes valid for the parent (it can't be statically enforced once widened to `DocumentNode`).
+ */
+export function withMappedChildren<T extends ParentDocumentNode>(
+  node: T,
+  map: (children: DocumentNode[]) => DocumentNode[]
+): T {
+  switch (node.type) {
+    case 'LIST':
+      return { ...node, children: map(node.children) as ListItemDocumentNode[] };
+    case 'CONTENT':
+      return { ...node, children: map(node.children) as FootnoteDocumentNode[] };
+    default:
+      // DOCUMENT | HEADING | LIST_ITEM all carry block-level children.
+      return { ...node, children: map(node.children) as BlockDocumentNode[] };
+  }
+}
 
 /**
  * Get a node at a given path (immutable read).
@@ -33,23 +62,52 @@ export function updateNodeAtPath(
   path: NodePath,
   updater: (node: DocumentNode) => DocumentNode
 ): ContainerDocumentNode {
+  // The root passed in is always a container; the recursion below descends through any parent
+  // node (headings/content carry children too), so the single boundary cast restores that fact.
+  return updateParentAtPath(root, path, updater) as ContainerDocumentNode;
+}
+
+/**
+ * Recursive core of {@link updateNodeAtPath}. Operates over any parent node so a path can descend
+ * through headings and content nodes, not just the container types.
+ */
+function updateParentAtPath(
+  node: ParentDocumentNode,
+  path: NodePath,
+  updater: (node: DocumentNode) => DocumentNode
+): DocumentNode {
   if (path.length === 0) {
-    return updater(root) as ContainerDocumentNode;
+    return updater(node);
   }
 
   const [headIndex, ...tailPath] = path;
-  const newChildren = [...root.children];
 
-  if (tailPath.length === 0) {
-    newChildren[headIndex] = updater(newChildren[headIndex]);
-  } else {
+  return withMappedChildren(node, (children) => {
+    const newChildren = [...children];
     const child = newChildren[headIndex];
-    if ('children' in child) {
-      newChildren[headIndex] = updateNodeAtPath(child as ContainerDocumentNode, tailPath, updater);
+    if (tailPath.length === 0) {
+      newChildren[headIndex] = updater(child);
+    } else if ('children' in child) {
+      // Only parent nodes (those carrying `children`) can be descended into further.
+      newChildren[headIndex] = updateParentAtPath(child, tailPath, updater);
     }
-  }
+    return newChildren;
+  });
+}
 
-  return { ...root, children: newChildren };
+/**
+ * Replace a parent node's children at `path` via a mapping callback, preserving the node's
+ * concrete type. The ergonomic wrapper for the common `updateNodeAtPath(..., (n) => ({ ...n,
+ * children })` shape — the per-type child cast is handled by {@link withMappedChildren}.
+ */
+export function updateChildrenAtPath(
+  root: ContainerDocumentNode,
+  path: NodePath,
+  map: (children: DocumentNode[]) => DocumentNode[]
+): ContainerDocumentNode {
+  return updateNodeAtPath(root, path, (node) =>
+    'children' in node ? withMappedChildren(node, map) : node
+  );
 }
 
 const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
@@ -80,19 +138,15 @@ export function insertNodeAtPath(
   index: number,
   newNode: DocumentNode
 ): ContainerDocumentNode {
-  if (parentPath.length === 0) {
-    const newChildren = [...root.children];
-    newChildren.splice(index, 0, newNode);
-    return { ...root, children: newChildren };
-  }
-
   return updateNodeAtPath(root, parentPath, (parent) => {
     if (!('children' in parent)) {
       throw new Error('Cannot insert into leaf node');
     }
-    const newChildren = [...(parent as ContainerDocumentNode).children];
-    newChildren.splice(index, 0, newNode);
-    return { ...parent, children: newChildren };
+    return withMappedChildren(parent, (children) => {
+      const newChildren = [...children];
+      newChildren.splice(index, 0, newNode);
+      return newChildren;
+    });
   });
 }
 
@@ -110,19 +164,15 @@ export function removeNodeAtPath(
   const parentPath = path.slice(0, -1);
   const childIndex = path[path.length - 1];
 
-  if (parentPath.length === 0) {
-    const newChildren = [...root.children];
-    newChildren.splice(childIndex, 1);
-    return { ...root, children: newChildren };
-  }
-
   return updateNodeAtPath(root, parentPath, (parent) => {
     if (!('children' in parent)) {
       throw new Error('Parent is not a container');
     }
-    const newChildren = [...(parent as ContainerDocumentNode).children];
-    newChildren.splice(childIndex, 1);
-    return { ...parent, children: newChildren };
+    return withMappedChildren(parent, (children) => {
+      const newChildren = [...children];
+      newChildren.splice(childIndex, 1);
+      return newChildren;
+    });
   });
 }
 
@@ -231,12 +281,10 @@ export function mergeAdjacentLists(
     if (child.type === 'LIST' && merged.length > 0) {
       const prev = merged[merged.length - 1];
       if (prev.type === 'LIST') {
-        // Merge this list into the previous one
-        const prevList = prev as ContainerDocumentNode;
-        const currList = child as ContainerDocumentNode;
+        // Merge this list into the previous one (both narrowed to LIST → typed list_item children).
         merged[merged.length - 1] = {
-          ...prevList,
-          children: [...prevList.children, ...currList.children],
+          ...prev,
+          children: [...prev.children, ...child.children],
         };
         continue;
       }
@@ -248,15 +296,8 @@ export function mergeAdjacentLists(
   // No change needed if same length
   if (merged.length === children.length) return root;
 
-  // Update the parent with merged children
-  if (parentPath.length === 0) {
-    return { ...root, children: merged };
-  }
-
-  return updateNodeAtPath(root, parentPath, (p) => ({
-    ...p,
-    children: merged,
-  }));
+  // Update the parent with merged children (handles the root via an empty parentPath).
+  return updateChildrenAtPath(root, parentPath, () => merged);
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { ContainerDocumentNode, DocumentNode, Language } from '../../types/document';
+import { withMappedChildren } from '../tree-utils';
 import type { TreeTransform } from './types';
 
 /**
@@ -29,11 +30,10 @@ function recurseIntoContainer(node: DocumentNode): DocumentNode {
 
     const last = out[out.length - 1];
     if (recursed.type === 'LIST' && last?.type === 'LIST') {
-      const prev = last as ContainerDocumentNode;
-      const curr = recursed as ContainerDocumentNode;
+      // Both narrowed to LIST → their children are list_items; concatenation stays typed.
       out[out.length - 1] = {
-        ...prev,
-        children: [...prev.children, ...curr.children],
+        ...last,
+        children: [...last.children, ...recursed.children],
       };
       changed = true;
     } else {
@@ -41,7 +41,7 @@ function recurseIntoContainer(node: DocumentNode): DocumentNode {
     }
   }
 
-  return changed ? { ...node, children: out } : node;
+  return changed ? withMappedChildren(node, () => out) : node;
 }
 
 export const mergeAdjacentListsTransform: TreeTransform = (

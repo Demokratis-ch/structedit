@@ -6,6 +6,7 @@ import type {
   HeadingDocumentNode,
   Language,
   LeafDocumentNode,
+  ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
   ParentType,
@@ -18,6 +19,7 @@ import {
   insertNodeAtPath,
   mergeAdjacentLists,
   removeNodeAtPath,
+  updateChildrenAtPath,
   updateNodeAtPath,
 } from './tree-utils';
 
@@ -211,17 +213,17 @@ export function flattenListToContents(list: ContainerDocumentNode): DocumentNode
   const out: DocumentNode[] = [];
   for (const item of list.children) {
     if (item.type !== 'LIST_ITEM') continue;
-    const listItem = item as ListItemDocumentNode;
+    const listItem = item;
 
     const flattenedChildren: DocumentNode[] = [];
     let numberAttached = false;
 
     for (const child of listItem.children) {
       if (child.type === 'LIST') {
-        flattenedChildren.push(...flattenListToContents(child as ContainerDocumentNode));
+        flattenedChildren.push(...flattenListToContents(child));
       } else if (child.type === 'CONTENT' && !numberAttached) {
         // Promote the first content child: it carries the list_item's id/number.
-        const c = child as ContentDocumentNode;
+        const c = child;
         flattenedChildren.push({
           id: listItem.id,
           number: listItem.number,
@@ -336,16 +338,11 @@ export function liftNodeOutOfListItem(
     replacement.push({ ...list, id: afterListId, children: afterListChildren });
   }
 
-  const newGpChildren = [...gp.children];
-  newGpChildren.splice(listIndexInGp, 1, ...replacement);
-
-  if (gpPath.length === 0) {
-    return { ...doc, children: newGpChildren };
-  }
-  return updateNodeAtPath(doc, gpPath, (n) => ({
-    ...n,
-    children: newGpChildren,
-  }));
+  return updateChildrenAtPath(doc, gpPath, (gpChildren) => {
+    const newGpChildren = [...gpChildren];
+    newGpChildren.splice(listIndexInGp, 1, ...replacement);
+    return newGpChildren;
+  });
 }
 
 /** Create a new empty sibling node appropriate for the given parent. */
@@ -393,11 +390,11 @@ export const findPreviousSiblingTarget = (
   for (let i = childIndex - 1; i >= 0; i--) {
     const sibling = parent.children[i];
     if (sibling.type === 'HEADING') {
-      return { node: sibling as HeadingDocumentNode, index: i };
+      return { node: sibling, index: i };
     }
     // Footnotes can also be nested under content nodes
     if (nodeType === 'FOOTNOTE' && sibling.type === 'CONTENT') {
-      return { node: sibling as ContentDocumentNode, index: i };
+      return { node: sibling, index: i };
     }
   }
   return null;
@@ -428,10 +425,10 @@ export const indentNodeInDoc = (
     if (parent.type !== 'LIST' || childIndex === 0) return null;
     const prevSibling = parent.children[childIndex - 1];
     if (prevSibling.type !== 'LIST_ITEM') return null;
-    const listItem = node as ContainerDocumentNode;
+    const listItem = node;
 
     const prevSiblingPath = [...parentPath, childIndex - 1];
-    const prevChildren = (prevSibling as ContainerDocumentNode).children;
+    const prevChildren = prevSibling.children;
     const lastChild = prevChildren[prevChildren.length - 1];
 
     // Remove first; prevSibling's path and its own children are unaffected
@@ -441,21 +438,15 @@ export const indentNodeInDoc = (
 
     if (lastChild && lastChild.type === 'LIST') {
       const nestedListPath = [...prevSiblingPath, prevChildren.length - 1];
-      newDoc = updateNodeAtPath(newDoc, nestedListPath, (n) => ({
-        ...n,
-        children: [...(n as ContainerDocumentNode).children, listItem],
-      }));
+      newDoc = updateChildrenAtPath(newDoc, nestedListPath, (children) => [...children, listItem]);
     } else {
-      const newList: ContainerDocumentNode = {
+      const newList: ListDocumentNode = {
         id: generateId(),
         number: null,
         type: 'LIST',
         children: [listItem],
       };
-      newDoc = updateNodeAtPath(newDoc, prevSiblingPath, (n) => ({
-        ...n,
-        children: [...(n as ContainerDocumentNode).children, newList],
-      }));
+      newDoc = updateChildrenAtPath(newDoc, prevSiblingPath, (children) => [...children, newList]);
     }
     return newDoc;
   }
@@ -475,10 +466,7 @@ export const indentNodeInDoc = (
   const targetPath = [...parentPath, target.index];
 
   // Add node as last child of target (heading or content)
-  newDoc = updateNodeAtPath(newDoc, targetPath, (targetNode) => ({
-    ...targetNode,
-    children: [...(targetNode as HeadingDocumentNode | ContentDocumentNode).children, node],
-  }));
+  newDoc = updateChildrenAtPath(newDoc, targetPath, (children) => [...children, node]);
 
   return newDoc;
 };
@@ -695,15 +683,14 @@ export const changeNodeTypeInDoc = (
       return null;
     }
     // Extract from list and convert
-    return extractAndConvertListItemInDoc(doc, path, node as ListItemDocumentNode, targetType);
+    return extractAndConvertListItemInDoc(doc, path, node, targetType);
   }
 
   // Handle list node - can only change list style or flatten to content
   if (node.type === 'LIST') {
     if (targetType === 'LIST') {
       const style = listStyle || 'numbered';
-      const listNode = node as ContainerDocumentNode;
-      const newChildren = listNode.children.map((child, i) => ({
+      const newChildren = node.children.map((child, i) => ({
         ...child,
         number: getNumberForStyle(style, i),
       }));
@@ -716,7 +703,7 @@ export const changeNodeTypeInDoc = (
       // Hoist list_items as content nodes, preserving each number. Nested
       // lists are flattened recursively because content nodes can't host
       // arbitrary nesting.
-      const flattened = flattenListToContents(node as ContainerDocumentNode);
+      const flattened = flattenListToContents(node);
       let newDoc = removeNodeAtPath(doc, path);
       for (let i = 0; i < flattened.length; i++) {
         newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + i, flattened[i]);
@@ -749,12 +736,12 @@ export const changeNodeTypeInDoc = (
 
     // If converting from heading or content with children, lift children as siblings
     if (node.type === 'HEADING') {
-      const headingChildren = (node as HeadingDocumentNode).children;
+      const headingChildren = node.children;
       for (let i = 0; i < headingChildren.length; i++) {
         newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
       }
     } else if (node.type === 'CONTENT') {
-      const contentChildren = (node as ContentDocumentNode).children;
+      const contentChildren = node.children;
       for (let i = 0; i < contentChildren.length; i++) {
         newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, contentChildren[i]);
       }
@@ -800,7 +787,7 @@ export const changeNodeTypeInDoc = (
 
     // If converting from heading, lift children as siblings
     if (node.type === 'HEADING') {
-      const headingChildren = (node as HeadingDocumentNode).children;
+      const headingChildren = node.children;
       for (let i = 0; i < headingChildren.length; i++) {
         newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
       }
@@ -825,12 +812,12 @@ export const changeNodeTypeInDoc = (
     for (let i = nodeIdxInParent - 1; i >= 0; i--) {
       const sibling = parent.children[i];
       if (sibling.type !== 'LIST') break;
-      effectiveIndex += (sibling as ContainerDocumentNode).children.length;
+      effectiveIndex += sibling.children.length;
     }
     const itemNumber =
       style === 'unordered' ? node.number : getNumberForStyle(style, effectiveIndex);
 
-    const listItem: ContainerDocumentNode = {
+    const listItem: ListItemDocumentNode = {
       id: generateId(),
       number: itemNumber,
       type: 'LIST_ITEM',
@@ -842,11 +829,11 @@ export const changeNodeTypeInDoc = (
           format: 'TEXT',
           contents: node.contents,
           children: [],
-        } as ContentDocumentNode,
+        },
       ],
     };
 
-    const list: ContainerDocumentNode = {
+    const list: ListDocumentNode = {
       id: generateId(),
       number: null,
       type: 'LIST',
@@ -857,7 +844,7 @@ export const changeNodeTypeInDoc = (
 
     // If it was a heading, lift its children after the new list
     if (node.type === 'HEADING') {
-      const headingChildren = (node as HeadingDocumentNode).children;
+      const headingChildren = node.children;
       for (let i = 0; i < headingChildren.length; i++) {
         newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
       }
@@ -937,13 +924,21 @@ export const mergeNodesInDoc = (
       format,
       contents: mergeContentsFromNodes(footnotes, paragraphSeparatorFor(format)),
     };
-  } else if (firstNode.type === 'LIST' || firstNode.type === 'LIST_ITEM') {
-    const containers = nodes as ContainerDocumentNode[];
+  } else if (firstNode.type === 'LIST') {
+    const lists = nodes as ListDocumentNode[];
     mergedNode = {
       id: firstNode.id,
       number: firstNode.number,
-      type: firstNode.type,
-      children: containers.flatMap((n) => n.children),
+      type: 'LIST',
+      children: lists.flatMap((n) => n.children),
+    };
+  } else if (firstNode.type === 'LIST_ITEM') {
+    const items = nodes as ListItemDocumentNode[];
+    mergedNode = {
+      id: firstNode.id,
+      number: firstNode.number,
+      type: 'LIST_ITEM',
+      children: items.flatMap((n) => n.children),
     };
   } else {
     // Unreachable: resolveMergeTargets already rejected non-mergeable types.
