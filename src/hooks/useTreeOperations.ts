@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import type {
   ContentBearingNodeType,
+  ContentDocumentNode,
   DocumentNode,
   DocumentRootNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
+  ImageDocumentNode,
   Language,
-  LeafDocumentNode,
   NodeFormat,
   ParentType,
 } from '../types/document';
@@ -144,7 +146,13 @@ export const useTreeOperations = ({
       const newDoc = updateNodeAtPath(document, path, (n) => ({
         ...n,
         contents: {
-          ...(n as LeafDocumentNode | HeadingDocumentNode).contents,
+          ...(
+            n as
+              | FootnoteDocumentNode
+              | ImageDocumentNode
+              | HeadingDocumentNode
+              | ContentDocumentNode
+          ).contents,
           [language]: contents,
         },
       }));

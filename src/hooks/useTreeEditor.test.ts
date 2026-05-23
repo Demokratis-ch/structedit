@@ -4,7 +4,6 @@ import type {
   ContentDocumentNode,
   DocumentRootNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
   ListDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
@@ -189,7 +188,7 @@ describe('useTreeEditor', () => {
     });
 
     const h1 = result.current.document.children[0] as HeadingDocumentNode;
-    const p1 = h1.children[0] as LeafDocumentNode;
+    const p1 = h1.children[0] as ContentDocumentNode;
     expect(p1.contents.de).toBe('Updated content');
 
     // Should be able to undo

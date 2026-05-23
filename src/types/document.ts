@@ -50,9 +50,6 @@ export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_IN
 /** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
 export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
 
-/** Leaf node types: they carry `contents` but never `children`. */
-export type LeafDocumentNodeType = 'IMAGE' | 'FOOTNOTE';
-
 /**
  * The tree root. There is exactly one per document, and — unlike every other node type — it
  * carries no `number` (it is not a numbered element of the document) and no `contents`/`format`.
@@ -159,12 +156,6 @@ export type ParentDocumentNode =
  */
 export type NumberedDocumentNode = Exclude<DocumentNode, DocumentRootNode>;
 
-/**
- * Convenience grouping alias for the leaf node types. Prefer {@link FootnoteDocumentNode} or
- * {@link ImageDocumentNode} directly in new code.
- */
-export type LeafDocumentNode = FootnoteDocumentNode | ImageDocumentNode;
-
 /** A node type that may legally contain children, plus `null` for the document's root level. */
 export type ParentType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM' | 'HEADING' | 'CONTENT' | null;
 
@@ -209,7 +200,7 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
 export const DOC_TREE_VERSION = 1 as const;
 
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
-const LEAF_TYPES: LeafDocumentNodeType[] = ['IMAGE', 'FOOTNOTE'];
+const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE')[] = ['IMAGE', 'FOOTNOTE'];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
   'NEWLINES',
@@ -324,7 +315,7 @@ const isValidNodeInternal = (
   };
 
   // Leaf nodes
-  if (LEAF_TYPES.includes(type as LeafDocumentNodeType)) {
+  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE')) {
     if (!isValidContents(node.contents)) return false;
     if ('children' in node) return false;
     if (!isValidFormatForType(type as ContentBearingNodeType)) return false;

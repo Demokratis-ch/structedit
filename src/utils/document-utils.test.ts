@@ -6,7 +6,6 @@ import {
   type DocumentRootNode,
   type HeadingDocumentNode,
   isValidDocTreeEnvelope,
-  type LeafDocumentNode,
   type ListDocumentNode,
   type ListItemDocumentNode,
   type NumberedDocumentNode,
@@ -198,7 +197,7 @@ describe('Document Utils', () => {
       const html = '<p>Some text</p>';
       const doc = parseHtmlToTree(html);
       expect(doc.children.length).toBe(1);
-      const content = doc.children[0] as LeafDocumentNode;
+      const content = doc.children[0] as ContentDocumentNode;
       expect(content.type).toBe('CONTENT');
       expect(content.contents.de).toBe('Some text');
     });
@@ -208,7 +207,7 @@ describe('Document Utils', () => {
       const doc = parseHtmlToTree(html);
       const h1 = doc.children[0] as HeadingDocumentNode;
       expect(h1.children.length).toBe(1);
-      const content = h1.children[0] as LeafDocumentNode;
+      const content = h1.children[0] as ContentDocumentNode;
       expect(content.type).toBe('CONTENT');
       expect(content.contents.de).toBe('Paragraph under title');
     });
@@ -224,7 +223,7 @@ describe('Document Utils', () => {
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBeNull(); // ul has no numbering
       // Content is now in a child content node
-      const item1Content = item1.children[0] as LeafDocumentNode;
+      const item1Content = item1.children[0] as ContentDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
       expect(item1Content.contents.de).toBe('Item 1');
     });
@@ -238,7 +237,7 @@ describe('Document Utils', () => {
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBe('1.');
       // Content is now in a child content node
-      const item1Content = item1.children[0] as LeafDocumentNode;
+      const item1Content = item1.children[0] as ContentDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
       const item2 = list.children[1] as ListItemDocumentNode;
       expect((item2 as NumberedDocumentNode).number).toBe('2.');
@@ -536,7 +535,7 @@ describe('Document Utils', () => {
     it('uses de language by default', () => {
       const html = '<p>German text</p>';
       const doc = parseHtmlToTree(html);
-      const content = doc.children[0] as LeafDocumentNode;
+      const content = doc.children[0] as ContentDocumentNode;
       expect(content.contents.de).toBe('German text');
       expect(content.contents.en).toBeUndefined();
     });
@@ -608,13 +607,13 @@ describe('Document Utils', () => {
     describe('special characters', () => {
       it('preserves HTML entities', () => {
         const doc = parseHtmlToTree('<p>&amp; &lt; &gt;</p>');
-        const content = doc.children[0] as LeafDocumentNode;
+        const content = doc.children[0] as ContentDocumentNode;
         expect(content.contents.de).toContain('&');
       });
 
       it('handles unicode content', () => {
         const doc = parseHtmlToTree('<p>日本語 🎉 Ñoño</p>');
-        const content = doc.children[0] as LeafDocumentNode;
+        const content = doc.children[0] as ContentDocumentNode;
         expect(content.contents.de).toContain('日本語');
         expect(content.contents.de).toContain('🎉');
       });
@@ -624,13 +623,13 @@ describe('Document Utils', () => {
       it('handles very long paragraph content', () => {
         const longContent = 'a'.repeat(10000);
         const doc = parseHtmlToTree(`<p>${longContent}</p>`);
-        const content = doc.children[0] as LeafDocumentNode;
+        const content = doc.children[0] as ContentDocumentNode;
         expect(content.contents.de.length).toBe(10000);
       });
 
       it('handles single character content', () => {
         const doc = parseHtmlToTree('<p>X</p>');
-        const content = doc.children[0] as LeafDocumentNode;
+        const content = doc.children[0] as ContentDocumentNode;
         expect(content.contents.de).toBe('X');
       });
 
@@ -674,7 +673,7 @@ describe('Document Utils', () => {
       expect(item1.type).toBe('LIST_ITEM');
       expect((item1 as NumberedDocumentNode).number).toBe('a.');
       // Content is now in a child content node
-      const item1Content = item1.children[0] as LeafDocumentNode;
+      const item1Content = item1.children[0] as ContentDocumentNode;
       expect(item1Content.type).toBe('CONTENT');
     });
 
@@ -719,7 +718,7 @@ describe('Document Utils', () => {
       const heading = doc.children[0] as HeadingDocumentNode;
       expect(heading.type).toBe('HEADING');
       expect(heading.children.length).toBe(1);
-      expect((heading.children[0] as LeafDocumentNode).type).toBe('CONTENT');
+      expect((heading.children[0] as ContentDocumentNode).type).toBe('CONTENT');
     });
 
     it('handles mixed legal document structure', () => {

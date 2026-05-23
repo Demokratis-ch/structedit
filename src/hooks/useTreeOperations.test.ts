@@ -4,8 +4,8 @@ import type {
   BlockDocumentNode,
   ContentDocumentNode,
   DocumentRootNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
   NumberedDocumentNode,
@@ -153,7 +153,7 @@ describe('useTreeOperations', () => {
       expect(h1.children[0].id).toBe('p1');
       expect(h1.children[2].id).toBe('h2');
       // New node is in the middle
-      const newNode = h1.children[1] as LeafDocumentNode;
+      const newNode = h1.children[1] as ContentDocumentNode;
       expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
@@ -167,7 +167,7 @@ describe('useTreeOperations', () => {
 
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const newNode = h1.children[1] as LeafDocumentNode;
+      const newNode = h1.children[1] as ContentDocumentNode;
       expect(newNode.type).toBe('CONTENT');
     });
 
@@ -206,7 +206,7 @@ describe('useTreeOperations', () => {
       expect(h1.children[0].id).toBe('p1');
       expect(h1.children[2].id).toBe('h2');
       // New node is in the middle
-      const newNode = h1.children[1] as LeafDocumentNode;
+      const newNode = h1.children[1] as ContentDocumentNode;
       expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
@@ -220,7 +220,7 @@ describe('useTreeOperations', () => {
 
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const h1 = newDoc.children[0] as HeadingDocumentNode;
-      const newNode = h1.children[0] as LeafDocumentNode;
+      const newNode = h1.children[0] as ContentDocumentNode;
       expect(newNode.type).toBe('CONTENT');
       expect(newNode.contents.de).toBe('');
     });
@@ -329,7 +329,7 @@ describe('useTreeOperations', () => {
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-      const p1 = getNodeAtPath(newDoc, [0, 0]) as LeafDocumentNode;
+      const p1 = getNodeAtPath(newDoc, [0, 0]) as ContentDocumentNode;
       expect(p1.contents.de).toBe('Updated content');
     });
 
@@ -357,7 +357,7 @@ describe('useTreeOperations', () => {
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-      const p1 = newDoc.children[0] as LeafDocumentNode;
+      const p1 = newDoc.children[0] as ContentDocumentNode;
       expect(p1.contents.de).toBe('Neuer Text');
       expect(p1.contents.en).toBe('English'); // Preserved
     });
@@ -1746,7 +1746,7 @@ describe('useTreeOperations', () => {
                     type: 'FOOTNOTE',
                     format: 'TEXT',
                     contents: { de: 'note' },
-                  } as LeafDocumentNode,
+                  } as FootnoteDocumentNode,
                 ],
               },
             ],
@@ -1984,7 +1984,7 @@ describe('useTreeOperations', () => {
             type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Footnote text' },
-          } as LeafDocumentNode,
+          } as FootnoteDocumentNode,
         ],
       };
 
@@ -2015,14 +2015,14 @@ describe('useTreeOperations', () => {
             type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'First footnote' },
-          } as LeafDocumentNode,
+          } as FootnoteDocumentNode,
           {
             id: 'fn2',
             number: 'ii.',
             type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Second footnote' },
-          } as LeafDocumentNode,
+          } as FootnoteDocumentNode,
         ],
       };
 
@@ -2055,7 +2055,7 @@ describe('useTreeOperations', () => {
             type: 'FOOTNOTE',
             format: 'TEXT',
             contents: { de: 'Footnote text' },
-          } as LeafDocumentNode,
+          } as FootnoteDocumentNode,
         ],
       };
 
@@ -2095,7 +2095,7 @@ describe('useTreeOperations', () => {
                 type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'Footnote text' },
-              } as LeafDocumentNode,
+              } as FootnoteDocumentNode,
             ],
           } as ContentDocumentNode,
         ],
@@ -2138,14 +2138,14 @@ describe('useTreeOperations', () => {
                 type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'First footnote' },
-              } as LeafDocumentNode,
+              } as FootnoteDocumentNode,
               {
                 id: 'fn2',
                 number: 'ii.',
                 type: 'FOOTNOTE',
                 format: 'TEXT',
                 contents: { de: 'Second footnote' },
-              } as LeafDocumentNode,
+              } as FootnoteDocumentNode,
             ],
           } as ContentDocumentNode,
         ],
@@ -2414,7 +2414,7 @@ describe('useTreeOperations', () => {
         const item = list.children[0] as ListItemDocumentNode;
         expect(item.type).toBe('LIST_ITEM');
         // The original content node becomes a child with its id preserved
-        const itemContent = item.children[0] as LeafDocumentNode;
+        const itemContent = item.children[0] as ContentDocumentNode;
         expect(itemContent.type).toBe('CONTENT');
         expect(itemContent.id).toBe('p1');
         expect(itemContent.contents.de).toBe('Item text');
@@ -2549,7 +2549,7 @@ describe('useTreeOperations', () => {
         const item = list.children[0] as ListItemDocumentNode;
         expect(item.type).toBe('LIST_ITEM');
         // The original heading content is now in the child content node
-        const itemContent = item.children[0] as LeafDocumentNode;
+        const itemContent = item.children[0] as ContentDocumentNode;
         expect(itemContent.id).toBe('h1');
 
         // Lifted child
@@ -2582,7 +2582,7 @@ describe('useTreeOperations', () => {
 
         // List should be replaced with content node
         expect(newDoc.children.length).toBe(1);
-        const converted = newDoc.children[0] as LeafDocumentNode;
+        const converted = newDoc.children[0] as ContentDocumentNode;
         expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('li1');
         expect(converted.contents.de).toBe('Only item');
@@ -2623,7 +2623,7 @@ describe('useTreeOperations', () => {
         expect(list.children[0].id).toBe('li1');
 
         // Converted item should be after the list
-        const converted = newDoc.children[1] as LeafDocumentNode;
+        const converted = newDoc.children[1] as ContentDocumentNode;
         expect(converted.type).toBe('CONTENT');
         expect(converted.id).toBe('li2');
       });
@@ -2983,7 +2983,7 @@ describe('useTreeOperations', () => {
         expect(mergedList.children[0].id).toBe('li1');
         // The converted content's id is now in the child content node
         const newItem = mergedList.children[1] as ListItemDocumentNode;
-        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
+        expect((newItem.children[0] as ContentDocumentNode).id).toBe('p1');
       });
 
       test('merges with following list when converting to list', () => {
@@ -3023,7 +3023,7 @@ describe('useTreeOperations', () => {
         expect(mergedList.children.length).toBe(2);
         // The converted content's id is now in the child content node
         const newItem = mergedList.children[0] as ListItemDocumentNode;
-        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
+        expect((newItem.children[0] as ContentDocumentNode).id).toBe('p1');
         expect(mergedList.children[1].id).toBe('li1');
       });
 
@@ -3071,7 +3071,7 @@ describe('useTreeOperations', () => {
         expect(mergedList.children[0].id).toBe('li1');
         // The converted content's id is now in the child content node
         const newItem = mergedList.children[1] as ListItemDocumentNode;
-        expect((newItem.children[0] as LeafDocumentNode).id).toBe('p1');
+        expect((newItem.children[0] as ContentDocumentNode).id).toBe('p1');
         expect(mergedList.children[2].id).toBe('li2');
       });
 
@@ -3146,7 +3146,7 @@ describe('useTreeOperations', () => {
 
         expect(mockCommit).toHaveBeenCalledTimes(1);
         const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-        const converted = newDoc.children[0] as LeafDocumentNode;
+        const converted = newDoc.children[0] as FootnoteDocumentNode;
 
         expect(converted.type).toBe('FOOTNOTE');
         expect(converted.id).toBe('p1');
@@ -3178,7 +3178,7 @@ describe('useTreeOperations', () => {
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-        const converted = newDoc.children[0] as LeafDocumentNode;
+        const converted = newDoc.children[0] as FootnoteDocumentNode;
 
         expect(converted.id).toBe('p1');
         expect(converted.number).toBe('i.');
@@ -3204,14 +3204,14 @@ describe('useTreeOperations', () => {
                   type: 'FOOTNOTE',
                   format: 'TEXT',
                   contents: { de: 'First footnote' },
-                } as LeafDocumentNode,
+                } as FootnoteDocumentNode,
                 {
                   id: 'fn2',
                   number: 'ii.',
                   type: 'FOOTNOTE',
                   format: 'TEXT',
                   contents: { de: 'Second footnote' },
-                } as LeafDocumentNode,
+                } as FootnoteDocumentNode,
               ],
             } as ContentDocumentNode,
             {
@@ -3253,7 +3253,7 @@ describe('useTreeOperations', () => {
               type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Already a footnote' },
-            } as LeafDocumentNode,
+            } as FootnoteDocumentNode,
           ],
         };
 
@@ -3350,7 +3350,7 @@ describe('useTreeOperations', () => {
         });
 
         const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-        const converted = newDoc.children[0] as LeafDocumentNode;
+        const converted = newDoc.children[0] as FootnoteDocumentNode;
 
         expect(converted.type).toBe('FOOTNOTE');
         expect(converted.id).toBe('h1');
@@ -3372,7 +3372,7 @@ describe('useTreeOperations', () => {
               type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Footnote text' },
-            } as LeafDocumentNode,
+            } as FootnoteDocumentNode,
           ],
         };
 
@@ -3404,7 +3404,7 @@ describe('useTreeOperations', () => {
               type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'German', en: 'English', fr: 'French' },
-            } as LeafDocumentNode,
+            } as FootnoteDocumentNode,
           ],
         };
 
@@ -4008,7 +4008,7 @@ describe('useTreeOperations', () => {
                           type: 'FOOTNOTE',
                           format: 'TEXT',
                           contents: { de: 'Note text' },
-                        } as LeafDocumentNode,
+                        } as FootnoteDocumentNode,
                       ],
                     } as ContentDocumentNode,
                   ],
@@ -4733,7 +4733,7 @@ describe('useTreeOperations', () => {
               type: 'FOOTNOTE',
               format: 'TEXT',
               contents: { de: 'Note' },
-            } as LeafDocumentNode,
+            } as FootnoteDocumentNode,
             {
               id: 'list1',
               number: null,
@@ -5010,7 +5010,7 @@ describe('useTreeOperations', () => {
       });
 
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
-      const f = newDoc.children[0] as LeafDocumentNode;
+      const f = newDoc.children[0] as FootnoteDocumentNode;
       expect(f.type).toBe('FOOTNOTE');
       expect(f.format).toBe('NEWLINES');
     });
@@ -5732,7 +5732,7 @@ describe('useTreeOperations', () => {
       const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       const holder = newDoc.children[0] as ContentDocumentNode;
       expect(holder.children.map((c) => c.id)).toEqual(['fnA']);
-      const merged = holder.children[0] as LeafDocumentNode;
+      const merged = holder.children[0] as FootnoteDocumentNode;
       expect(merged.contents.de).toBe('first\nsecond');
       expect(merged.format).toBe('NEWLINES');
     });

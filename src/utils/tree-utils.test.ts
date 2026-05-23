@@ -3,7 +3,6 @@ import type {
   ContentDocumentNode,
   DocumentRootNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
@@ -132,15 +131,15 @@ describe('updateNodeAtPath', () => {
         ({
           ...node,
           contents: { de: 'Updated paragraph' },
-        }) as LeafDocumentNode
+        }) as ContentDocumentNode
     );
 
     // Original unchanged
-    const originalP1 = getNodeAtPath(doc, [0, 0]) as LeafDocumentNode;
+    const originalP1 = getNodeAtPath(doc, [0, 0]) as ContentDocumentNode;
     expect(originalP1.contents.de).toBe('First paragraph');
 
     // New document has update
-    const updatedP1 = getNodeAtPath(newDoc, [0, 0]) as LeafDocumentNode;
+    const updatedP1 = getNodeAtPath(newDoc, [0, 0]) as ContentDocumentNode;
     expect(updatedP1.contents.de).toBe('Updated paragraph');
   });
 
@@ -153,7 +152,7 @@ describe('updateNodeAtPath', () => {
         ({
           ...node,
           contents: { de: 'Updated' },
-        }) as LeafDocumentNode
+        }) as ContentDocumentNode
     );
 
     // Sibling h2 should be preserved
@@ -171,10 +170,10 @@ describe('updateNodeAtPath', () => {
         ({
           ...node,
           contents: { de: 'Deep update' },
-        }) as LeafDocumentNode
+        }) as ContentDocumentNode
     );
 
-    const updated = getNodeAtPath(newDoc, [0, 1, 0]) as LeafDocumentNode;
+    const updated = getNodeAtPath(newDoc, [0, 1, 0]) as ContentDocumentNode;
     expect(updated.contents.de).toBe('Deep update');
   });
 
@@ -822,7 +821,7 @@ describe('nested lists', () => {
     };
 
     // Access nested list item's content
-    const nestedContent = getNodeAtPath(doc, [0, 0, 1, 0, 0]) as LeafDocumentNode;
+    const nestedContent = getNodeAtPath(doc, [0, 0, 1, 0, 0]) as ContentDocumentNode;
     expect(nestedContent.contents.de).toBe('Original');
 
     // Update nested content
@@ -833,10 +832,10 @@ describe('nested lists', () => {
         ({
           ...node,
           contents: { de: 'Updated' },
-        }) as LeafDocumentNode
+        }) as ContentDocumentNode
     );
 
-    const updatedContent = getNodeAtPath(updated, [0, 0, 1, 0, 0]) as LeafDocumentNode;
+    const updatedContent = getNodeAtPath(updated, [0, 0, 1, 0, 0]) as ContentDocumentNode;
     expect(updatedContent.contents.de).toBe('Updated');
   });
 
