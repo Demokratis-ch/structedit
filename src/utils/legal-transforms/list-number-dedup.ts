@@ -1,13 +1,15 @@
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
-  HeadingDocumentNode,
+  DocumentRootNode,
   Language,
+  ListDocumentNode,
+  ListItemDocumentNode,
   NodeFormat,
 } from '../../types/document';
 import { generateId } from '../document-utils';
 import { hasInlineMarkdownMarks } from '../format-render';
+import { withMappedChildren } from '../tree-utils';
 import type { TreeTransform } from './types';
 
 const SWISS_SUFFIX = '(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)?';
@@ -41,23 +43,20 @@ function downgradeFormatIfPlain(source: string, format: NodeFormat): NodeFormat 
  * because the leading <sup>N</sup> marks it as an Absatznummer.
  */
 type ProcessedListItem =
-  | { kind: 'list_item'; node: ContainerDocumentNode }
-  | { kind: 'content'; node: ContentDocumentNode };
+  | { kind: 'LIST_ITEM'; node: DocumentNode }
+  | { kind: 'CONTENT'; node: ContentDocumentNode };
 
-function processListItem(listItem: ContainerDocumentNode, language: Language): ProcessedListItem {
+function processListItem(listItem: ListItemDocumentNode, language: Language): ProcessedListItem {
   if (listItem.children.length === 0) {
-    return { kind: 'list_item', node: listItem };
+    return { kind: 'LIST_ITEM', node: listItem };
   }
 
   const firstChild = listItem.children[0];
 
-  if (firstChild.type !== 'content') {
+  if (firstChild.type !== 'CONTENT') {
     return {
-      kind: 'list_item',
-      node: {
-        ...listItem,
-        children: processChildren(listItem.children, language),
-      },
+      kind: 'LIST_ITEM',
+      node: withMappedChildren(listItem, (children) => processChildren(children, language)),
     };
   }
 
@@ -75,7 +74,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
     // sibling structure (e.g. nested lists) and the content node itself only carries
     // footnote children — both are legal children of a content node.
     const hasSiblings = listItem.children.length > 1;
-    const contentHasNonFootnoteChildren = contentNode.children.some((c) => c.type !== 'footnote');
+    const contentHasNonFootnoteChildren = contentNode.children.some((c) => c.type !== 'FOOTNOTE');
 
     if (!hasSiblings && !contentHasNonFootnoteChildren) {
       // Preserve the superscript formatting on the converted content node's
@@ -83,7 +82,7 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       // NumberMarkup renders the `number` field via MARKDOWN_MINIMAL, so the
       // `^N^` source round-trips to `<sup>N</sup>` in the UI.
       return {
-        kind: 'content',
+        kind: 'CONTENT',
         node: {
           ...contentNode,
           number: `^${supMatch[1]}^`,
@@ -100,12 +99,11 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       contents: newContents,
     };
     return {
-      kind: 'list_item',
-      node: {
-        ...listItem,
-        number: supMatch[1],
-        children: [newFirstChild, ...processChildren(listItem.children.slice(1), language)],
-      },
+      kind: 'LIST_ITEM',
+      node: withMappedChildren({ ...listItem, number: supMatch[1] }, (children) => [
+        newFirstChild,
+        ...processChildren(children.slice(1), language),
+      ]),
     };
   }
 
@@ -117,22 +115,18 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
       contents: { ...contentNode.contents, [language]: text.slice(numMatch[0].length) },
     };
     return {
-      kind: 'list_item',
-      node: {
-        ...listItem,
-        number: numMatch[1],
-        children: [newFirstChild, ...processChildren(listItem.children.slice(1), language)],
-      },
+      kind: 'LIST_ITEM',
+      node: withMappedChildren({ ...listItem, number: numMatch[1] }, (children) => [
+        newFirstChild,
+        ...processChildren(children.slice(1), language),
+      ]),
     };
   }
 
   // No leading number — just recurse into the rest of the item.
   return {
-    kind: 'list_item',
-    node: {
-      ...listItem,
-      children: processChildren(listItem.children, language),
-    },
+    kind: 'LIST_ITEM',
+    node: withMappedChildren(listItem, (children) => processChildren(children, language)),
   };
 }
 
@@ -141,31 +135,33 @@ function processListItem(listItem: ContainerDocumentNode, language: Language): P
  * contiguous segments — the original list id stays on the first emitted segment, any
  * subsequent list segments get fresh ids.
  */
-function processList(listNode: ContainerDocumentNode, language: Language): DocumentNode[] {
+function processList(listNode: ListDocumentNode, language: Language): DocumentNode[] {
   const processed = listNode.children.map((item): ProcessedListItem => {
-    if (item.type !== 'list_item') {
-      return { kind: 'list_item', node: item as ContainerDocumentNode };
+    if (item.type !== 'LIST_ITEM') {
+      return { kind: 'LIST_ITEM', node: item };
     }
-    return processListItem(item as ContainerDocumentNode, language);
+    // `item` is narrowed to the LIST_ITEM member of the DocumentNode union here.
+    return processListItem(item, language);
   });
 
   const result: DocumentNode[] = [];
-  let buffer: ContainerDocumentNode[] = [];
+  let buffer: DocumentNode[] = [];
   let firstSegment = true;
 
   const flush = () => {
     if (buffer.length === 0) return;
-    result.push({
-      ...listNode,
-      id: firstSegment ? listNode.id : generateId(),
-      children: buffer,
-    });
+    result.push(
+      withMappedChildren(
+        { ...listNode, id: firstSegment ? listNode.id : generateId() },
+        () => buffer
+      )
+    );
     buffer = [];
     firstSegment = false;
   };
 
   for (const item of processed) {
-    if (item.kind === 'list_item') {
+    if (item.kind === 'LIST_ITEM') {
       buffer.push(item.node);
     } else {
       flush();
@@ -177,7 +173,7 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
   // Preserve the original (possibly empty) list when nothing converted, so an empty
   // input list still appears in the output.
   if (result.length === 0) {
-    return [{ ...listNode, children: [] }];
+    return [withMappedChildren(listNode, () => [])];
   }
 
   return result;
@@ -189,8 +185,8 @@ function processList(listNode: ContainerDocumentNode, language: Language): Docum
 function processChildren(children: DocumentNode[], language: Language): DocumentNode[] {
   const result: DocumentNode[] = [];
   for (const child of children) {
-    if (child.type === 'list') {
-      result.push(...processList(child as ContainerDocumentNode, language));
+    if (child.type === 'LIST') {
+      result.push(...processList(child, language));
     } else {
       result.push(processNode(child, language));
     }
@@ -202,11 +198,7 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
   if (!('children' in node) || !node.children || node.children.length === 0) {
     return node;
   }
-  const containerNode = node as ContainerDocumentNode | HeadingDocumentNode | ContentDocumentNode;
-  return {
-    ...containerNode,
-    children: processChildren(containerNode.children, language),
-  };
+  return withMappedChildren(node, (children) => processChildren(children, language));
 }
 
 /**
@@ -231,11 +223,8 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
  *   (the list is dissolved)
  */
 export const listNumberDedupTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: processChildren(root.children, language),
-  };
+): DocumentRootNode => {
+  return withMappedChildren(root, (children) => processChildren(children, language));
 };

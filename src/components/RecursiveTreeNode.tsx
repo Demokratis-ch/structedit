@@ -56,12 +56,17 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       isInvalidDrop,
     } = useNodeState(store, node.id);
     // Firefox suppresses caret-positioning in a contentEditable when any
-    // ancestor has draggable=true (issue #60). Disable draggable on every
-    // node while any node is in edit mode — drag-to-reorder is unavailable
-    // mid-edit anyway, so this is a no-op behaviour-wise.
+    // ancestor has draggable=true (issue #60). The same draggable ancestor also
+    // hijacks mouse text-selection in the number <input> as node drag&drop
+    // (issue #101). Disable draggable on every node while any node is editing
+    // its content or number — drag-to-reorder is unavailable mid-edit anyway,
+    // so this is a no-op behaviour-wise.
     const isAnyNodeEditing = useSyncExternalStore(
       store.subscribe,
-      useCallback(() => store.getEditingId() !== null, [store])
+      useCallback(
+        () => store.getEditingId() !== null || store.getEditingNumberId() !== null,
+        [store]
+      )
     );
 
     const {
@@ -91,7 +96,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       if (depth === 0) return {};
 
       // Headings get left-only border with thickness based on depth
-      if (node.type === 'heading') {
+      if (node.type === 'HEADING') {
         const leftWidth = depth === 1 ? '6px' : depth === 2 ? '4px' : depth === 3 ? '2px' : '1px';
         const importance = 5 - Math.min(depth, 4);
         return {
@@ -120,15 +125,15 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
     // Determine visual style based on node type and depth
     const getNodeStyle = () => {
       switch (node.type) {
-        case 'heading':
+        case 'HEADING':
           if (depth === 0)
             return 'text-3xl font-bold mt-2 mb-1 text-gray-900 tracking-tight leading-tight';
           if (depth === 1)
             return 'text-xl font-semibold mt-1 mb-1 text-gray-800 tracking-tight leading-tight';
           return 'text-lg font-bold mt-1 text-gray-800';
-        case 'list_item':
+        case 'LIST_ITEM':
           return 'text-base leading-7 text-gray-600';
-        case 'footnote':
+        case 'FOOTNOTE':
           return 'text-base text-sm text-gray-600 border border-dashed border-gray-500 rounded';
         default:
           return 'text-base leading-7 text-gray-600';
@@ -137,7 +142,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
 
     // Determine tag name for contentEditable
     const getTagName = () => {
-      if (node.type === 'heading') {
+      if (node.type === 'HEADING') {
         if (depth === 0) return 'h1';
         if (depth === 1) return 'h2';
         return 'h3';
@@ -220,11 +225,11 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
     // Render node content (the actual text/editable part)
     const renderContent = () => {
       // Container-only nodes (document, list) show placeholder
-      if (node.type === 'document') {
+      if (node.type === 'DOCUMENT') {
         return null; // Document root doesn't render its own content
       }
 
-      if (node.type === 'list') {
+      if (node.type === 'LIST') {
         return (
           <div className="flex items-baseline flex-1">
             {renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50')}{' '}
@@ -234,7 +239,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       }
 
       // list_item is a container - render just the marker, children will be nested
-      if (node.type === 'list_item') {
+      if (node.type === 'LIST_ITEM') {
         return (
           <div className="flex items-baseline flex-1">
             {renderNumberBadge(
@@ -251,17 +256,17 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       return (
         <div className="flex items-baseline flex-1">
           {/* Show number badge for headings, footnotes, and content (dashed placeholder when no number) */}
-          {node.type === 'heading' &&
+          {node.type === 'HEADING' &&
             renderNumberBadge(
               node.number,
               'font-semibold text-blue-600 border-blue-200 bg-blue-50'
             )}
-          {node.type === 'footnote' &&
+          {node.type === 'FOOTNOTE' &&
             renderNumberBadge(
               node.number,
               'font-medium text-amber-600 border-amber-200 bg-amber-50'
             )}
-          {node.type === 'content' &&
+          {node.type === 'CONTENT' &&
             renderNumberBadge(node.number, 'font-medium text-gray-600 border-gray-300 bg-gray-50')}
 
           {'contents' in node && (
@@ -287,7 +292,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
     };
 
     // Skip rendering the document root wrapper - just render children
-    if (node.type === 'document') {
+    if (node.type === 'DOCUMENT') {
       return (
         <div className="space-y-1">
           {hasChildren &&
@@ -324,7 +329,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         }}
         className={`
           group relative
-          ${node.type !== 'heading' ? 'rounded-md' : ''}
+          ${node.type !== 'HEADING' ? 'rounded-md' : ''}
           ${isDragging ? 'opacity-30 bg-gray-50' : ''}
           ${isSelected && !isEditing ? 'bg-blue-50 ring-1 ring-blue-100' : ''}
           ${!isSelected && !isEditing && !isReceivingParent ? 'hover:bg-gray-50/50' : ''}
@@ -391,7 +396,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
           <div
             className="pl-2 space-y-1"
             style={{
-              marginTop: node.type === 'heading' ? `${(5 - Math.min(depth, 4)) * 6}px` : '4px',
+              marginTop: node.type === 'HEADING' ? `${(5 - Math.min(depth, 4)) * 6}px` : '4px',
             }}
           >
             {node.children.map((child) => (

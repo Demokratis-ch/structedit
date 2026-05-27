@@ -1,10 +1,10 @@
 import * as mammoth from 'mammoth';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import type { StoredEntrySource } from './document-storage';
 import { generateId, parseHtmlLegalToTree } from './document-utils';
 
 export interface ProcessedDocument {
-  doc: ContainerDocumentNode;
+  doc: DocumentRootNode;
   sourceUrl: string | null;
   html?: string;
   /** Bytes + metadata needed to persist the entry and rebuild the preview later. */
@@ -33,18 +33,17 @@ export function makePastedSubtitle(text: string): string {
   return `${trimmed.slice(0, cut)} ...`;
 }
 
-export function createPlainTextDocument(text: string): ContainerDocumentNode {
+export function createPlainTextDocument(text: string): DocumentRootNode {
   const lines = text.split('\n').filter((line) => line.trim().length > 0);
   return {
     id: generateId(),
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children:
       lines.length > 0
         ? lines.map((line) => ({
             id: generateId(),
             number: null,
-            type: 'content' as const,
+            type: 'CONTENT' as const,
             format: 'TEXT' as const,
             contents: { de: line.trim() },
             children: [],
@@ -53,7 +52,7 @@ export function createPlainTextDocument(text: string): ContainerDocumentNode {
             {
               id: generateId(),
               number: null,
-              type: 'content' as const,
+              type: 'CONTENT' as const,
               format: 'TEXT' as const,
               contents: { de: '' },
               children: [],

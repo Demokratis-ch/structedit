@@ -139,11 +139,28 @@ describe('LoadDocument', () => {
       });
 
       const [doc, sourceUrl, html, filename] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(doc.children.length).toBeGreaterThan(0);
       expect(sourceUrl).toBe('blob:http://localhost/fake-blob-url');
       expect(html).toBe(htmlContent);
       expect(filename).toBe('test.html');
+    });
+
+    it('warns and does not open the editor when an uploaded file yields no content', async () => {
+      render(<LoadDocument onConvert={mockOnConvert} />);
+
+      // No semantic tags — mimics PDF→HTML output that the parser extracts nothing from.
+      const emptyHtml = '<div><span>Some positioned text</span></div>';
+      const file = new File([emptyHtml], 'empty.html', { type: 'text/html' });
+
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+      await act(async () => {
+        fireEvent.change(fileInput);
+      });
+
+      expect(await screen.findByText(/couldn't extract any content/i)).toBeInTheDocument();
+      expect(mockOnConvert).not.toHaveBeenCalled();
     });
   });
 
@@ -156,7 +173,7 @@ describe('LoadDocument', () => {
 
       await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
       const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(sourceUrl).toBeNull();
       expect(html).toBeUndefined();
       expect(name).toMatch(/^Untitled \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/);
@@ -172,11 +189,24 @@ describe('LoadDocument', () => {
 
       await waitFor(() => expect(mockOnConvert).toHaveBeenCalled());
       const [doc, sourceUrl, html, name] = mockOnConvert.mock.calls[0];
-      expect(doc.type).toBe('document');
+      expect(doc.type).toBe('DOCUMENT');
       expect(doc.children.length).toBeGreaterThan(0);
       expect(sourceUrl).toBe('blob:http://localhost/fake-blob-url');
       expect(html).toBe(htmlContent);
       expect(name).toMatch(/^Untitled \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$/);
+    });
+
+    it('warns and does not open the editor when pasted HTML yields no content', async () => {
+      URL.createObjectURL = vi.fn(() => 'blob:http://localhost/fake-blob-url');
+      render(<LoadDocument onConvert={mockOnConvert} />);
+      const textarea = screen.getByPlaceholderText(/paste unstructured text/i);
+      fireEvent.change(textarea, {
+        target: { value: '<div><span>Some positioned text</span></div>' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /convert text/i }));
+
+      expect(await screen.findByText(/couldn't extract any content/i)).toBeInTheDocument();
+      expect(mockOnConvert).not.toHaveBeenCalled();
     });
   });
 });

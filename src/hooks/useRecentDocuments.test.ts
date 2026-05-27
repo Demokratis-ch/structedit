@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   type CreateEntryInput,
   closeDb,
@@ -10,16 +10,15 @@ import {
 } from '../utils/document-storage';
 import { useRecentDocuments } from './useRecentDocuments';
 
-function makeTree(text = 'hello'): ContainerDocumentNode {
+function makeTree(text = 'hello'): DocumentRootNode {
   return {
     id: 'root',
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'n1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: text },
         children: [],

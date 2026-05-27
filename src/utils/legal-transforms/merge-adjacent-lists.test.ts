@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  ListDocumentNode,
+  ListItemDocumentNode,
+  NumberedDocumentNode,
 } from '../../types/document';
 import { parseHtmlLegalToTree, parseHtmlToTree } from '../document-utils';
 import { mergeAdjacentListsTransform } from './merge-adjacent-lists';
@@ -19,11 +21,11 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       expect(result.children).toHaveLength(1);
-      expect(result.children[0].type).toBe('list');
-      const merged = result.children[0] as ContainerDocumentNode;
+      expect(result.children[0].type).toBe('LIST');
+      const merged = result.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(2);
-      const item0 = merged.children[0] as ContainerDocumentNode;
-      const item1 = merged.children[1] as ContainerDocumentNode;
+      const item0 = merged.children[0] as ListItemDocumentNode;
+      const item1 = merged.children[1] as ListItemDocumentNode;
       expect((item0.children[0] as ContentDocumentNode).contents.de).toBe('A');
       expect((item1.children[0] as ContentDocumentNode).contents.de).toBe('B');
     });
@@ -56,9 +58,9 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       expect(result.children).toHaveLength(3);
-      expect(result.children[0].type).toBe('list');
-      expect(result.children[1].type).toBe('content');
-      expect(result.children[2].type).toBe('list');
+      expect(result.children[0].type).toBe('LIST');
+      expect(result.children[1].type).toBe('CONTENT');
+      expect(result.children[2].type).toBe('LIST');
     });
 
     it('merges three or more consecutive lists into one', () => {
@@ -71,7 +73,7 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       expect(result.children).toHaveLength(1);
-      const merged = result.children[0] as ContainerDocumentNode;
+      const merged = result.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(3);
     });
 
@@ -87,7 +89,7 @@ describe('mergeAdjacentListsTransform', () => {
 
       const h = result.children[0] as HeadingDocumentNode;
       expect(h.children).toHaveLength(1);
-      const merged = h.children[0] as ContainerDocumentNode;
+      const merged = h.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(2);
     });
 
@@ -104,19 +106,19 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(input, 'de');
 
       expect(result.children).toHaveLength(2);
-      const rootList = result.children[0] as ContainerDocumentNode;
+      const rootList = result.children[0] as ListDocumentNode;
       expect(rootList.children).toHaveLength(2);
 
       const h = result.children[1] as HeadingDocumentNode;
-      const nestedList = h.children[0] as ContainerDocumentNode;
+      const nestedList = h.children[0] as ListDocumentNode;
       expect(h.children).toHaveLength(1);
       expect(nestedList.children).toHaveLength(2);
     });
 
     it('does not merge sibling list_items as if they were lists', () => {
       // The transform recurses into every container, but list_items have
-      // type 'list_item' so they never match the merge condition (which
-      // requires recursed.type === 'list').
+      // type 'LIST_ITEM' so they never match the merge condition (which
+      // requires recursed.type === 'LIST').
       const input = createDoc([
         list([
           { number: '1.', content: 'A' },
@@ -126,20 +128,20 @@ describe('mergeAdjacentListsTransform', () => {
 
       const result = mergeAdjacentListsTransform(input, 'de');
 
-      const merged = result.children[0] as ContainerDocumentNode;
+      const merged = result.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(2);
-      expect(merged.children[0].type).toBe('list_item');
-      expect(merged.children[1].type).toBe('list_item');
+      expect(merged.children[0].type).toBe('LIST_ITEM');
+      expect(merged.children[1].type).toBe('LIST_ITEM');
     });
 
     it('merges adjacent nested lists inside a list_item', () => {
       // processListElement (document-utils.ts) appends every nested <ol>/<ul>
       // child of a <li> as a separate list. If Mammoth splits a sub-list
       // across a page, these adjacent sub-lists must also merge.
-      const outerListItem: ContainerDocumentNode = {
+      const outerListItem: ListItemDocumentNode = {
         id: 'outer-item',
         number: '1.',
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [
           content('Outer item'),
           list([{ number: '1.', content: 'nested A' }]),
@@ -150,19 +152,19 @@ describe('mergeAdjacentListsTransform', () => {
         {
           id: 'outer-list',
           number: null,
-          type: 'list',
+          type: 'LIST',
           children: [outerListItem],
         },
       ]);
 
       const result = mergeAdjacentListsTransform(input, 'de');
 
-      const outerList = result.children[0] as ContainerDocumentNode;
-      const item = outerList.children[0] as ContainerDocumentNode;
+      const outerList = result.children[0] as ListDocumentNode;
+      const item = outerList.children[0] as ListItemDocumentNode;
       // Outer item content + ONE merged nested list (was two).
       expect(item.children).toHaveLength(2);
-      const nestedList = item.children[1] as ContainerDocumentNode;
-      expect(nestedList.type).toBe('list');
+      const nestedList = item.children[1] as ListDocumentNode;
+      expect(nestedList.type).toBe('LIST');
       expect(nestedList.children).toHaveLength(2);
     });
 
@@ -198,8 +200,8 @@ describe('mergeAdjacentListsTransform', () => {
 
       const result = mergeAdjacentListsTransform(input, 'de');
 
-      const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const merged = result.children[0] as ListDocumentNode;
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual(['a)', 'b)', 'c)', 'd)', 'a)', 'b)', 'c)']);
     });
 
@@ -218,8 +220,8 @@ describe('mergeAdjacentListsTransform', () => {
 
       const result = mergeAdjacentListsTransform(input, 'de');
 
-      const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const merged = result.children[0] as ListDocumentNode;
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual(['1.', '2.', '3.', '1.', '2.']);
     });
 
@@ -234,8 +236,8 @@ describe('mergeAdjacentListsTransform', () => {
 
       const result = mergeAdjacentListsTransform(input, 'de');
 
-      const merged = result.children[0] as ContainerDocumentNode;
-      const numbers = merged.children.map((c) => c.number);
+      const merged = result.children[0] as ListDocumentNode;
+      const numbers = merged.children.map((c) => (c as NumberedDocumentNode).number);
       expect(numbers).toEqual([null, null, null]);
     });
   });
@@ -248,10 +250,10 @@ describe('mergeAdjacentListsTransform', () => {
       const result = mergeAdjacentListsTransform(tree, 'de');
 
       expect(result.children).toHaveLength(1);
-      const merged = result.children[0] as ContainerDocumentNode;
+      const merged = result.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(2);
       // position-derived numbers are preserved as-is (no renumbering)
-      expect(merged.children.map((c) => c.number)).toEqual(['1.', '1.']);
+      expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual(['1.', '1.']);
     });
 
     it('issue #67 scenario: merge runs before dedup so <sup> Absatznummern numbering is continuous', () => {
@@ -269,8 +271,12 @@ describe('mergeAdjacentListsTransform', () => {
       const tree = parseHtmlLegalToTree(html, 'de');
 
       expect(tree.children).toHaveLength(3);
-      expect(tree.children.every((c) => c.type === 'content')).toBe(true);
-      expect(tree.children.map((c) => c.number)).toEqual(['^1^', '^2^', '^3^']);
+      expect(tree.children.every((c) => c.type === 'CONTENT')).toBe(true);
+      expect(tree.children.map((c) => (c as NumberedDocumentNode).number)).toEqual([
+        '^1^',
+        '^2^',
+        '^3^',
+      ]);
     });
 
     it('preserves data-list-style-type markers across the merge (no overwrite)', () => {
@@ -279,10 +285,10 @@ describe('mergeAdjacentListsTransform', () => {
       const tree = parseHtmlLegalToTree(html, 'de');
 
       expect(tree.children).toHaveLength(1);
-      const merged = tree.children[0] as ContainerDocumentNode;
+      const merged = tree.children[0] as ListDocumentNode;
       expect(merged.children).toHaveLength(2);
       // Explicit list-style-type markers preserved exactly — restart kept.
-      expect(merged.children.map((c) => c.number)).toEqual(['a)', 'a)']);
+      expect(merged.children.map((c) => (c as NumberedDocumentNode).number)).toEqual(['a)', 'a)']);
     });
   });
 });

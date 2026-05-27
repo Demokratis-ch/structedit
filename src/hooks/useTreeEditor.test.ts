@@ -1,29 +1,29 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
+  ListDocumentNode,
 } from '../types/document';
+import { isValidDocument } from '../types/document';
 import { useTreeEditor } from './useTreeEditor';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
-  number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -31,7 +31,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
         {
           id: 'p2',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Second paragraph' },
           children: [],
@@ -41,7 +41,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -188,7 +188,7 @@ describe('useTreeEditor', () => {
     });
 
     const h1 = result.current.document.children[0] as HeadingDocumentNode;
-    const p1 = h1.children[0] as LeafDocumentNode;
+    const p1 = h1.children[0] as ContentDocumentNode;
     expect(p1.contents.de).toBe('Updated content');
 
     // Should be able to undo
@@ -311,15 +311,14 @@ describe('useTreeEditor', () => {
 
   test('indentSelected indents all selected nodes', () => {
     // Create doc: root > [h1, p1, p2]
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Heading' },
           children: [],
@@ -327,7 +326,7 @@ describe('useTreeEditor', () => {
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First' },
           children: [],
@@ -335,7 +334,7 @@ describe('useTreeEditor', () => {
         {
           id: 'p2',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Second' },
           children: [],
@@ -396,18 +395,80 @@ describe('useTreeEditor', () => {
     expect(result.current.document.children[3].id).toBe('h2');
   });
 
+  test('outdentSelected tabs a heading stuck in a list out of the list (issue #101 #4)', () => {
+    const doc: DocumentRootNode = {
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'list1',
+          number: null,
+          type: 'LIST',
+          children: [
+            {
+              id: 'li1',
+              number: '1.',
+              type: 'LIST_ITEM',
+              children: [
+                {
+                  id: 'li1-content',
+                  number: null,
+                  type: 'CONTENT',
+                  format: 'TEXT',
+                  contents: { de: 'An item' },
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 'liH',
+              number: null,
+              type: 'LIST_ITEM',
+              children: [
+                {
+                  id: 'stuck',
+                  number: null,
+                  type: 'HEADING',
+                  format: 'TEXT',
+                  contents: { de: 'Stuck heading' },
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => useTreeEditor(doc));
+
+    act(() => {
+      result.current.handleNodeClick('stuck', { shiftKey: false, ctrlKey: false, metaKey: false });
+    });
+
+    act(() => {
+      result.current.outdentSelected();
+    });
+
+    // The heading is lifted out to sit after the list; the list keeps its first item.
+    expect(result.current.document.children.map((c) => c.type)).toEqual(['LIST', 'HEADING']);
+    expect(result.current.document.children[1].id).toBe('stuck');
+    const list = result.current.document.children[0] as ListDocumentNode;
+    expect(list.children.map((c) => c.id)).toEqual(['li1']);
+    expect(isValidDocument(result.current.document)).toBe(true);
+  });
+
   describe('moveSelectedToTop / moveSelectedToBottom', () => {
     // Flat doc: root > [a, b, c, d]
-    const createFlatDoc = (): ContainerDocumentNode => ({
+    const createFlatDoc = (): DocumentRootNode => ({
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: ['a', 'b', 'c', 'd'].map(
         (id) =>
           ({
             id,
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format: 'TEXT',
             contents: { de: id },
             children: [],

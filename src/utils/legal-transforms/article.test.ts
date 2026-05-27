@@ -10,7 +10,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.number).toBe('Art. 1');
     expect(h.contents.de).toBe('Title');
@@ -23,7 +23,7 @@ describe('articleTransform', () => {
 
     const article = result.children[0] as HeadingDocumentNode;
     expect(article.children).toHaveLength(1);
-    expect(article.children[0].type).toBe('content');
+    expect(article.children[0].type).toBe('CONTENT');
   });
 
   it('handles multiple articles in sequence', () => {
@@ -56,7 +56,7 @@ describe('articleTransform', () => {
 
     const section = result.children[0] as HeadingDocumentNode;
     expect(section.children).toHaveLength(1);
-    expect(section.children[0].type).toBe('heading');
+    expect(section.children[0].type).toBe('HEADING');
     const article = section.children[0] as HeadingDocumentNode;
     expect(article.number).toBe('Art. 1');
     expect(article.contents.de).toBe('Title');
@@ -73,7 +73,7 @@ describe('articleTransform', () => {
 
     const art1 = result.children[0] as HeadingDocumentNode;
     expect(art1.children).toHaveLength(1);
-    expect(art1.children[0].type).toBe('content');
+    expect(art1.children[0].type).toBe('CONTENT');
   });
 
   // Issue #89: italics wrapping the whole article line kept it from matching after PR #75.
@@ -83,7 +83,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('heading');
+    expect(result.children[0].type).toBe('HEADING');
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.number).toBe('Art. 1');
     expect(h.contents.de).toBe('Lorem ipsum');
@@ -96,7 +96,7 @@ describe('articleTransform', () => {
 
     expect(result.children).toHaveLength(1);
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('§ 5');
     expect(h.contents.de).toBe('Some title');
   });
@@ -122,8 +122,8 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('heading');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('HEADING');
   });
 
   it('handles Art. X Abs. Y pattern', () => {
@@ -132,7 +132,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('Art. 1 Abs. 2');
     expect(h.contents.de).toBe('Title');
   });
@@ -143,7 +143,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('Art. 12a');
     expect(h.contents.de).toBe('Title');
   });
@@ -154,7 +154,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('Art. 46 b)');
     expect(h.contents.de).toBe('Title');
     expect(h.children).toHaveLength(1);
@@ -166,7 +166,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('Art. 1');
     expect(h.contents.de).toBe('');
     expect(h.children).toHaveLength(1);
@@ -178,7 +178,7 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     const h = result.children[0] as HeadingDocumentNode;
-    expect(h.type).toBe('heading');
+    expect(h.type).toBe('HEADING');
     expect(h.number).toBe('Art. 1 Abs. 2 c)');
     expect(h.contents.de).toBe('Title');
     expect(h.children).toHaveLength(1);
@@ -198,8 +198,8 @@ describe('articleTransform', () => {
     const result = articleTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('CONTENT');
   });
 
   it('preserves the document id', () => {
@@ -221,7 +221,7 @@ describe('articleTransform', () => {
     const section = result.children[0] as HeadingDocumentNode;
     const subsection = section.children[0] as HeadingDocumentNode;
     expect(subsection.children).toHaveLength(1);
-    expect(subsection.children[0].type).toBe('heading');
+    expect(subsection.children[0].type).toBe('HEADING');
     const article = subsection.children[0] as HeadingDocumentNode;
     expect(article.number).toBe('Art. 1');
     expect(article.contents.de).toBe('Deep');

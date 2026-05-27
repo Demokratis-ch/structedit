@@ -1,7 +1,8 @@
 import type {
-  ContainerDocumentNode,
+  BlockDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
 } from '../../types/document';
@@ -14,9 +15,8 @@ import type { TreeTransform } from './types';
  * Returns the extracted number and rest if matched.
  */
 function getRomanSectionMatch(node: DocumentNode): { number: string; rest: string } | null {
-  if (node.type !== 'content') return null;
-  const contentNode = node as ContentDocumentNode;
-  const text = extractCleanText(contentNode.contents.de || '');
+  if (node.type !== 'CONTENT') return null;
+  const text = extractCleanText(node.contents.de || '');
   const result = matchRomanSection(text);
   if (result.matched && result.number && result.rest !== undefined) {
     return { number: result.number, rest: result.rest };
@@ -46,15 +46,15 @@ function getRomanSectionMatch(node: DocumentNode): { number: string; rest: strin
  *     heading(number: "II.", "Second Section")
  */
 export const romanSectionTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   _language: Language
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   // Only process document roots
-  if (root.type !== 'document') {
+  if (root.type !== 'DOCUMENT') {
     return root;
   }
 
-  const newChildren: DocumentNode[] = [];
+  const newChildren: BlockDocumentNode[] = [];
   let currentSection: HeadingDocumentNode | null = null;
 
   for (const child of root.children) {
@@ -70,7 +70,7 @@ export const romanSectionTransform: TreeTransform = (
       currentSection = {
         id: generateId(),
         number: sectionMatch.number,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { [language]: sectionMatch.rest },
         children: [],

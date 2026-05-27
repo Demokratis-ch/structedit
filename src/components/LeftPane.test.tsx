@@ -1,20 +1,19 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { BlockDocumentNode, DocumentRootNode } from '../types/document';
 import { LeftPane } from './LeftPane';
 
-const makeDoc = (...children: ContainerDocumentNode['children']): ContainerDocumentNode => ({
+const makeDoc = (...children: BlockDocumentNode[]): DocumentRootNode => ({
   id: 'root',
-  number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children,
 });
 
 const docWithHeading = makeDoc({
   id: 'h1',
   number: '1',
-  type: 'heading',
+  type: 'HEADING',
   format: 'TEXT',
   contents: { de: 'Heading One' },
   children: [],

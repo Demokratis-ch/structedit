@@ -1,13 +1,14 @@
-import { ArrowRight, Loader2, Upload } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, Upload } from 'lucide-react';
 import type React from 'react';
 import { useRef, useState } from 'react';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   createEntry,
   formatQuotaMessage,
   type RecentEntry,
   StorageQuotaUnresolvableError,
 } from '../utils/document-storage';
+import { isEmptyDocument } from '../utils/document-utils';
 import { processFile, processTextInput } from '../utils/file-processing';
 import { RecentDocumentsList } from './RecentDocumentsList';
 import { Button } from './ui/button';
@@ -16,7 +17,7 @@ import { Textarea } from './ui/textarea';
 
 interface LoadDocumentProps {
   onConvert: (
-    doc: ContainerDocumentNode,
+    doc: DocumentRootNode,
     url: string | null,
     html: string | undefined,
     filename: string | null,
@@ -36,6 +37,7 @@ export function LoadDocument({
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const { showToast } = useToast();
@@ -43,7 +45,7 @@ export function LoadDocument({
   const persistInitialEntry = async (
     name: string,
     subtitle: string | null,
-    tree: ContainerDocumentNode,
+    tree: DocumentRootNode,
     source: ReturnType<typeof processTextInput>['source']
   ): Promise<string | null> => {
     const id = crypto.randomUUID();
@@ -65,8 +67,17 @@ export function LoadDocument({
 
   const handleFile = async (file: File) => {
     setIsLoading(true);
+    setWarning(null);
     try {
       const result = await processFile(file);
+      if (isEmptyDocument(result.doc)) {
+        // Parsing produced no content (e.g. PDF→HTML output that's only positioned
+        // <span>s). Warn here instead of opening a blank, unexplained editor.
+        setWarning(
+          `We couldn't extract any content from "${result.name}". The file may use an unsupported layout (for example, a PDF converted to positioned HTML). Try a different file, or paste the text directly.`
+        );
+        return;
+      }
       setText(result.html ?? '');
       const entryId = await persistInitialEntry(
         result.name,
@@ -125,7 +136,14 @@ export function LoadDocument({
   };
 
   const handleConvert = async () => {
+    setWarning(null);
     const result = processTextInput(text);
+    if (isEmptyDocument(result.doc)) {
+      setWarning(
+        "We couldn't extract any content from the pasted HTML. It may use an unsupported layout — try pasting the plain text instead."
+      );
+      return;
+    }
     const entryId = await persistInitialEntry(
       result.name,
       result.subtitle,
@@ -144,6 +162,16 @@ export function LoadDocument({
               StructEdit <span className="text-gray-400">&mdash; Structured Document Editor</span>
             </h2>
           </div>
+
+          {warning && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+              <span>{warning}</span>
+            </div>
+          )}
 
           {recents.length > 0 && onLoadRecent && onDeleteRecent && (
             <>

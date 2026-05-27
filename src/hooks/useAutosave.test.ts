@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import {
   __setStorageEstimatorForTesting,
   __setWriteFailHookForTesting,
@@ -18,16 +18,15 @@ vi.mock('../components/ui/Toast', () => ({
   useToast: () => ({ showToast: showToastSpy, dismissToast: vi.fn() }),
 }));
 
-function makeTree(text = 'hello'): ContainerDocumentNode {
+function makeTree(text = 'hello'): DocumentRootNode {
   return {
     id: 'root',
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'n1',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: text },
         children: [],
@@ -98,7 +97,7 @@ describe('useAutosave', () => {
     const t3 = makeTree('c');
 
     const { rerender } = renderHook(({ id, tree }) => useAutosave(id, tree), {
-      initialProps: { id: input.id, tree: t1 as ContainerDocumentNode | null },
+      initialProps: { id: input.id, tree: t1 as DocumentRootNode | null },
     });
 
     // Within the debounce window we rerender twice — each rerender resets the timer.
@@ -123,7 +122,7 @@ describe('useAutosave', () => {
 
     const edited = makeTree('flushed-on-switch');
     const { rerender } = renderHook(({ id, tree }) => useAutosave(id, tree), {
-      initialProps: { id: a.id, tree: edited as ContainerDocumentNode | null },
+      initialProps: { id: a.id, tree: edited as DocumentRootNode | null },
     });
 
     // Don't wait for debounce. Switch entry — the pending write to A should still flush.

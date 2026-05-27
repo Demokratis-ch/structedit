@@ -1,12 +1,12 @@
 {
   "id": "root",
   "number": null,
-  "type": "document",
+  "type": "DOCUMENT",
   "children": [
     {
       "id": "preamble-1",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Erlassentwurf der Kommission für Staat und Gemeinden<sup><a href=\"#footnote-1\" id=\"footnote-ref-1\">[1]</a></sup> <br>vom 20. Juni 2025"
       },
@@ -15,7 +15,7 @@
     {
       "id": "preamble-2",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "KR-Nr. 108a/2023"
       },
@@ -24,7 +24,7 @@
     {
       "id": "preamble-3",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Gesetz über die politischen Rechte (GPR)"
       },
@@ -33,7 +33,7 @@
     {
       "id": "preamble-4",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "<strong>(Änderung vom …;</strong> <strong>Wahl- und Abstimmungswerbung auf öffentlichem Grund)  </strong>"
       },
@@ -42,7 +42,7 @@
     {
       "id": "preamble-5",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Der Kantonsrat,"
       },
@@ -51,7 +51,7 @@
     {
       "id": "preamble-6",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "nach Einsichtnahme in den Antrag der Kommission für Staat und Gemeinden vom 20. Juni 2025,"
       },
@@ -60,7 +60,7 @@
     {
       "id": "preamble-7",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "beschliesst:"
       },
@@ -69,7 +69,7 @@
     {
       "id": "section-1",
       "number": "I",
-      "type": "heading",
+      "type": "HEADING",
       "contents": {
         "de": "Das Gesetz über die politischen Rechte vom 1. September 2003 wird wie folgt geändert:"
       },
@@ -77,7 +77,7 @@
         {
           "id": "section-1-title",
           "number": null,
-          "type": "content",
+          "type": "CONTENT",
           "contents": {
             "de": "Wahl- und Abstimmungswerbung auf öffentlichem Grund"
           },
@@ -86,7 +86,7 @@
         {
           "id": "article-6a",
           "number": "§ 6a",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Die Gemeinden sorgen für eine angemessene Anzahl von Standorten auf öffentlichem Grund, an denen vor eidgenössischen, kantonalen und kommunalen Wahlen und Abstimmungen Wahl- und Abstimmungsplakate kostenlos angebracht werden können."
           },
@@ -95,7 +95,7 @@
         {
           "id": "minority-motion",
           "number": null,
-          "type": "content",
+          "type": "CONTENT",
           "contents": {
             "de": "<strong>Minderheitsantrag Christian Zurfluh Fraefel, Michael Biber, Sandra Bossert in Vertretung von Stefan Schmid, Susanne Brunner, Linda Camenisch in Vertretung von Fabian Müller, Isabel Garcia, Roman Schmid.</strong>"
           },
@@ -104,7 +104,7 @@
         {
           "id": "minority-proposal",
           "number": null,
-          "type": "content",
+          "type": "CONTENT",
           "contents": {
             "de": "<em>Die parlamentarische Initiative KR-Nr. 108/2023 wird abgelehnt.</em>"
           },
@@ -115,7 +115,7 @@
     {
       "id": "bericht",
       "number": null,
-      "type": "heading",
+      "type": "HEADING",
       "contents": {
         "de": "Bericht"
       },
@@ -123,7 +123,7 @@
         {
           "id": "section-1-heading",
           "number": "1",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Ausgangslage und Wortlaut der parlamentarischen Initiative"
           },
@@ -131,7 +131,7 @@
             {
               "id": "section-1-p1",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Am 27. März 2023 reichten Nicola Yuste und Mitunterzeichnende die parlamentarische Initiative betreffend «Wahl- und Abstimmungswerbung auf öffentlichem Grund» ein. Sie wurde am 8. Januar 2024 im Kantonsrat behandelt und mit 95 Stimmen vorläufig unterstützt."
               },
@@ -140,7 +140,7 @@
             {
               "id": "section-1-p2",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Die parlamentarische Initiative hat folgenden Wortlaut:"
               },
@@ -149,7 +149,7 @@
             {
               "id": "section-1-quote1",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "<em>Das Gesetz über die politischen Rechte vom 1. September 2003 wird im II. Teil, 1. Abschnitt wie folgt geändert:</em>"
               },
@@ -158,7 +158,7 @@
             {
               "id": "section-1-quote2",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "<strong><em>Wahl- und Abstimmungswerbung auf öffentlichem Grund</em></strong>"
               },
@@ -167,7 +167,7 @@
             {
               "id": "section-1-quote-article",
               "number": "§ 22a",
-              "type": "heading",
+              "type": "HEADING",
               "contents": {
                 "de": "<em>Die Gemeinden sorgen für eine angemessene Anzahl von Standorten auf öffentlichem Grund für das kostenlose und bewilligungsfreie Anbringen von Wahl- und Abstimmungsplakaten vor eidgenössischen, kantonalen und kommunalen Wahlen und Abstimmungen.</em>"
               },
@@ -178,7 +178,7 @@
         {
           "id": "section-2-heading",
           "number": "2",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Ausarbeitung einer Vernehmlassungsvorlage"
           },
@@ -186,7 +186,7 @@
             {
               "id": "section-2-p1",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Die Initianten nehmen ein Anliegen nochmals auf, welches schon 2014 von der SP gemeinsam mit Mitte, EVP, BDP und Grünen eingereicht worden war, aber 2018 im Kantonsrat knapp mit 85 zu 82 Stimmen scheiterte (KR-Nr. 162/2014). Mit der aktuellen parlamentarischen Initiative, welche im Wesentlichen dem im Kantonsrat gescheiterten Antrag entspricht, sollen die Gemeinden dazu verpflichtet werden, im Rahmen der Gemeindeautonomie eine angemessene Anzahl Flächen auf öffentlichem Grund vor Wahlen und Abstimmungen für politische Werbung zur Verfügung zu stellen."
               },
@@ -195,7 +195,7 @@
             {
               "id": "section-2-p2",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Als Mitglied der Kommission konnte die Initiantin ihr Anliegen in der Kommission direkt vertreten."
               },
@@ -204,7 +204,7 @@
             {
               "id": "section-2-p3",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "In der Debatte zum Grundsatzentscheid über das Eintreten auf die PI wurden sowohl Aspekte der konkreten Formulierung wie auch grundsätzliche Überlegungen diskutiert. Ein Thema war die Frage der Bewilligung, denn das entsprechende Verfahren diene in den Gemeinden der Prüfung, ob Verkehrssicherheitsvorschriften tangiert sind. Art. 96 der Signalisationsverordnung des Bundes (SSV; SR 741.21) schreibt vor, dass grundsätzlich Strassenreklamen untersagt sind, welche die Verkehrssicherheit beinträchtigen, indem sie beispielsweise die Verkehrsteilnehmenden ablenken. Dies könnte durch das Anbringen von Wahl- und Abstimmungswerbung gegeben sein. Es gibt jedoch Gemeinden, die von einer Anmeldung sprechen, wenn es um die Zuteilung von Plakatstandorten geht."
               },
@@ -213,7 +213,7 @@
             {
               "id": "section-2-p4",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Bei der Frage, was eine «angemessene Anzahl von Standorten» in sehr unterschiedlichen Gemeinden ist, wurde auf die lokalen Gegebenheiten verwiesen. Nicht mehr zulässig soll sein, dass einzelne Gemeinden gar keine Standorte für Plakatstellen bezeichnen."
               },
@@ -222,7 +222,7 @@
             {
               "id": "section-2-p5",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Allerdings wurde grundsätzlich infrage gestellt, ob es sich bei der Bezeichnung von Standorten für politische Werbung überhaupt um eine öffentliche Aufgabe handelt, noch dazu, wenn eine kantonale Regelung die Gemeindeautonomie einschränken könnte. Diesem Argument wurde mit Verweis auf Art. 39 Kantonsverfassung (LS 101) widersprochen, wonach Kanton und Gemeinden das demokratische politische Engagement unterstützen sollen."
               },
@@ -231,7 +231,7 @@
             {
               "id": "section-2-p6",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Die Kommission entschied sich mit 8 zu 7 Stimmen für das Eintreten auf das Anliegen der PI und führte in der Folge Anhörungen durch. Eingeladen wurden der Gemeindepräsidentenverband (GPV), der Verein der Gemeindeschreiber und Verwaltungsfachleute (VZGV) sowie Vertretungen der Gemeinde Aesch und der Stadt Schlieren, die ihre jeweilige Praxis vorstellten."
               },
@@ -240,7 +240,7 @@
             {
               "id": "section-2-p7",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Sowohl GVP wie auch VZGV standen dem Anliegen ablehnend gegenüber. Sie gewichten die Gemeindeautonomie höher als einheitliche Regelungen für alle Gemeinden und sind der Ansicht, dass die Stimmberechtigten und die Parteien auf Gemeindeebene direkt auf die Gemeindebehörden einwirken können, wenn sie mit einer bestehenden Regelung der Plakatierung nicht einverstanden sind."
               },
@@ -249,7 +249,7 @@
             {
               "id": "section-2-p8",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Aus den Ausführungen der Gemeinden wurde deutlich, dass eine rechtliche Klärung zwischen Anmeldeverfahren und Bewilligungsverfahren vorzunehmen ist. Die zuständige Direktion legte die Unterschiede und die damit verbundenen Rechtsmittel dar. Die Kommission beschloss daraufhin, auf den Begriff «bewilligungsfrei» zu verzichten und hat den Wortlaut der PI redaktionell bereinigt."
               },
@@ -258,7 +258,7 @@
             {
               "id": "section-2-subsection",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "<em>Vorbehaltener Beschluss</em>"
               },
@@ -267,7 +267,7 @@
             {
               "id": "section-2-p9",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Die Kommission für Staat und Gemeinden stimmt dem Erlassentwurf mit 8 zu 7 Stimmen zu."
               },
@@ -276,7 +276,7 @@
             {
               "id": "section-2-p10",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Eine Minderheit lehnt den Erlassentwurf ab."
               },
@@ -287,7 +287,7 @@
         {
           "id": "section-3-heading",
           "number": "3",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Erläuterung der Vernehmlassungsvorlage"
           },
@@ -295,7 +295,7 @@
             {
               "id": "section-3-1-heading",
               "number": "3.1",
-              "type": "heading",
+              "type": "HEADING",
               "contents": {
                 "de": "Grundzüge der Vorlage"
               },
@@ -303,7 +303,7 @@
                 {
                   "id": "section-3-1-p1",
                   "number": null,
-                  "type": "content",
+                  "type": "CONTENT",
                   "contents": {
                     "de": "Mit der vorgeschlagenen Änderung des Gesetzes über die politischen Rechte werden die Gemeinden verpflichtet, auf ihrem Gemeindegebiet auf öffentlichem Grund eine Anzahl von Standorten festzulegen, an denen vor eidgenössischen, kantonalen und kommunalen Wahlen und Abstimmungen Wahl- und Abstimmungsplakate aufgestellt werden können. Die Anzahl der Standorte soll angemessen sein, womit Kriterien wie die Grösse oder topografische Gegebenheiten in der einzelnen Gemeinde zu berücksichtigen sind. Das Verfahren der Zuteilung der Standorte auf politische Parteien und weitere Personen und Organisationen wird von der Gemeinde bestimmt und ist kostenlos."
                   },
@@ -314,7 +314,7 @@
             {
               "id": "section-3-2-heading",
               "number": "3.2",
-              "type": "heading",
+              "type": "HEADING",
               "contents": {
                 "de": "Erläuterung zur Bestimmung"
               },
@@ -322,7 +322,7 @@
                 {
                   "id": "section-3-2-article",
                   "number": "§ 6a",
-                  "type": "heading",
+                  "type": "HEADING",
                   "contents": {
                     "de": "Im Rahmen ihrer Autonomie bestimmen die Gemeinden geeignete Standorte auf gemeindeeigenem und damit öffentlichem Grund, an denen Wahl- und Abstimmungswerbung angebracht oder aufgestellt werden darf. Diese Standorte sind jeweils während kurzer Zeit vor eidgenössischen, kantonalen und kommunalen Wahlen und Abstimmungen nutzbar. Das Verfahren über die Zuteilung der Standorte auf politische Parteien, Organisationen und Einzelpersonen bestimmt die Gemeinde. Das Verfahren ist kostenlos und soll daher so ausgestaltet sein, dass den Gemeinden möglichst wenig Aufwand entsteht."
                   },
@@ -330,7 +330,7 @@
                     {
                       "id": "section-3-2-p2",
                       "number": null,
-                      "type": "content",
+                      "type": "CONTENT",
                       "contents": {
                         "de": "Wegen des sachlichen Zusammenhangs wird die neue Bestimmung nach § 6, Wahl- und Abstimmungsfreiheit, als § 6 a. eingefügt."
                       },
@@ -345,7 +345,7 @@
         {
           "id": "section-4-heading",
           "number": "4",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Finanzielle Auswirkungen und Regulierungsfolgeabschätzung"
           },
@@ -353,7 +353,7 @@
             {
               "id": "section-4-p1",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Der Regierungsrat wird darum gebeten zu den finanziellen Auswirkungen und Regulierungsfolgen der beabsichtigen Gesetzesänderung Stellung zu nehmen."
               },
@@ -364,7 +364,7 @@
         {
           "id": "section-5-heading",
           "number": "5",
-          "type": "heading",
+          "type": "HEADING",
           "contents": {
             "de": "Einladung zur Vernehmlassung"
           },
@@ -372,7 +372,7 @@
             {
               "id": "section-5-p1",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Gemäss § 65 Abs. 2 KRG nimmt der Regierungsrat zum vorläufigen Beratungsergebnis der Kommission Stellung und äussert sich insbesondere auch zu den finanziellen Auswirkungen und Regulierungsfolgen der beabsichtigten Gesetzesänderung. Davon sind die Gemeinden betroffen. Im Sinne von § 65 Abs. 3 KRG bittet die Kommission, zum Erlassentwurf eine Vernehmlassung durchzuführen und ihr das Ergebnis innert neun Monaten zukommen zu lassen."
               },
@@ -385,7 +385,7 @@
     {
       "id": "signature-date",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Zürich, 20. Juni 2025"
       },
@@ -394,7 +394,7 @@
     {
       "id": "signature-intro",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Im Namen der Kommission"
       },
@@ -403,7 +403,7 @@
     {
       "id": "signature",
       "number": null,
-      "type": "content",
+      "type": "CONTENT",
       "contents": {
         "de": "Die Präsidentin:\tDie Sekretärin:<br>Michèle Dünki-Bättig\tJacqueline Wegmann"
       },
@@ -412,17 +412,17 @@
     {
       "id": "footnotes",
       "number": null,
-      "type": "list",
+      "type": "LIST",
       "children": [
         {
           "id": "footnote-1",
           "number": "1",
-          "type": "list_item",
+          "type": "LIST_ITEM",
           "children": [
             {
               "id": "footnote-1-content",
               "number": null,
-              "type": "content",
+              "type": "CONTENT",
               "contents": {
                 "de": "Die Kommission Staat und Gemeinden besteht aus folgenden Mitgliedern: Michèle Dünki-Bättig, Glattfelden (Präsidentin); Isabel Bartal, Zürich; Michael Biber, Bachenbülach; Susanne Brunner, Zürich; Isabel Garcia, Zürich; Sonja Gehrig, Urdorf; Florian Heer, Winterthur; Benjamin Krähenmann, Zürich; Gabriel Mäder, Adliswil; Fabian Müller, Rüschlikon; Christian Pfaller, Bassersdorf; Roman Schmid, Opfikon; Tina Deplazes, Hinwil; Nicola Yuste, Zürich; Christina Zurfluh Fraefel, Wädenswil; Sekretärin: Jacqueline Wegmann. <a href=\"#footnote-ref-1\">↑</a>"
               },

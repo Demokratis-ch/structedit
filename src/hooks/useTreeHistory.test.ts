@@ -1,28 +1,23 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import type {
-  ContainerDocumentNode,
-  ContentDocumentNode,
-  HeadingDocumentNode,
-} from '../types/document';
+import type { ContentDocumentNode, DocumentRootNode, HeadingDocumentNode } from '../types/document';
 import { useTreeHistory } from './useTreeHistory';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
-  number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [
         {
           id: 'p1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'First paragraph' },
           children: [],
@@ -36,7 +31,7 @@ describe('useTreeHistory', () => {
   test('commit updates document state', () => {
     const { result } = renderHook(() => useTreeHistory(createTestDocument()));
 
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [],
     };
@@ -51,7 +46,7 @@ describe('useTreeHistory', () => {
   test('commit adds to history when saveHistory is true', () => {
     const { result } = renderHook(() => useTreeHistory(createTestDocument()));
 
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [],
     };
@@ -66,7 +61,7 @@ describe('useTreeHistory', () => {
   test('commit does not add to history when saveHistory is false', () => {
     const { result } = renderHook(() => useTreeHistory(createTestDocument()));
 
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [],
     };
@@ -84,7 +79,7 @@ describe('useTreeHistory', () => {
     const { result } = renderHook(() => useTreeHistory(createTestDocument()));
 
     // Make a change
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [],
     };
@@ -118,7 +113,7 @@ describe('useTreeHistory', () => {
     const { result } = renderHook(() => useTreeHistory(createTestDocument()));
 
     // Make a change
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [],
     };
@@ -211,14 +206,14 @@ describe('useTreeHistory', () => {
     expect(result.current.nodeIndex.get('p1')).toBeDefined();
 
     // Add a new node
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [
         ...result.current.document.children,
         {
           id: 'h2',
           number: '2',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'New Heading' },
           children: [],
@@ -244,7 +239,7 @@ describe('useTreeHistory', () => {
 
     // Add a new node under h1
     const h1 = result.current.document.children[0] as HeadingDocumentNode;
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       ...result.current.document,
       children: [
         {
@@ -254,7 +249,7 @@ describe('useTreeHistory', () => {
             {
               id: 'p2',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'New paragraph' },
               children: [],
@@ -310,10 +305,9 @@ describe('useTreeHistory', () => {
     expect(result.current.historyLength).toBe(3);
 
     // Reset with new document
-    const newDoc: ContainerDocumentNode = {
+    const newDoc: DocumentRootNode = {
       id: 'new-root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [],
     };
 

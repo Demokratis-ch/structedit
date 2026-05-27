@@ -1,4 +1,4 @@
-import type { ContainerDocumentNode, DocumentNode, Language } from '../types/document';
+import type { DocumentNode, DocumentRootNode, Language } from '../types/document';
 
 export interface OutlineEntry {
   id: string;
@@ -19,14 +19,11 @@ function getTextContent(
   return stripHtml(text);
 }
 
-export function getDocumentOutline(
-  root: ContainerDocumentNode,
-  language: Language
-): OutlineEntry[] {
+export function getDocumentOutline(root: DocumentRootNode, language: Language): OutlineEntry[] {
   const result: OutlineEntry[] = [];
 
   function walk(node: DocumentNode, depth: number) {
-    if (node.type === 'heading') {
+    if (node.type === 'HEADING') {
       result.push({
         id: node.id,
         number: node.number,

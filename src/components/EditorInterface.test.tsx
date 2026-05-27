@@ -1,17 +1,23 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import { DOC_TREE_VERSION, type DocumentRootNode, isValidDocTreeEnvelope } from '../types/document';
 import { EditorInterface } from './EditorInterface';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const downloadFileSpy = vi.fn();
+vi.mock('../utils/document-utils', async () => {
+  const actual =
+    await vi.importActual<typeof import('../utils/document-utils')>('../utils/document-utils');
+  return { ...actual, downloadFile: (...args: unknown[]) => downloadFileSpy(...args) };
+});
+
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
-  number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -19,7 +25,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -68,6 +74,23 @@ describe('EditorInterface layout', () => {
   test('renders Download JSON button', () => {
     renderEditorInterface();
     expect(screen.getByText('Download JSON')).toBeInTheDocument();
+  });
+
+  test('Download JSON emits a DocTree envelope wrapping the document', () => {
+    downloadFileSpy.mockClear();
+    renderEditorInterface({ documentName: 'entwurf.docx', language: 'de' });
+
+    fireEvent.click(screen.getByText('Download JSON'));
+
+    expect(downloadFileSpy).toHaveBeenCalledOnce();
+    const [content, filename, mime] = downloadFileSpy.mock.calls[0];
+    expect(filename).toBe('entwurf.json');
+    expect(mime).toBe('application/json');
+    const parsed = JSON.parse(content);
+    expect(parsed.DocTreeVersion).toBe(DOC_TREE_VERSION);
+    expect(parsed.metadata.title).toEqual({ de: 'entwurf' });
+    expect(parsed.document.type).toBe('DOCUMENT');
+    expect(isValidDocTreeEnvelope(parsed)).toBe(true);
   });
 });
 

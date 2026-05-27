@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { TreeUIStore } from '../stores/TreeUIStore';
-import type { ContainerDocumentNode, Language } from '../types/document';
+import type { DocumentRootNode, Language } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 import { DEFAULT_LANGUAGE } from '../utils/document-utils';
 import { flattenForRendering } from '../utils/tree-utils';
@@ -14,7 +14,7 @@ interface ClickModifiers {
 }
 
 export const useTreeEditor = (
-  initialDocument: ContainerDocumentNode,
+  initialDocument: DocumentRootNode,
   language: Language = DEFAULT_LANGUAGE
 ) => {
   // History management

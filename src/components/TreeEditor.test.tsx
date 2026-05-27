@@ -2,18 +2,17 @@
 // Rendered via EditorInterface since TreeEditor requires the useTreeEditor hook output as a prop.
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import type { ContainerDocumentNode } from '../types/document';
+import type { DocumentRootNode } from '../types/document';
 import { EditorInterface } from './EditorInterface';
 
-const createTestDocument = (): ContainerDocumentNode => ({
+const createTestDocument = (): DocumentRootNode => ({
   id: 'root',
-  number: null,
-  type: 'document',
+  type: 'DOCUMENT',
   children: [
     {
       id: 'h1',
       number: '1',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'First Heading' },
       children: [],
@@ -21,7 +20,7 @@ const createTestDocument = (): ContainerDocumentNode => ({
     {
       id: 'h2',
       number: '2',
-      type: 'heading',
+      type: 'HEADING',
       format: 'TEXT',
       contents: { de: 'Second Heading' },
       children: [],
@@ -301,22 +300,21 @@ describe('double-click inline editing', () => {
   // while any node is in edit mode.
   test('all node wrappers drop draggable while any node is editing', async () => {
     vi.useFakeTimers();
-    const nestedDoc: ContainerDocumentNode = {
+    const nestedDoc: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [
             {
               id: 'c1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested Content' },
               children: [],
@@ -354,6 +352,46 @@ describe('double-click inline editing', () => {
     for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('false');
 
     vi.useRealTimers();
+  });
+
+  // Regression (issue #101, problem 2): editing a node's number opens a text
+  // <input>. While it's open the surrounding node wrappers must drop
+  // draggable=false, otherwise a mouse drag inside the input starts node
+  // drag&drop instead of selecting text.
+  test('node wrappers drop draggable while editing a number', async () => {
+    renderTreeEditor();
+
+    // Sanity: before editing, every wrapper is draggable.
+    let wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('true');
+
+    // Double-click the first node's number badge to enter number-edit mode.
+    await act(async () => {
+      fireEvent.doubleClick(getTreePane().getAllByTitle('Double-click to edit number')[0]);
+    });
+
+    // Every wrapper must now declare draggable=false so the browser lets the
+    // user select text inside the number input with the mouse.
+    wrappers = getContainer().querySelectorAll('[draggable]');
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const w of wrappers) expect(w.getAttribute('draggable')).toBe('false');
+  });
+
+  // Regression (issue #101, problem 3): with no node selected, pressing Tab used
+  // to fall through to the browser's native focus-move, scrolling the pane. The
+  // handler must call preventDefault() even when there's nothing to indent.
+  test('Tab with no selection prevents default (no scroll jump)', () => {
+    renderTreeEditor();
+
+    // Guard the precondition: nothing is selected, so this exercises the
+    // no-selection path rather than the indent path (which also preventDefaults).
+    expectNodeNotSelected('First Heading');
+    expectNodeNotSelected('Second Heading');
+
+    // fireEvent returns false when a handler called preventDefault() on the event.
+    const result = fireEvent.keyDown(getContainer(), { key: 'Tab' });
+    expect(result).toBe(false);
   });
 
   test('pressing Enter while editing a TEXT-format node does NOT create a sibling', async () => {
@@ -411,15 +449,14 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a NEWLINES-format node inserts \\n via execCommand', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'NEWLINES',
           contents: { de: 'ab' },
           children: [],
@@ -469,15 +506,14 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a MARKDOWN_MINIMAL-format heading is a no-op', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: '**hello**' },
           children: [],
@@ -527,15 +563,14 @@ describe('double-click inline editing', () => {
   test('pressing Enter while editing a MARKDOWN-format node inserts \\n via execCommand', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'MARKDOWN',
           contents: { de: 'xy' },
           children: [],
@@ -624,15 +659,14 @@ describe('double-click inline editing', () => {
   test('Shift+Enter inserts \\n in MARKDOWN-format edit mode (same as Enter)', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'p',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'MARKDOWN',
           contents: { de: 'xy' },
           children: [],
@@ -858,15 +892,14 @@ describe('node operations via keyboard', () => {
 
   test('Tab indents selected node under previous sibling', () => {
     // Need heading followed by content at same level for indent to work
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [],
@@ -874,7 +907,7 @@ describe('node operations via keyboard', () => {
         {
           id: 'c1',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: 'Child Content' },
           children: [],
@@ -912,22 +945,21 @@ describe('node operations via keyboard', () => {
   });
 
   test('Shift+Tab outdents selected node', () => {
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'Parent Heading' },
           children: [
             {
               id: 'c1',
               number: null,
-              type: 'content',
+              type: 'CONTENT',
               format: 'TEXT',
               contents: { de: 'Nested Content' },
               children: [],
@@ -1025,15 +1057,14 @@ describe('edit mode behaviors', () => {
     vi.useFakeTimers();
 
     // Create document with an empty content node
-    const doc: ContainerDocumentNode = {
+    const doc: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h1',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'First Heading' },
           children: [],
@@ -1041,7 +1072,7 @@ describe('edit mode behaviors', () => {
         {
           id: 'empty',
           number: null,
-          type: 'content',
+          type: 'CONTENT',
           format: 'TEXT',
           contents: { de: '' },
           children: [],
@@ -1091,10 +1122,9 @@ describe('edit mode behaviors', () => {
 });
 
 describe('empty document', () => {
-  const createEmptyDocument = (): ContainerDocumentNode => ({
+  const createEmptyDocument = (): DocumentRootNode => ({
     id: 'root',
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [],
   });
 
@@ -1135,15 +1165,14 @@ describe('empty document', () => {
 });
 
 describe('drag and drop reordering', () => {
-  const createThreeNodeDocument = (): ContainerDocumentNode => ({
+  const createThreeNodeDocument = (): DocumentRootNode => ({
     id: 'root',
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [
       {
         id: 'h1',
         number: '1',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'First' },
         children: [],
@@ -1151,7 +1180,7 @@ describe('drag and drop reordering', () => {
       {
         id: 'h2',
         number: '2',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Second' },
         children: [],
@@ -1159,7 +1188,7 @@ describe('drag and drop reordering', () => {
       {
         id: 'h3',
         number: '3',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Third' },
         children: [],
@@ -1327,15 +1356,14 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   test('clicking Bold while editing a MARKDOWN_MINIMAL heading wraps the selected text and updates the tree', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: 'hello' },
           children: [],
@@ -1396,15 +1424,14 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   test('Google Docs–style keyboard shortcuts toggle the corresponding mark on the editing contenteditable', async () => {
     vi.useFakeTimers();
 
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: null,
-          type: 'heading',
+          type: 'HEADING',
           format: 'MARKDOWN_MINIMAL',
           contents: { de: 'word' },
           children: [],
@@ -1506,15 +1533,14 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
   });
 
   test('clicking Bold while editing a number input commits to the tree without waiting for blur', async () => {
-    const initialDocument: ContainerDocumentNode = {
+    const initialDocument: DocumentRootNode = {
       id: 'root',
-      number: null,
-      type: 'document',
+      type: 'DOCUMENT',
       children: [
         {
           id: 'h',
           number: '1',
-          type: 'heading',
+          type: 'HEADING',
           format: 'TEXT',
           contents: { de: 'heading text' },
           children: [],

@@ -3,10 +3,11 @@ import type React from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
+  FootnoteDocumentNode,
   HeadingDocumentNode,
-  LeafDocumentNode,
+  ListDocumentNode,
+  ListItemDocumentNode,
 } from '../types/document';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import {
@@ -18,7 +19,7 @@ import {
 const createTestNode = (): HeadingDocumentNode => ({
   id: 'h1',
   number: '1',
-  type: 'heading',
+  type: 'HEADING',
   format: 'TEXT',
   contents: { de: 'Test Heading' },
   children: [],
@@ -138,7 +139,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-no-num',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
@@ -154,7 +155,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-no-num',
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Unnumbered Heading' },
         children: [],
@@ -180,10 +181,10 @@ describe('RecursiveTreeNode', () => {
 
     test('list item bullet with null number triggers onNumberDoubleClick on double-click', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: ContainerDocumentNode = {
+      const node: ListItemDocumentNode = {
         id: 'li-no-num',
         number: null,
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
@@ -198,10 +199,10 @@ describe('RecursiveTreeNode', () => {
     });
 
     test('footnote with null number renders a dashed placeholder badge', () => {
-      const node: LeafDocumentNode = {
+      const node: FootnoteDocumentNode = {
         id: 'fn-no-num',
         number: null,
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: 'TEXT',
         contents: { de: 'A footnote' },
       };
@@ -215,7 +216,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'c-no-num',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Some paragraph' },
         children: [],
@@ -231,7 +232,7 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'c-with-num',
         number: '2.',
-        type: 'content',
+        type: 'CONTENT',
         format: 'TEXT',
         contents: { de: 'Numbered paragraph' },
         children: [],
@@ -249,10 +250,10 @@ describe('RecursiveTreeNode', () => {
     });
 
     test('list node with null number renders a dashed placeholder badge', () => {
-      const node: ContainerDocumentNode = {
+      const node: ListDocumentNode = {
         id: 'list-no-num',
         number: null,
-        type: 'list',
+        type: 'LIST',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
@@ -263,10 +264,10 @@ describe('RecursiveTreeNode', () => {
 
     test('list node with a number renders a solid badge', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: ContainerDocumentNode = {
+      const node: ListDocumentNode = {
         id: 'list-with-num',
         number: 'A.',
-        type: 'list',
+        type: 'LIST',
         children: [],
       };
       const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
@@ -283,10 +284,10 @@ describe('RecursiveTreeNode', () => {
 
     test('footnote with a number renders a solid badge that is double-clickable', () => {
       const onNumberDoubleClick = vi.fn();
-      const node: LeafDocumentNode = {
+      const node: FootnoteDocumentNode = {
         id: 'fn-with-num',
         number: 'i.',
-        type: 'footnote',
+        type: 'FOOTNOTE',
         format: 'TEXT',
         contents: { de: 'A footnote' },
       };
@@ -305,7 +306,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-md',
         number: '**1**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Bold number heading' },
         children: [],
@@ -323,7 +324,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-md-edit',
         number: '**1**',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'Bold number heading' },
         children: [],
@@ -344,7 +345,7 @@ describe('RecursiveTreeNode', () => {
       const node: HeadingDocumentNode = {
         id: 'h-attr',
         number: '1',
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { de: 'x' },
         children: [],
@@ -477,34 +478,34 @@ describe('RecursiveTreeNode', () => {
       const node: ContentDocumentNode = {
         id: 'p',
         number: null,
-        type: 'content',
+        type: 'CONTENT',
         format: 'MARKDOWN',
         contents: { de: '**bold**' },
         children: [],
       };
       const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
-      expect(getByText('content · MARKDOWN')).toBeTruthy();
+      expect(getByText('CONTENT · MARKDOWN')).toBeTruthy();
     });
 
-    test('heading with TEXT format shows "heading · TEXT"', () => {
+    test('heading with TEXT format shows "HEADING · TEXT"', () => {
       const node = createTestNode(); // heading + TEXT
       const { getByText } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
-      expect(getByText('heading · TEXT')).toBeTruthy();
+      expect(getByText('HEADING · TEXT')).toBeTruthy();
     });
 
-    test('container-only node (list_item) shows just the type, no format', () => {
-      const node: ContainerDocumentNode = {
+    test('container-only node (LIST_ITEM) shows just the type, no format', () => {
+      const node: ListItemDocumentNode = {
         id: 'li',
         number: '1.',
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
       const { getByText, queryByText } = renderWithContext(
         <RecursiveTreeNode node={node} depth={1} />
       );
-      expect(getByText('list_item')).toBeTruthy();
+      expect(getByText('LIST_ITEM')).toBeTruthy();
       // No "·" separator and no format token in the indicator
-      expect(queryByText(/list_item ·/)).toBeNull();
+      expect(queryByText(/LIST_ITEM ·/)).toBeNull();
     });
   });
 });

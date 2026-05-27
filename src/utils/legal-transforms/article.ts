@@ -1,11 +1,12 @@
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
 } from '../../types/document';
 import { generateId } from '../document-utils';
+import { withMappedChildren } from '../tree-utils';
 import { extractCleanText, matchArticle } from './patterns';
 import type { TreeTransform } from './types';
 
@@ -14,7 +15,7 @@ import type { TreeTransform } from './types';
  * Returns the extracted number and rest if matched.
  */
 function getArticleMatch(node: DocumentNode): { number: string; rest: string } | null {
-  if (node.type !== 'content') return null;
+  if (node.type !== 'CONTENT') return null;
   const contentNode = node as ContentDocumentNode;
   const text = extractCleanText(contentNode.contents.de || '');
   const result = matchArticle(text);
@@ -35,11 +36,9 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
     // First, recursively transform any nested containers
     let processedChild = child;
     if ('children' in child && child.children && child.children.length > 0) {
-      const containerChild = child as ContainerDocumentNode | HeadingDocumentNode;
-      processedChild = {
-        ...containerChild,
-        children: processChildren(containerChild.children, _language),
-      };
+      processedChild = withMappedChildren(child, (children) =>
+        processChildren(children, _language)
+      );
     }
 
     // Then check for article pattern at this level
@@ -55,12 +54,12 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
       currentArticle = {
         id: generateId(),
         number: articleMatch.number,
-        type: 'heading',
+        type: 'HEADING',
         format: 'TEXT',
         contents: { [language]: articleMatch.rest },
         children: [],
       };
-    } else if (currentArticle && processedChild.type === 'content') {
+    } else if (currentArticle && processedChild.type === 'CONTENT') {
       // Nest content under current article
       currentArticle.children.push(processedChild);
     } else {
@@ -99,11 +98,8 @@ function processChildren(children: DocumentNode[], _language: Language): Documen
  *       content("Article content")
  */
 export const articleTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: processChildren(root.children, language),
-  };
+): DocumentRootNode => {
+  return withMappedChildren(root, (children) => processChildren(children, language));
 };

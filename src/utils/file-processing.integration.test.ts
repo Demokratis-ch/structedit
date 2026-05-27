@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { DocumentNode } from '../types/document';
+import type { DocumentNode, NumberedDocumentNode } from '../types/document';
 import { processDocxFile } from './file-processing';
 
 const FIXTURE_DIR = path.join(__dirname, '../test/fixtures/realistic/docx/without_table');
@@ -67,8 +67,8 @@ describe('file-processing integration', () => {
       const result = await importFixture('entwurf_zurich_2025.docx');
       html = result.html!;
       allNodes = flattenTree(result.doc);
-      headings = allNodes.filter((n) => n.type === 'heading');
-      contentNodes = allNodes.filter((n) => n.type === 'content');
+      headings = allNodes.filter((n) => n.type === 'HEADING');
+      contentNodes = allNodes.filter((n) => n.type === 'CONTENT');
     });
 
     afterAll(() => {
@@ -119,8 +119,8 @@ describe('file-processing integration', () => {
       warnSpy = setupBrowserShims();
       const result = await importFixture('numbering_example.docx');
       allNodes = flattenTree(result.doc);
-      contentNodes = allNodes.filter((n) => n.type === 'content');
-      headings = allNodes.filter((n) => n.type === 'heading');
+      contentNodes = allNodes.filter((n) => n.type === 'CONTENT');
+      headings = allNodes.filter((n) => n.type === 'HEADING');
     });
 
     afterAll(() => {
@@ -132,10 +132,14 @@ describe('file-processing integration', () => {
       // Find the converted Absätze by text. Each was a <li><sup>N</sup>…</li> in the
       // Mammoth HTML; after the fix it must be a `content` node, not a `list_item`.
       const lorem1 = contentNodes.find(
-        (c) => textOf(c).startsWith('Lorem ipsum dolor sit amet') && c.number === '^1^'
+        (c) =>
+          textOf(c).startsWith('Lorem ipsum dolor sit amet') &&
+          (c as NumberedDocumentNode).number === '^1^'
       );
       const lorem3 = contentNodes.find(
-        (c) => textOf(c) === 'Lorem ipsum dolor sit amet.' && c.number === '^3^'
+        (c) =>
+          textOf(c) === 'Lorem ipsum dolor sit amet.' &&
+          (c as NumberedDocumentNode).number === '^3^'
       );
       expect(lorem1).toBeDefined();
       expect(lorem3).toBeDefined();
@@ -145,7 +149,7 @@ describe('file-processing integration', () => {
       // The converted content node's number is the raw markdown source `^N^`. When
       // rendered through NumberMarkup (MARKDOWN_MINIMAL), this becomes <sup>N</sup>.
       const absatzNumbers = contentNodes
-        .map((c) => c.number)
+        .map((c) => (c as NumberedDocumentNode).number)
         .filter((n): n is string => typeof n === 'string' && /^\^\d+(?:bis|ter)?\^$/.test(n));
 
       // Three Absätze convert (Art. 1 Abs. 1 / 3, Art. 2 Abs. 2). The other two
@@ -168,16 +172,16 @@ describe('file-processing integration', () => {
       // Art. 1 Abs. 2 "Er gilt für:" + sublist a/b/c/d cannot collapse to a content
       // node because it has non-footnote children.
       const erGiltFuer = allNodes
-        .filter((n) => n.type === 'list_item')
+        .filter((n) => n.type === 'LIST_ITEM')
         .find((li) => {
           if (!('children' in li)) return false;
-          const firstContent = li.children.find((c) => c.type === 'content');
+          const firstContent = li.children.find((c) => c.type === 'CONTENT');
           return firstContent !== undefined && textOf(firstContent).includes('Er gilt für');
         });
       expect(erGiltFuer).toBeDefined();
       // Number is extracted plain (per the non-conversion path), and the nested list survives.
       expect(erGiltFuer?.number).toBe('2');
-      expect('children' in erGiltFuer! && erGiltFuer.children.some((c) => c.type === 'list')).toBe(
+      expect('children' in erGiltFuer! && erGiltFuer.children.some((c) => c.type === 'LIST')).toBe(
         true
       );
     });
@@ -186,7 +190,9 @@ describe('file-processing integration', () => {
       // The simple Absätze ("Lorem ipsum dolor sit amet.") have no other marks, so
       // their format must downgrade from MARKDOWN to TEXT.
       const plainAbsatz = contentNodes.find(
-        (c) => textOf(c) === 'Lorem ipsum dolor sit amet.' && c.number === '^3^'
+        (c) =>
+          textOf(c) === 'Lorem ipsum dolor sit amet.' &&
+          (c as NumberedDocumentNode).number === '^3^'
       );
       expect(plainAbsatz).toBeDefined();
       expect('format' in plainAbsatz! && plainAbsatz.format).toBe('TEXT');
@@ -195,12 +201,12 @@ describe('file-processing integration', () => {
     // Issue #89: the bold `**I.**` and italic `*Art. 1 Lorem ipsum*` paragraphs
     // in the fixture must be promoted to headings by the legal transforms.
     it('detects the top-level Roman numeral section `I.` as a heading', () => {
-      const romanSection = headings.find((h) => h.number === 'I.');
+      const romanSection = headings.find((h) => (h as NumberedDocumentNode).number === 'I.');
       expect(romanSection).toBeDefined();
     });
 
     it('detects `Art. 1 Lorem ipsum` as an article heading', () => {
-      const article = headings.find((h) => h.number === 'Art. 1');
+      const article = headings.find((h) => (h as NumberedDocumentNode).number === 'Art. 1');
       expect(article).toBeDefined();
       expect(textOf(article!)).toBe('Lorem ipsum');
     });

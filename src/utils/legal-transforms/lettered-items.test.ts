@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  ContainerDocumentNode,
   ContentDocumentNode,
   HeadingDocumentNode,
+  ListDocumentNode,
+  ListItemDocumentNode,
+  NumberedDocumentNode,
 } from '../../types/document';
 import { letteredItemsTransform } from './lettered-items';
 import { content, createDoc, heading, list } from './test-helpers';
@@ -14,8 +16,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(1);
-    expect(result.children[0].type).toBe('list');
-    expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
+    expect(result.children[0].type).toBe('LIST');
+    expect((result.children[0] as ListDocumentNode).children).toHaveLength(2);
   });
 
   it('sets correct number on list items', () => {
@@ -23,8 +25,8 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    expect(listNode.children[0].number).toBe('a.');
+    const listNode = result.children[0] as ListDocumentNode;
+    expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
   });
 
   it('strips letter prefix from content', () => {
@@ -32,8 +34,8 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    const listItem = listNode.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
+    const listItem = listNode.children[0] as ListItemDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
     expect(contentNode.contents.de).toBe('First item text');
   });
@@ -47,11 +49,10 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    expect(listNode.type).toBe('list');
-    const first = (listNode.children[0] as ContainerDocumentNode)
-      .children[0] as ContentDocumentNode;
-    const second = (listNode.children[1] as ContainerDocumentNode)
+    const listNode = result.children[0] as ListDocumentNode;
+    expect(listNode.type).toBe('LIST');
+    const first = (listNode.children[0] as ListItemDocumentNode).children[0] as ContentDocumentNode;
+    const second = (listNode.children[1] as ListItemDocumentNode)
       .children[0] as ContentDocumentNode;
     expect(first.contents.de).toBe('First item');
     expect(second.contents.de).toBe('Second item');
@@ -68,11 +69,11 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(3);
-    expect(result.children[0].type).toBe('list');
-    expect((result.children[0] as ContainerDocumentNode).children).toHaveLength(2);
-    expect(result.children[1].type).toBe('content');
-    expect(result.children[2].type).toBe('list');
-    expect((result.children[2] as ContainerDocumentNode).children).toHaveLength(1);
+    expect(result.children[0].type).toBe('LIST');
+    expect((result.children[0] as ListDocumentNode).children).toHaveLength(2);
+    expect(result.children[1].type).toBe('CONTENT');
+    expect(result.children[2].type).toBe('LIST');
+    expect((result.children[2] as ListDocumentNode).children).toHaveLength(1);
   });
 
   it('applies recursively to nested containers', () => {
@@ -82,7 +83,7 @@ describe('letteredItemsTransform', () => {
 
     const section = result.children[0] as HeadingDocumentNode;
     expect(section.children).toHaveLength(1);
-    expect(section.children[0].type).toBe('list');
+    expect(section.children[0].type).toBe('LIST');
   });
 
   it('handles lettered items within headings', () => {
@@ -94,8 +95,8 @@ describe('letteredItemsTransform', () => {
 
     const h = result.children[0] as HeadingDocumentNode;
     expect(h.children).toHaveLength(2);
-    expect(h.children[0].type).toBe('content');
-    expect(h.children[1].type).toBe('list');
+    expect(h.children[0].type).toBe('CONTENT');
+    expect(h.children[1].type).toBe('LIST');
   });
 
   it('creates separate lists for non-consecutive runs', () => {
@@ -110,9 +111,9 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(3);
-    expect(result.children[0].type).toBe('list');
-    expect(result.children[1].type).toBe('content');
-    expect(result.children[2].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
+    expect(result.children[1].type).toBe('CONTENT');
+    expect(result.children[2].type).toBe('LIST');
   });
 
   it('preserves content before lettered items', () => {
@@ -121,8 +122,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('list');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('LIST');
   });
 
   it('preserves existing lists', () => {
@@ -137,8 +138,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('list');
-    expect(result.children[1].type).toBe('list');
+    expect(result.children[0].type).toBe('LIST');
+    expect(result.children[1].type).toBe('LIST');
   });
 
   it('handles empty document', () => {
@@ -155,8 +156,8 @@ describe('letteredItemsTransform', () => {
     const result = letteredItemsTransform(input, 'de');
 
     expect(result.children).toHaveLength(2);
-    expect(result.children[0].type).toBe('content');
-    expect(result.children[1].type).toBe('content');
+    expect(result.children[0].type).toBe('CONTENT');
+    expect(result.children[1].type).toBe('CONTENT');
   });
 
   it('preserves the document id', () => {
@@ -178,10 +179,10 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     expect(listNode.children).toHaveLength(4);
-    expect(listNode.children[0].number).toBe('a.');
-    expect(listNode.children[3].number).toBe('z.');
+    expect((listNode.children[0] as NumberedDocumentNode).number).toBe('a.');
+    expect((listNode.children[3] as NumberedDocumentNode).number).toBe('z.');
   });
 
   it('creates list_item with content child', () => {
@@ -189,11 +190,11 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
     const listItem = listNode.children[0];
-    expect(listItem.type).toBe('list_item');
-    expect((listItem as ContainerDocumentNode).children).toHaveLength(1);
-    expect((listItem as ContainerDocumentNode).children[0].type).toBe('content');
+    expect(listItem.type).toBe('LIST_ITEM');
+    expect((listItem as ListItemDocumentNode).children).toHaveLength(1);
+    expect((listItem as ListItemDocumentNode).children[0].type).toBe('CONTENT');
   });
 
   it('handles deeply nested structure', () => {
@@ -208,7 +209,7 @@ describe('letteredItemsTransform', () => {
     const l1 = result.children[0] as HeadingDocumentNode;
     const l2 = l1.children[0] as HeadingDocumentNode;
     expect(l2.children).toHaveLength(1);
-    expect(l2.children[0].type).toBe('list');
+    expect(l2.children[0].type).toBe('LIST');
   });
 
   it('preserves plain text content after stripping letter prefix', () => {
@@ -218,8 +219,8 @@ describe('letteredItemsTransform', () => {
 
     const result = letteredItemsTransform(input, 'de');
 
-    const listNode = result.children[0] as ContainerDocumentNode;
-    const listItem = listNode.children[0] as ContainerDocumentNode;
+    const listNode = result.children[0] as ListDocumentNode;
+    const listItem = listNode.children[0] as ListItemDocumentNode;
     const contentNode = listItem.children[0] as ContentDocumentNode;
     expect(contentNode.contents.de).toBe('Bold item');
   });

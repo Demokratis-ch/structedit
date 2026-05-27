@@ -1,9 +1,5 @@
-import type {
-  ContainerDocumentNode,
-  DocumentNode,
-  HeadingDocumentNode,
-  Language,
-} from '../../types/document';
+import type { DocumentNode, DocumentRootNode, Language } from '../../types/document';
+import { withMappedChildren } from '../tree-utils';
 import {
   extractCleanText,
   matchArticle,
@@ -39,36 +35,34 @@ function tryExtractNumber(text: string): { number: string; rest: string } | null
  * Process a single node, extracting number from headings and recursing into children.
  */
 function processNode(node: DocumentNode, language: Language): DocumentNode {
-  if (node.type === 'heading') {
-    const heading = node as HeadingDocumentNode;
-    const processedChildren = heading.children.map((child) => processNode(child, language));
+  if (node.type === 'HEADING') {
+    const withProcessedChildren = withMappedChildren(node, (children) =>
+      children.map((child) => processNode(child, language))
+    );
 
-    if (heading.number !== null) {
-      return { ...heading, children: processedChildren };
+    if (node.number !== null) {
+      return withProcessedChildren;
     }
 
-    const lang = (Object.keys(heading.contents)[0] as Language) || language;
-    const text = extractCleanText(heading.contents[lang] || '');
+    const lang = (Object.keys(node.contents)[0] as Language) || language;
+    const text = extractCleanText(node.contents[lang] || '');
     const extracted = tryExtractNumber(text);
 
     if (extracted) {
       return {
-        ...heading,
+        ...withProcessedChildren,
         number: extracted.number,
-        contents: { ...heading.contents, [lang]: extracted.rest },
-        children: processedChildren,
+        contents: { ...node.contents, [lang]: extracted.rest },
       };
     }
 
-    return { ...heading, children: processedChildren };
+    return withProcessedChildren;
   }
 
-  if ('children' in node && Array.isArray((node as ContainerDocumentNode).children)) {
-    const container = node as ContainerDocumentNode;
-    return {
-      ...container,
-      children: container.children.map((child) => processNode(child, language)),
-    };
+  if ('children' in node && Array.isArray(node.children)) {
+    return withMappedChildren(node, (children) =>
+      children.map((child) => processNode(child, language))
+    );
   }
 
   return node;
@@ -82,11 +76,10 @@ function processNode(node: DocumentNode, language: Language): DocumentNode {
  * `number` field on headings that already exist.
  */
 export const headingNumberExtractTransform: TreeTransform = (
-  root: ContainerDocumentNode,
+  root: DocumentRootNode,
   language: Language
-): ContainerDocumentNode => {
-  return {
-    ...root,
-    children: root.children.map((child) => processNode(child, language)),
-  };
+): DocumentRootNode => {
+  return withMappedChildren(root, (children) =>
+    children.map((child) => processNode(child, language))
+  );
 };

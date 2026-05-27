@@ -1,11 +1,16 @@
 import DOMPurify from 'dompurify';
-import type {
-  ContainerDocumentNode,
-  ContentDocumentNode,
-  DocumentNode,
-  HeadingDocumentNode,
-  Language,
-  NodeFormat,
+import {
+  type BlockDocumentNode,
+  type ContentDocumentNode,
+  DOC_TREE_VERSION,
+  type DocTreeEnvelope,
+  type DocumentNode,
+  type DocumentRootNode,
+  type HeadingDocumentNode,
+  type Language,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
+  type NodeFormat,
 } from '../types/document';
 import {
   hasInlineMarks,
@@ -17,9 +22,30 @@ import { applySwissLegalTransforms } from './legal-transforms';
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
 
+// Strips only the final extension (e.g. "archive.tar.gz" -> "archive.tar"), so
+// the JSON filename and the envelope title agree on what the "base name" is.
+const stripFileExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
+
 export const deriveJsonFilename = (filename: string | null | undefined): string => {
   if (!filename) return 'document.json';
-  return `${filename.replace(/\.[^/.]+$/, '')}.json`;
+  return `${stripFileExtension(filename)}.json`;
+};
+
+/**
+ * Wrap a document tree in a versioned envelope for export. The title is derived
+ * from the source filename (extension stripped) and keyed by `language`.
+ */
+export const buildDocTreeEnvelope = (
+  document: DocumentRootNode,
+  options: { language: Language; filename?: string | null }
+): DocTreeEnvelope => {
+  const stripped = options.filename ? stripFileExtension(options.filename).trim() : '';
+  const title = stripped ? { [options.language]: stripped } : {};
+  return {
+    DocTreeVersion: DOC_TREE_VERSION,
+    metadata: { title },
+    document,
+  };
 };
 
 export const DEFAULT_LANGUAGE: Language = 'de';
@@ -57,12 +83,38 @@ export const preserveListStyleType = (html: string): string => {
 };
 
 /**
+ * True when a parsed document carries no text content anywhere in the tree.
+ * Used to detect uploads/pastes we couldn't extract any structure from (e.g.
+ * PDF→HTML output that is only positioned <span>s) so the UI can warn instead
+ * of silently opening an empty editor.
+ */
+export const isEmptyDocument = (doc: DocumentRootNode): boolean => {
+  const hasText = (node: DocumentNode): boolean => {
+    // A label like "Art. 5" or "I." that legal transforms moved into `number` is
+    // still real content even when `contents` is empty. (The document root has no `number`.)
+    if ('number' in node && typeof node.number === 'string' && node.number.trim().length > 0) {
+      return true;
+    }
+    if ('contents' in node && node.contents) {
+      if (Object.values(node.contents).some((v) => typeof v === 'string' && v.trim().length > 0)) {
+        return true;
+      }
+    }
+    if ('children' in node && node.children) {
+      return node.children.some(hasText);
+    }
+    return false;
+  };
+  return !hasText(doc);
+};
+
+/**
  * Parse HTML to DocumentNode tree structure
  */
 export const parseHtmlToTree = (
   html: string,
   language: Language = detectLanguage(html)
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   const preprocessedHtml = preserveListStyleType(html);
   const cleanHtml = DOMPurify.sanitize(preprocessedHtml, {
     ALLOWED_TAGS: [
@@ -97,22 +149,22 @@ export const parseHtmlToTree = (
   const parser = new DOMParser();
   const doc = parser.parseFromString(cleanHtml, 'text/html');
 
-  const root: ContainerDocumentNode = {
+  const root: DocumentRootNode = {
     id: generateId(),
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children: [],
   };
 
   // Stack to track current parent at each heading level
   // Index 0 = document root, 1 = h1-level, 2 = h2-level, etc.
-  const parentStack: (ContainerDocumentNode | HeadingDocumentNode)[] = [root];
+  // Only the root and headings are ever pushed; both carry block-level children.
+  const parentStack: (DocumentRootNode | HeadingDocumentNode)[] = [root];
 
-  const getCurrentParent = (): ContainerDocumentNode | HeadingDocumentNode => {
+  const getCurrentParent = (): DocumentRootNode | HeadingDocumentNode => {
     return parentStack[parentStack.length - 1];
   };
 
-  const addChild = (node: DocumentNode) => {
+  const addChild = (node: BlockDocumentNode) => {
     getCurrentParent().children.push(node);
   };
 
@@ -140,12 +192,12 @@ export const parseHtmlToTree = (
    *   image → always TEXT.
    */
   const chooseFormat = (
-    nodeType: 'heading' | 'content' | 'footnote' | 'image',
+    nodeType: 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE',
     rawHtml: string
   ): NodeFormat => {
-    if (nodeType === 'image') return 'TEXT';
+    if (nodeType === 'IMAGE') return 'TEXT';
     if (!hasInlineMarks(rawHtml)) return 'TEXT';
-    if (nodeType === 'heading') {
+    if (nodeType === 'HEADING') {
       if (hasOnlyAnchorMarks(rawHtml)) return 'TEXT';
       if (hasOnlyBreakMarks(rawHtml)) return 'NEWLINES';
       return 'MARKDOWN_MINIMAL';
@@ -170,11 +222,11 @@ export const parseHtmlToTree = (
     return html.trim();
   };
 
-  const processListElement = (domNode: Node, tagName: string): ContainerDocumentNode => {
-    const list: ContainerDocumentNode = {
+  const processListElement = (domNode: Node, tagName: string): ListDocumentNode => {
+    const list: ListDocumentNode = {
       id: generateId(),
       number: null,
-      type: 'list',
+      type: 'LIST',
       children: [],
     };
 
@@ -183,26 +235,27 @@ export const parseHtmlToTree = (
     items.forEach((li, index) => {
       const customStyle =
         li instanceof HTMLElement ? li.getAttribute('data-list-style-type') : null;
-      const listItem: ContainerDocumentNode = {
+      const listItem: ListItemDocumentNode = {
         id: generateId(),
         number: customStyle || (tagName === 'ol' ? `${index + 1}.` : null),
-        type: 'list_item',
+        type: 'LIST_ITEM',
         children: [],
       };
 
       const rawHtml = getDirectInnerHtml(li);
       if (rawHtml) {
-        const format = chooseFormat('content', rawHtml);
+        const format = chooseFormat('CONTENT', rawHtml);
         const text = htmlToMarkdown(rawHtml, format);
         if (text) {
-          listItem.children.push({
+          const contentChild: ContentDocumentNode = {
             id: generateId(),
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format,
             contents: { [language]: text },
             children: [],
-          } as ContentDocumentNode);
+          };
+          listItem.children.push(contentChild);
         }
       }
 
@@ -230,7 +283,7 @@ export const parseHtmlToTree = (
     if (/^h[1-6]$/.test(tagName)) {
       const level = parseInt(tagName[1], 10); // 1-6
       const rawHtml = getInnerHtml(domNode);
-      const format = chooseFormat('heading', rawHtml);
+      const format = chooseFormat('HEADING', rawHtml);
       const content = htmlToMarkdown(rawHtml, format);
 
       // Pop stack to appropriate level (heading level becomes index in stack)
@@ -241,7 +294,7 @@ export const parseHtmlToTree = (
       const heading: HeadingDocumentNode = {
         id: generateId(),
         number: null,
-        type: 'heading',
+        type: 'HEADING',
         format,
         contents: { [language]: content },
         children: [],
@@ -269,13 +322,13 @@ export const parseHtmlToTree = (
     if (tagName === 'p') {
       const rawHtml = getInnerHtml(domNode);
       if (rawHtml) {
-        const format = chooseFormat('content', rawHtml);
+        const format = chooseFormat('CONTENT', rawHtml);
         const content = htmlToMarkdown(rawHtml, format);
         if (content) {
           const contentNode: ContentDocumentNode = {
             id: generateId(),
             number: null,
-            type: 'content',
+            type: 'CONTENT',
             format,
             contents: { [language]: content },
             children: [],
@@ -306,7 +359,7 @@ export const parseHtmlToTree = (
 export const parseHtmlLegalToTree = (
   html: string,
   language: Language = detectLanguage(html)
-): ContainerDocumentNode => {
+): DocumentRootNode => {
   const tree = parseHtmlToTree(html, language);
   return applySwissLegalTransforms(tree, language);
 };

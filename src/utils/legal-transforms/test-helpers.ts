@@ -1,20 +1,20 @@
 import type {
-  ContainerDocumentNode,
+  BlockDocumentNode,
   ContentDocumentNode,
-  DocumentNode,
+  DocumentRootNode,
   HeadingDocumentNode,
   Language,
+  ListDocumentNode,
 } from '../../types/document';
 import { generateId } from '../document-utils';
 
 /**
  * Create a document root node for testing
  */
-export function createDoc(children: DocumentNode[]): ContainerDocumentNode {
+export function createDoc(children: BlockDocumentNode[]): DocumentRootNode {
   return {
     id: generateId(),
-    number: null,
-    type: 'document',
+    type: 'DOCUMENT',
     children,
   };
 }
@@ -26,7 +26,7 @@ export function content(text: string, lang: Language = 'de'): ContentDocumentNod
   return {
     id: generateId(),
     number: null,
-    type: 'content',
+    type: 'CONTENT',
     format: 'TEXT',
     contents: { [lang]: text },
     children: [],
@@ -38,13 +38,13 @@ export function content(text: string, lang: Language = 'de'): ContentDocumentNod
  */
 export function heading(
   text: string,
-  children: DocumentNode[] = [],
+  children: BlockDocumentNode[] = [],
   lang: Language = 'de'
 ): HeadingDocumentNode {
   return {
     id: generateId(),
     number: null,
-    type: 'heading',
+    type: 'HEADING',
     format: 'TEXT',
     contents: { [lang]: text },
     children,
@@ -54,15 +54,15 @@ export function heading(
 /**
  * Create a list node for testing
  */
-export function list(items: { number: string | null; content: string }[]): ContainerDocumentNode {
+export function list(items: { number: string | null; content: string }[]): ListDocumentNode {
   return {
     id: generateId(),
     number: null,
-    type: 'list',
+    type: 'LIST',
     children: items.map((item) => ({
       id: generateId(),
       number: item.number,
-      type: 'list_item' as const,
+      type: 'LIST_ITEM' as const,
       children: [content(item.content)],
     })),
   };
