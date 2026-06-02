@@ -209,6 +209,42 @@ html {
   font-size: var(--font-size);
 }
 
+/* Tree node selection visuals — see issue #102.
+ *
+ * Selection is mirrored to each tree-node wrapper as `data-selected` by
+ * useSelectionAttribute, *outside* React's render cycle. The visuals that used
+ * to be conditional Tailwind classes live here instead so toggling selection
+ * costs one DOM attribute write per affected node — no React reconciliation,
+ * no per-node className diff.
+ *
+ * Other per-node UI state (editing, dragging, receiving-parent, hovered-handle)
+ * is also exposed as data-* attributes on the wrapper but stays React-driven —
+ * those only ever affect one node at a time, so they don't hit the same
+ * performance cliff. Keeping them as attributes lets the compound conditions
+ * below (e.g. "selected and not editing") work in CSS instead of JSX.
+ */
+.tree-node[data-selected='true']:not([data-editing='true']) {
+  @apply bg-blue-50 ring-1 ring-blue-100;
+}
+.tree-node[data-selected='false'][data-editing='false'][data-receiving-parent='false']:hover {
+  @apply bg-gray-50/50;
+}
+/* Descendant selectors use `>` so a selected parent doesn't leak its styles
+ * into nested tree nodes (the tree is recursive). */
+.tree-node[data-selected='true'] > .tree-node-drag-handle,
+.tree-node[data-hovered-handle='true'] > .tree-node-drag-handle {
+  @apply opacity-100;
+}
+.tree-node[data-selected='true'] > .tree-node-type-indicator {
+  @apply opacity-100;
+}
+.tree-node[data-selected='true'] > .tree-node-add-btn {
+  @apply opacity-60 pointer-events-auto;
+}
+.tree-node[data-selected='true'] > .tree-node-add-btn:hover {
+  @apply opacity-100;
+}
+
 /* Table Support in Editor */
 table {
   width: 100%;

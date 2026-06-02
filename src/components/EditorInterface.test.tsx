@@ -97,11 +97,13 @@ describe('EditorInterface layout', () => {
 /** Get a within-scoped query object for the tree editor (right pane). */
 const getTreePane = () => within(screen.getByTestId('tree-editor-pane'));
 
-/** Assert that a node (found by text content) has selected styling. */
+/** Assert that a node (found by text content) is marked selected on the wrapper.
+ * Selection lives as `data-selected` on the wrapper (see useSelectionAttribute,
+ * issue #102). */
 const expectNodeSelected = (text: string) => {
   const el = getTreePane().getByText(text);
   const wrapper = el.closest('[draggable]') as HTMLElement;
-  expect(wrapper.className).toContain('bg-blue');
+  expect(wrapper.dataset.selected).toBe('true');
 };
 
 describe('FloatingToolbar tooltips', () => {
