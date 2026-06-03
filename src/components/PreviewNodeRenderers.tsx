@@ -6,7 +6,7 @@ import type {
   NodeFormat,
 } from '../types/document';
 import { renderContent } from '../utils/format-render';
-import { NumberMarkup } from './NumberMarkup';
+import { NumberBadgeDisplay } from './NumberBadge';
 
 /**
  * MARKDOWN is the only format whose rendered output may contain block-level tags
@@ -87,7 +87,7 @@ export function HeadingNode({
   return (
     <section id={node.id} className="mb-2">
       <Tag className={className}>
-        {node.number && <NumberMarkup value={node.number} className="mr-2" />}
+        <NumberBadgeDisplay value={node.number} className="mr-2" />
         <MarkupSpan source={text} format={node.format} />
       </Tag>
       {otherChildren.map((child) => (
@@ -107,9 +107,7 @@ export function ContentNode({
 }) {
   const text = node.contents[language] ?? '';
   const footnotes = node.children.filter((c) => c.type === 'FOOTNOTE');
-  const numberBadge = node.number && (
-    <NumberMarkup value={node.number} className="font-bold mr-1" />
-  );
+  const numberBadge = <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />;
 
   return (
     <div className="my-1">
@@ -169,11 +167,7 @@ export function ListItemNode({
     : [];
   const firstContentIsBlock = firstContent ? isBlockFormat(firstContent.format) : false;
 
-  const marker = node.number ? (
-    <NumberMarkup value={node.number} className="font-bold mr-1" />
-  ) : (
-    <span className="mr-2">•</span>
-  );
+  const marker = <NumberBadgeDisplay value={node.number} className="font-bold mr-1" bullet />;
 
   return (
     <div className="my-1">
@@ -223,9 +217,7 @@ export function FootnoteSection({
         {footnotes.map((fn) => {
           if (fn.type !== 'FOOTNOTE') return null;
           const text = fn.contents[language] ?? '';
-          const numberBadge = fn.number && (
-            <NumberMarkup value={fn.number} className="font-bold mr-1" />
-          );
+          const numberBadge = <NumberBadgeDisplay value={fn.number} className="font-bold mr-1" />;
           if (isBlockFormat(fn.format)) {
             return (
               <div key={fn.id} className="text-sm">

@@ -5,7 +5,7 @@ import { useNodeState } from '../hooks/useNodeState';
 import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
 import type { DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
-import { NumberMarkup } from './NumberMarkup';
+import { NumberBadge } from './NumberBadge';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 
 interface RecursiveTreeNodeProps {
@@ -159,76 +159,22 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
     };
 
     // Render an editable number badge (shared by list items and headings).
-    // When currentNumber is null and not editing, renders a placeholder (dashed box or bullet).
+    // When the number is null and not editing, renders a placeholder (dashed box or bullet).
     const renderNumberBadge = (
       currentNumber: string | null,
       baseClassName: string,
       placeholder: 'dashed' | 'bullet' = 'dashed'
-    ) => {
-      if (isEditingNumber) {
-        return (
-          <input
-            type="text"
-            defaultValue={currentNumber || ''}
-            ref={(el) => el?.focus()}
-            data-structedit-field="number"
-            data-structedit-node-id={node.id}
-            className={`w-12 text-sm border border-blue-400 rounded px-1 py-0.5 outline-none bg-white flex-shrink-0 mr-2 mt-0.5 z-10 relative ${baseClassName}`}
-            onBlur={(e) => {
-              const val = e.target.value.trim();
-              onUpdateNumber(node.id, val || null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                onUpdateNumber(node.id, currentNumber);
-              }
-              e.stopPropagation();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-          />
-        );
-      }
-
-      if (currentNumber) {
-        return (
-          <div
-            className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border rounded px-1 cursor-pointer ${baseClassName}`}
-            onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
-            title="Double-click to edit number"
-          >
-            <NumberMarkup value={currentNumber} />
-          </div>
-        );
-      }
-
-      if (placeholder === 'bullet') {
-        return (
-          <div
-            className="w-6 h-6 flex items-center justify-center flex-shrink-0 mr-1 select-none mt-0.5 z-10 relative cursor-pointer"
-            onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
-            title="Double-click to add number"
-          >
-            <span className="w-1.5 h-1.5 bg-gray-800 rounded-full" />
-          </div>
-        );
-      }
-
-      return (
-        <div
-          className={`w-auto min-w-[1.5rem] h-6 flex items-center justify-end flex-shrink-0 mr-2 select-none text-sm mt-0.5 z-10 relative border border-dashed rounded px-1 cursor-pointer ${baseClassName}`}
-          onDoubleClick={(e) => onNumberDoubleClick(e, node.id)}
-          title="Double-click to add number"
-        >
-          {'\u200B'}
-        </div>
-      );
-    };
+    ) => (
+      <NumberBadge
+        value={currentNumber}
+        nodeId={node.id}
+        isEditing={isEditingNumber}
+        className={baseClassName}
+        placeholder={placeholder}
+        onUpdateNumber={onUpdateNumber}
+        onDoubleClick={onNumberDoubleClick}
+      />
+    );
 
     // Render node content (the actual text/editable part)
     const renderContent = () => {
