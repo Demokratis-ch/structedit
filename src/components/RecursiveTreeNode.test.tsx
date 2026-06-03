@@ -1,5 +1,6 @@
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import type React from 'react';
+import { Profiler } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
@@ -392,6 +393,23 @@ describe('RecursiveTreeNode', () => {
       expect(onAddNodeAfter).toHaveBeenCalledWith('h1');
     });
 
+    test('add buttons carry hidden defaults when not selected (revealed via CSS)', () => {
+      // Selection styling (showing the buttons) is applied by index.css when
+      // the parent wrapper carries data-selected="true". The default JSX must
+      // therefore start hidden — opacity-0 + pointer-events-none — otherwise
+      // every node permanently shows clickable add-buttons (regression of #102).
+      const node = createTestNode();
+      const { getByTitle } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+      const above = getByTitle('Add node above');
+      const below = getByTitle('Add node below');
+      expect(above.className).toContain('tree-node-add-btn');
+      expect(above.className).toContain('opacity-0');
+      expect(above.className).toContain('pointer-events-none');
+      expect(below.className).toContain('tree-node-add-btn');
+      expect(below.className).toContain('opacity-0');
+      expect(below.className).toContain('pointer-events-none');
+    });
+
     test('hides add buttons when editing', () => {
       const node = createTestNode();
       const store = new TreeUIStore();
@@ -438,6 +456,90 @@ describe('RecursiveTreeNode', () => {
       const prev = { node, depth: 1 };
       const next = { node, depth: 2 };
       expect(compare(prev, next)).toBe(false);
+    });
+  });
+
+  describe('selection state', () => {
+    test('wrapper carries data-selected="false" when not selected', () => {
+      const node = createTestNode();
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />);
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.selected).toBe('false');
+    });
+
+    test('wrapper carries data-selected="true" when selected at mount', () => {
+      const node = createTestNode();
+      const store = new TreeUIStore();
+      store.setSelection(new Set(['h1']));
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.selected).toBe('true');
+    });
+
+    test('data-selected flips imperatively without re-rendering the component', () => {
+      const node = createTestNode();
+      const store = new TreeUIStore();
+      const onRender = vi.fn();
+      const { container } = render(
+        <TreeCallbacksContext.Provider value={defaultCallbacks}>
+          <TreeUIStoreContext.Provider value={store}>
+            <Profiler id="tn" onRender={onRender}>
+              <RecursiveTreeNode node={node} depth={1} />
+            </Profiler>
+          </TreeUIStoreContext.Provider>
+        </TreeCallbacksContext.Provider>
+      );
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.selected).toBe('false');
+      const initialRenderCount = onRender.mock.calls.length;
+
+      act(() => store.setSelection(new Set(['h1'])));
+      expect(wrapper.dataset.selected).toBe('true');
+
+      act(() => store.setSelection(new Set()));
+      expect(wrapper.dataset.selected).toBe('false');
+
+      act(() => store.setSelection(new Set(['h1', 'other'])));
+      expect(wrapper.dataset.selected).toBe('true');
+
+      expect(onRender.mock.calls.length).toBe(initialRenderCount);
+    });
+  });
+
+  describe('node-state data attributes', () => {
+    test('wrapper carries data-editing="true" when editing', () => {
+      const node = createTestNode();
+      const store = new TreeUIStore();
+      store.setEditingId('h1');
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.editing).toBe('true');
+    });
+
+    test('wrapper carries data-receiving-parent="true" when this node is the receiving parent', () => {
+      const node = createTestNode();
+      const store = new TreeUIStore();
+      store.setReceivingParentId('h1');
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.receivingParent).toBe('true');
+    });
+
+    test('wrapper carries data-dragging="true" when this node is being dragged', () => {
+      const node = createTestNode();
+      const store = new TreeUIStore();
+      store.setDraggedNodeId('h1');
+      const { container } = renderWithContext(<RecursiveTreeNode node={node} depth={1} />, {
+        store,
+      });
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.dataset.dragging).toBe('true');
     });
   });
 

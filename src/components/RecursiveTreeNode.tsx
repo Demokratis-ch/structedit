@@ -1,7 +1,8 @@
 import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
-import { memo, useCallback, useSyncExternalStore } from 'react';
+import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
+import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
 import type { DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
 import { NumberMarkup } from './NumberMarkup';
@@ -14,16 +15,19 @@ interface RecursiveTreeNodeProps {
 
 const AddNodeButton: React.FC<{
   position: 'top' | 'bottom';
-  isSelected: boolean;
   onClick: () => void;
-}> = ({ position, isSelected, onClick }) => (
+}> = ({ position, onClick }) => (
+  // Default-hidden via Tailwind classes (`opacity-0 pointer-events-none`);
+  // revealed by the `.tree-node[data-selected='true'] > .tree-node-add-btn`
+  // rule in src/index.css when the parent node is selected. Same pattern as
+  // the drag handle.
   <button
-    className={`
+    className={`tree-node-add-btn
       absolute ${position === 'top' ? '-top-3' : '-bottom-3'} left-1/2 -translate-x-1/2 z-30
       w-6 h-6 rounded-lg flex items-center justify-center
       bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-600
       transition-all duration-150 cursor-pointer border border-gray-200
-      ${isSelected ? 'opacity-60 hover:!opacity-100' : 'opacity-0 pointer-events-none'}
+      opacity-0 pointer-events-none
     `}
     onClick={(e) => {
       e.stopPropagation();
@@ -44,8 +48,12 @@ const AddNodeButton: React.FC<{
 export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
   ({ node, depth }) => {
     const store = useTreeUIStore();
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    // Selection is mirrored to the wrapper's `data-selected` imperatively
+    // (no React re-render), and selection-driven visuals live in index.css.
+    // See useSelectionAttribute / issue #102.
+    useSelectionAttribute(store, node.id, wrapperRef);
     const {
-      isSelected,
       isEditing,
       isDragging,
       isDropTarget,
@@ -305,6 +313,11 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
 
     return (
       <div
+        ref={wrapperRef}
+        data-editing={isEditing ? 'true' : 'false'}
+        data-dragging={isDragging ? 'true' : 'false'}
+        data-receiving-parent={isReceivingParent ? 'true' : 'false'}
+        data-hovered-handle={isHoveredHandle ? 'true' : 'false'}
         draggable={!isAnyNodeEditing}
         onDragStart={(e) => {
           e.stopPropagation();
@@ -327,12 +340,9 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
           e.stopPropagation();
           onDoubleClick(e, node.id);
         }}
-        className={`
-          group relative
+        className={`tree-node group relative
           ${node.type !== 'HEADING' ? 'rounded-md' : ''}
           ${isDragging ? 'opacity-30 bg-gray-50' : ''}
-          ${isSelected && !isEditing ? 'bg-blue-50 ring-1 ring-blue-100' : ''}
-          ${!isSelected && !isEditing && !isReceivingParent ? 'hover:bg-gray-50/50' : ''}
           ${isEditing ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'cursor-default'}
           ${isReceivingParent ? 'ring-2 ring-green-400' : ''}
           ${isInvalidDrop ? 'cursor-not-allowed' : ''}
@@ -348,7 +358,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
 
         {/* Drag handle - only show for non-document nodes */}
         <div
-          className={`absolute top-1 left-1 flex items-center select-none z-10 ${isSelected || isHoveredHandle ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          className="tree-node-drag-handle absolute top-1 left-1 flex items-center select-none z-10 opacity-0 group-hover:opacity-100"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -362,28 +372,14 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         </div>
 
         {/* Add node buttons */}
-        {!isEditing && (
-          <AddNodeButton
-            position="top"
-            isSelected={isSelected}
-            onClick={() => onAddNodeBefore(node.id)}
-          />
-        )}
-        {!isEditing && (
-          <AddNodeButton
-            position="bottom"
-            isSelected={isSelected}
-            onClick={() => onAddNodeAfter(node.id)}
-          />
-        )}
+        {!isEditing && <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />}
+        {!isEditing && <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />}
 
         {/* Node type indicator */}
         <span
-          className={`
-            absolute top-1 right-1 text-xs text-gray-400 select-none z-10
+          className="tree-node-type-indicator absolute top-1 right-1 text-xs text-gray-400 select-none z-10
             transition-opacity duration-150
-            ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}
-          `}
+            opacity-0 group-hover:opacity-70"
         >
           {'format' in node ? `${node.type} · ${node.format}` : node.type}
         </span>

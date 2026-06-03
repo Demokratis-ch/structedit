@@ -1,13 +1,15 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import type { TreeUIStore } from '../stores/TreeUIStore';
 
+/**
+ * Per-node UI state, subscribed via React. Note that `isSelected` is
+ * deliberately NOT here — selection is mirrored to the wrapper DOM
+ * imperatively by `useSelectionAttribute` so a single click that flips many
+ * nodes' selection doesn't trigger a re-render per node. See issue #102.
+ */
 export function useNodeState(store: TreeUIStore, id: string) {
   const subscribe = store.subscribe;
 
-  const isSelected = useSyncExternalStore(
-    subscribe,
-    useCallback(() => store.isSelected(id), [store, id])
-  );
   const isEditing = useSyncExternalStore(
     subscribe,
     useCallback(() => store.isEditing(id), [store, id])
@@ -42,7 +44,6 @@ export function useNodeState(store: TreeUIStore, id: string) {
   );
 
   return {
-    isSelected,
     isEditing,
     isEditingNumber,
     isDragging,

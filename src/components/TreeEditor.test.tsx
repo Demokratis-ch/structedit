@@ -53,18 +53,21 @@ const selectFirstNode = () => {
   fireEvent.click(firstHeading);
 };
 
-/** Assert that a node (found by text content) has selected styling. */
+/** Assert that a node (found by text content) is marked selected on the wrapper.
+ * Selection is mirrored to the wrapper imperatively (see useSelectionAttribute,
+ * issue #102) — the visual class is applied via CSS in index.css, so we check
+ * the underlying data attribute, not the className. */
 const expectNodeSelected = (text: string) => {
   const el = getTreePane().getByText(text);
   const wrapper = el.closest('[draggable]') as HTMLElement;
-  expect(wrapper.className).toContain('bg-blue');
+  expect(wrapper.dataset.selected).toBe('true');
 };
 
-/** Assert that a node (found by text content) does NOT have selected styling. */
+/** Assert that a node (found by text content) is NOT marked selected. */
 const expectNodeNotSelected = (text: string) => {
   const el = getTreePane().getByText(text);
   const wrapper = el.closest('[draggable]') as HTMLElement;
-  expect(wrapper.className).not.toContain('bg-blue');
+  expect(wrapper.dataset.selected).toBe('false');
 };
 
 /**

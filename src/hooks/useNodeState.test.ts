@@ -4,11 +4,19 @@ import { TreeUIStore } from '../stores/TreeUIStore';
 import { useNodeState } from './useNodeState';
 
 describe('useNodeState', () => {
+  it('does NOT expose isSelected — selection is handled outside React (see #102)', () => {
+    // Guard against a future "for consistency" refactor reintroducing
+    // isSelected here, which would re-render every affected node on every
+    // selection change and undo the perf fix.
+    const store = new TreeUIStore();
+    const { result } = renderHook(() => useNodeState(store, 'node-1'));
+    expect('isSelected' in (result.current as object)).toBe(false);
+  });
+
   it('returns initial state for a node', () => {
     const store = new TreeUIStore();
     const { result } = renderHook(() => useNodeState(store, 'node-1'));
 
-    expect(result.current.isSelected).toBe(false);
     expect(result.current.isEditing).toBe(false);
     expect(result.current.isDragging).toBe(false);
     expect(result.current.isDropTarget).toBe(false);
@@ -17,17 +25,6 @@ describe('useNodeState', () => {
     expect(result.current.isHoveredHandle).toBe(false);
     expect(result.current.isReceivingParent).toBe(false);
     expect(result.current.isInvalidDrop).toBe(false);
-  });
-
-  it('reflects selection changes', () => {
-    const store = new TreeUIStore();
-    const { result } = renderHook(() => useNodeState(store, 'node-1'));
-
-    act(() => store.setSelection(new Set(['node-1'])));
-    expect(result.current.isSelected).toBe(true);
-
-    act(() => store.setSelection(new Set(['node-2'])));
-    expect(result.current.isSelected).toBe(false);
   });
 
   it('reflects editing changes', () => {
@@ -76,8 +73,8 @@ describe('useNodeState', () => {
     const { result: r1 } = renderHook(() => useNodeState(store, 'a'));
     const { result: r2 } = renderHook(() => useNodeState(store, 'b'));
 
-    act(() => store.setSelection(new Set(['a'])));
-    expect(r1.current.isSelected).toBe(true);
-    expect(r2.current.isSelected).toBe(false);
+    act(() => store.setEditingId('a'));
+    expect(r1.current.isEditing).toBe(true);
+    expect(r2.current.isEditing).toBe(false);
   });
 });
