@@ -4,6 +4,7 @@ import type { DocumentRootNode, Language } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 import { DEFAULT_LANGUAGE } from '../utils/document-utils';
 import { flattenForRendering } from '../utils/tree-utils';
+import { useFlatNodeIndex } from './useFlatNodeIndex';
 import { useSelection } from './useSelection';
 import { useTreeHistory } from './useTreeHistory';
 import { useTreeOperations } from './useTreeOperations';
@@ -57,14 +58,8 @@ export const useTreeEditor = (
   // Flattened nodes for rendering
   const flattenedNodes = useMemo<FlattenedNode[]>(() => flattenForRendering(document), [document]);
 
-  // Create a lookup from id to flat index for range selection
-  const nodeIdToFlatIndex = useMemo(() => {
-    const map = new Map<string, number>();
-    flattenedNodes.forEach((fn, idx) => {
-      map.set(fn.node.id, idx);
-    });
-    return map;
-  }, [flattenedNodes]);
+  // Lookup from id to flat index for range selection and bulk-operation ordering
+  const nodeIdToFlatIndex = useFlatNodeIndex(flattenedNodes);
 
   // Selection management (click modifiers, range math, anchor tracking)
   const {

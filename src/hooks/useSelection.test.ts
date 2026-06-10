@@ -4,6 +4,7 @@ import { TreeUIStore } from '../stores/TreeUIStore';
 import type { DocumentRootNode } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 import { flattenForRendering } from '../utils/tree-utils';
+import { useFlatNodeIndex } from './useFlatNodeIndex';
 import { useSelection } from './useSelection';
 
 const createTestDocument = (): DocumentRootNode => ({
@@ -51,17 +52,12 @@ const createTestDocument = (): DocumentRootNode => ({
 interface Harness {
   store: TreeUIStore;
   flattenedNodes: FlattenedNode[];
-  nodeIdToFlatIndex: Map<string, number>;
 }
 
 const createHarness = (doc: DocumentRootNode = createTestDocument()): Harness => {
   const store = new TreeUIStore();
   const flattenedNodes = flattenForRendering(doc);
-  const nodeIdToFlatIndex = new Map<string, number>();
-  flattenedNodes.forEach((fn, idx) => {
-    nodeIdToFlatIndex.set(fn.node.id, idx);
-  });
-  return { store, flattenedNodes, nodeIdToFlatIndex };
+  return { store, flattenedNodes };
 };
 
 describe('useSelection', () => {
@@ -71,7 +67,11 @@ describe('useSelection', () => {
     harness = createHarness();
   });
 
-  const render = () => renderHook(() => useSelection(harness));
+  const render = () =>
+    renderHook(() => {
+      const nodeIdToFlatIndex = useFlatNodeIndex(harness.flattenedNodes);
+      return useSelection({ ...harness, nodeIdToFlatIndex });
+    });
 
   test('single click selects one node and sets anchor + lastSelected', () => {
     const { result } = render();
