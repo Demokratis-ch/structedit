@@ -260,6 +260,87 @@ describe('useKeyboardShortcuts — block handler', () => {
   });
 });
 
+describe('useKeyboardShortcuts — in-edit Enter inserts a newline', () => {
+  /** One content node per newline-relevant format, plus a single-line heading. */
+  const docPerFormat = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'text',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'a' },
+        children: [],
+      },
+      {
+        id: 'newlines',
+        number: null,
+        type: 'CONTENT',
+        format: 'NEWLINES',
+        contents: { de: 'a' },
+        children: [],
+      },
+      {
+        id: 'markdown',
+        number: null,
+        type: 'CONTENT',
+        format: 'MARKDOWN',
+        contents: { de: 'a' },
+        children: [],
+      },
+      {
+        id: 'mdmin',
+        number: '1',
+        type: 'HEADING',
+        format: 'MARKDOWN_MINIMAL',
+        contents: { de: 'a' },
+        children: [],
+      },
+    ],
+  });
+
+  // `insertLineBreak` produces a real `\n` text node in a pre-wrap contentEditable, so the
+  // `textContent` read-back keeps it. `insertText '\n'` (the old behavior) made Chrome wrap
+  // the break in `<div>` blocks, and `textContent` silently dropped it — issue #129.
+  test.each([
+    'newlines',
+    'markdown',
+  ])('Enter in a %s node uses insertLineBreak (not insertText "\\n")', (id) => {
+    const result = setup(docPerFormat());
+    // jsdom doesn't define document.execCommand, so assign a mock directly rather than spy.
+    const exec = vi.fn().mockReturnValue(true);
+    (window.document as unknown as { execCommand?: unknown }).execCommand = exec;
+    const e = makeKbd({ key: 'Enter' });
+
+    act(() => result.current.handlers.handleBlockKeyDown(e, id));
+
+    expect(e.preventDefault).toHaveBeenCalled();
+    expect(exec).toHaveBeenCalledWith('insertLineBreak');
+    expect(exec).not.toHaveBeenCalledWith('insertText', expect.anything(), '\n');
+
+    delete (window.document as { execCommand?: unknown }).execCommand;
+  });
+
+  test.each([
+    'text',
+    'mdmin',
+  ])('Enter in a single-line %s node inserts nothing (no execCommand)', (id) => {
+    const result = setup(docPerFormat());
+    const exec = vi.fn().mockReturnValue(true);
+    (window.document as unknown as { execCommand?: unknown }).execCommand = exec;
+    const e = makeKbd({ key: 'Enter' });
+
+    act(() => result.current.handlers.handleBlockKeyDown(e, id));
+
+    expect(e.preventDefault).toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+
+    delete (window.document as { execCommand?: unknown }).execCommand;
+  });
+});
+
 describe('useKeyboardShortcuts — handleBulkUpdateType', () => {
   test('maps "CONTENT" to a content type change for the selection', () => {
     const result = setup(twoHeadings());

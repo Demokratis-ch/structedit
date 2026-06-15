@@ -495,7 +495,7 @@ describe('double-click inline editing', () => {
       fireEvent.keyDown(editingEl, { key: 'Enter' });
     });
 
-    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+    expect(execCommandSpy).toHaveBeenCalledWith('insertLineBreak');
 
     if (originalExec) {
       (
@@ -609,7 +609,7 @@ describe('double-click inline editing', () => {
       fireEvent.keyDown(editingEl, { key: 'Enter' });
     });
 
-    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+    expect(execCommandSpy).toHaveBeenCalledWith('insertLineBreak');
 
     if (originalExec) {
       (
@@ -705,7 +705,7 @@ describe('double-click inline editing', () => {
       fireEvent.keyDown(editingEl, { key: 'Enter', shiftKey: true });
     });
 
-    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, '\n');
+    expect(execCommandSpy).toHaveBeenCalledWith('insertLineBreak');
 
     if (originalExec) {
       (

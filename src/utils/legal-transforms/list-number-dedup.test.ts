@@ -69,13 +69,13 @@ describe('listNumberDedupTransform', () => {
     expect(c1.contents.de).toBe('Er gilt für: ...');
     expect(c1.format).toBe('TEXT');
 
-    // The third item's source had a <br> (now `\n` in markdown source). The bare
-    // newline isn't treated as an inline mark for downgrade purposes — visually
-    // a single `\n` is rendered the same under TEXT and MARKDOWN — so the
-    // format downgrades to TEXT alongside the other two items.
+    // The third item's source had a <br> (now `\n` in markdown source). Under
+    // `breaks: true` a single `\n` renders as a `<br>` in MARKDOWN but collapses to a
+    // space under TEXT, so the newline is a meaningful mark — the format stays MARKDOWN
+    // rather than downgrading (downgrading would silently drop the line break).
     expect(c2.contents.de).toContain('Er regelt zudem');
     expect(c2.contents.de).toContain('\n');
-    expect(c2.format).toBe('TEXT');
+    expect(c2.format).toBe('MARKDOWN');
 
     expect(isValidDocument(result)).toBe(true);
   });
