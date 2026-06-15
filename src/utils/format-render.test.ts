@@ -181,6 +181,13 @@ describe('renderContent — MARKDOWN', () => {
     expect(html).toContain('<li>b</li>');
   });
 
+  it('renders a single newline as a <br> hard break (breaks: true)', () => {
+    const html = renderContent('line one\nline two', 'MARKDOWN');
+    expect(html).toMatch(/<br\s*\/?>/);
+    expect(html).toContain('line one');
+    expect(html).toContain('line two');
+  });
+
   it('renders paragraphs and inline marks', () => {
     const html = renderContent('Hello **world**', 'MARKDOWN');
     expect(html).toContain('<strong>world</strong>');
@@ -378,11 +385,11 @@ describe('hasInlineMarkdownMarks', () => {
     expect(hasInlineMarkdownMarks('see [site](https://example.com)')).toBe(true);
   });
 
-  it('returns false for a literal newline alone (visually identical under TEXT and MARKDOWN)', () => {
-    // A bare `\n` does not render as a hard break in MARKDOWN (marked uses
-    // `breaks: false` by default) and TEXT collapses `\n` to space — so the
-    // newline is not a meaningful inline mark for downgrade decisions.
-    expect(hasInlineMarkdownMarks('line one\nline two')).toBe(false);
+  it('returns true for a literal newline alone (renders as a hard break under MARKDOWN)', () => {
+    // A bare `\n` renders as a `<br>` in MARKDOWN (marked runs with `breaks: true`)
+    // whereas TEXT collapses `\n` to a space — so the newline IS a meaningful mark
+    // and a node carrying only newlines must keep its MARKDOWN format on downgrade.
+    expect(hasInlineMarkdownMarks('line one\nline two')).toBe(true);
   });
 });
 

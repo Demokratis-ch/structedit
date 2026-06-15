@@ -9,7 +9,7 @@ The system SHALL define exactly five formatting levels — `TEXT`, `NEWLINES`, `
 
 #### Scenario: Each level has a documented rendering contract
 - **WHEN** the renderer is asked to render a string under any level
-- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` is single-line and supports only bold/italic/strike/sup/sub (newlines are collapsed to a space, never preserved as `<br>`); `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements **and no bare HTML**; `MARKDOWN` supports full CommonMark + GFM (paragraphs, lists, tables, strikethrough, autolinks) **with bare HTML disabled — raw `<tag>…</tag>` in source is dropped, not rendered**
+- **THEN** it follows the per-level contract: `TEXT` strips newlines and escapes; `NEWLINES` escapes and converts `\n` to `<br>`; `MARKDOWN_MINIMAL` is single-line and supports only bold/italic/strike/sup/sub (newlines are collapsed to a space, never preserved as `<br>`); `MARKDOWN_INLINE` supports CommonMark inline plus strike/sup/sub with no block elements **and no bare HTML**; `MARKDOWN` supports full CommonMark + GFM (paragraphs, lists, tables, strikethrough, autolinks) **with bare HTML disabled — raw `<tag>…</tag>` in source is dropped, not rendered**, and renders a single `\n` as a `<br>` line break (`marked` runs with `breaks: true` for MARKDOWN)
 
 ### Requirement: Every content-bearing node carries a required format field
 The system SHALL require a `format: NodeFormat` field on every node whose type can hold `contents` (`heading`, `content`, `footnote`, `image`). Container-only nodes (`document`, `list`, `list_item`) SHALL NOT carry a format. `isValidNode` and `isValidDocument` SHALL reject any tree that violates these rules.
@@ -82,6 +82,10 @@ The system SHALL provide a pure function `renderContent(raw: string, format: Nod
 #### Scenario: MARKDOWN renders full CommonMark
 - **WHEN** `renderContent('- a\n- b', 'MARKDOWN')` is called
 - **THEN** the output contains `<ul>` with two `<li>` children
+
+#### Scenario: MARKDOWN renders a single newline as a line break
+- **WHEN** `renderContent('line one\nline two', 'MARKDOWN')` is called
+- **THEN** the output contains a `<br>` between the lines (a single `\n` is a hard break — `marked` runs with `breaks: true`, so the editing view's literal newlines survive into the rendered preview)
 
 #### Scenario: MARKDOWN does not render bare block HTML
 - **WHEN** `renderContent('<div>raw</div>', 'MARKDOWN')` is called

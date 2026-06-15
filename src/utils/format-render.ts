@@ -320,8 +320,12 @@ export const renderContent = (raw: string, format: NodeFormat): string => {
       break;
     }
     case 'MARKDOWN': {
+      // breaks: render a single `\n` as a hard `<br>` (GitHub-comment behavior) rather than a
+      // soft break that collapses to a space. Users type Enter expecting a visible line break,
+      // and this keeps MARKDOWN display consistent with the pre-wrap edit view. Scoped to
+      // MARKDOWN only — MARKDOWN_INLINE (parseInline above) keeps the default soft-break.
       html = sanitize(
-        markedNoHtml.parse(protectSupSubMarks(raw), { async: false }) as string,
+        markedNoHtml.parse(protectSupSubMarks(raw), { async: false, breaks: true }) as string,
         'MARKDOWN'
       );
       break;
@@ -335,10 +339,11 @@ export const renderContent = (raw: string, format: NodeFormat): string => {
  * link). Detected by rendering the source as MARKDOWN and reusing `hasInlineMarks` on
  * the result — avoids re-deriving the mark grammar.
  *
- * Literal newlines are NOT treated as inline marks: a single `\n` doesn't render as a
- * hard break in MARKDOWN (marked's default has `breaks: false`), and TEXT collapses
- * `\n` to a space. Visually identical either way; we keep `\n` in the source so the
- * user can upgrade the format later if they want hard breaks.
+ * Literal newlines ARE treated as marks, by side effect of the rule above: MARKDOWN is
+ * rendered with `breaks: true`, so a single `\n` renders as a `<br>` (which `hasInlineMarks`
+ * detects) whereas TEXT collapses `\n` to a space. A source whose only mark is a newline
+ * therefore reports `true` and keeps its MARKDOWN format — downgrading to TEXT would
+ * silently drop the break.
  *
  * Used by `listNumberDedupTransform` to decide whether a content node still needs
  * MARKDOWN format after the only inline mark (a leading `<sup>N</sup>` Absatznummer)

@@ -72,9 +72,15 @@ export function useKeyboardShortcuts({
       // TEXT and MARKDOWN_MINIMAL are single-line — Enter is a no-op. The other formats
       // accept a literal `\n`; execCommand is the only reliable cross-browser path inside
       // contentEditable, and its onInput propagates the new text via ContentBlock.
+      //
+      // Use `insertLineBreak`, NOT `insertText '\n'`: in a pre-wrap contentEditable Chrome
+      // turns an inserted '\n' into `<div>` block wrappers, and ContentBlock reads the
+      // source back with `el.textContent`, which emits no '\n' for block boundaries — so
+      // the newline was silently lost the instant it was typed (issue #129).
+      // `insertLineBreak` inserts a real '\n' text node that `textContent` preserves.
       const NEWLINE_FORMATS: NodeFormat[] = ['NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN'];
       if (NEWLINE_FORMATS.includes(format)) {
-        window.document.execCommand?.('insertText', false, '\n');
+        window.document.execCommand?.('insertLineBreak');
       }
       return;
     }

@@ -41,7 +41,8 @@ export type LocalizedText = Partial<{ [K in Language]: string }>;
  *                        Newlines are collapsed to a space (never preserved as `<br>`).
  * - `MARKDOWN_INLINE`  — CommonMark inline + strike/sup/sub, no block elements, no bare HTML.
  * - `MARKDOWN`         — full CommonMark + GFM (paragraphs, lists, tables, …) with bare HTML
- *                        disabled (raw `<tag>` in the source is dropped, not rendered).
+ *                        disabled (raw `<tag>` in the source is dropped, not rendered). A single
+ *                        `\n` renders as a `<br>` line break (`breaks: true`).
  *
  * Which levels a node may use depends on its type — see {@link ALLOWED_FORMATS}.
  */
