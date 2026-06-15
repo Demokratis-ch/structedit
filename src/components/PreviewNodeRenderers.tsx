@@ -27,7 +27,9 @@ function MarkupSpan({ source, format }: { source: string; format: NodeFormat }) 
 function MarkupBlock({ source, format }: { source: string; format: NodeFormat }) {
   return (
     <div
-      className="markdown-rendered"
+      // flex-1 min-w-0: as a flex item beside an inline marker, fill the remaining width and
+      // allow wrapping rather than forcing the row wider than its container.
+      className="markdown-rendered flex-1 min-w-0"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: renderContent sanitizes via DOMPurify
       dangerouslySetInnerHTML={{ __html: renderContent(source, format) }}
     />
@@ -112,7 +114,7 @@ export function ContentNode({
   return (
     <div className="my-1">
       {isBlockFormat(node.format) ? (
-        <div className="leading-relaxed">
+        <div className="leading-relaxed flex items-baseline">
           {numberBadge}
           <MarkupBlock source={text} format={node.format} />
         </div>
@@ -172,7 +174,7 @@ export function ListItemNode({
   return (
     <div className="my-1">
       {firstContent && firstContentIsBlock ? (
-        <div className="leading-relaxed">
+        <div className="leading-relaxed flex items-baseline">
           {marker}
           <MarkupBlock source={firstContentText} format={firstContent.format} />
         </div>
@@ -220,7 +222,7 @@ export function FootnoteSection({
           const numberBadge = <NumberBadgeDisplay value={fn.number} className="font-bold mr-1" />;
           if (isBlockFormat(fn.format)) {
             return (
-              <div key={fn.id} className="text-sm">
+              <div key={fn.id} className="text-sm flex items-baseline">
                 {numberBadge}
                 <MarkupBlock source={text} format={fn.format} />
               </div>
