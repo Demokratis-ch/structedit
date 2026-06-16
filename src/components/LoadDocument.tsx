@@ -2,14 +2,10 @@ import { AlertTriangle, ArrowRight, Loader2, Upload } from 'lucide-react';
 import type React from 'react';
 import { useRef, useState } from 'react';
 import type { DocumentRootNode } from '../types/document';
-import {
-  createEntry,
-  formatQuotaMessage,
-  type RecentEntry,
-  StorageQuotaUnresolvableError,
-} from '../utils/document-storage';
+import type { RecentEntry } from '../utils/document-storage';
 import { isEmptyDocument } from '../utils/document-utils';
 import { processFile, processTextInput } from '../utils/file-processing';
+import { persistInitialEntry } from '../utils/persist-entry';
 import { RecentDocumentsList } from './RecentDocumentsList';
 import { Button } from './ui/button';
 import { useToast } from './ui/Toast';
@@ -42,29 +38,6 @@ export function LoadDocument({
   const dragCounterRef = useRef(0);
   const { showToast } = useToast();
 
-  const persistInitialEntry = async (
-    name: string,
-    subtitle: string | null,
-    tree: DocumentRootNode,
-    source: ReturnType<typeof processTextInput>['source']
-  ): Promise<string | null> => {
-    const id = crypto.randomUUID();
-    try {
-      await createEntry({ id, name, subtitle, language: 'de', tree, source });
-      return id;
-    } catch (err) {
-      // Quota errors get the same user-visible toast that autosave uses; other failures
-      // fall back to a console warning. In either case the editor still opens so the
-      // user can keep working in memory (and can Download JSON to save).
-      if (err instanceof StorageQuotaUnresolvableError) {
-        showToast(formatQuotaMessage(err));
-      } else {
-        console.warn('Failed to persist initial entry; autosave disabled.', err);
-      }
-      return null;
-    }
-  };
-
   const handleFile = async (file: File) => {
     setIsLoading(true);
     setWarning(null);
@@ -80,10 +53,13 @@ export function LoadDocument({
       }
       setText(result.html ?? '');
       const entryId = await persistInitialEntry(
-        result.name,
-        result.subtitle,
-        result.doc,
-        result.source
+        {
+          name: result.name,
+          subtitle: result.subtitle,
+          tree: result.doc,
+          source: result.source,
+        },
+        showToast
       );
       onConvert(result.doc, result.sourceUrl, result.html, result.name, entryId);
     } catch (error) {
@@ -145,10 +121,13 @@ export function LoadDocument({
       return;
     }
     const entryId = await persistInitialEntry(
-      result.name,
-      result.subtitle,
-      result.doc,
-      result.source
+      {
+        name: result.name,
+        subtitle: result.subtitle,
+        tree: result.doc,
+        source: result.source,
+      },
+      showToast
     );
     onConvert(result.doc, result.sourceUrl, result.html, result.name, entryId);
   };

@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContentDocumentNode } from '../types/document';
 import {
   createPlainTextDocument,
+  deriveNameFromUrl,
   processDocxFile,
   processFile,
   processHtmlFile,
+  processHtmlString,
   processPdfFile,
   processTextInput,
 } from './file-processing';
@@ -285,6 +287,59 @@ describe('file-processing', () => {
     it('throws for unsupported file types', async () => {
       const file = new File(['data'], 'test.csv', { type: 'text/csv' });
       await expect(processFile(file)).rejects.toThrow('Unsupported file type');
+    });
+  });
+
+  describe('processHtmlString', () => {
+    beforeEach(() => {
+      URL.createObjectURL = vi.fn(() => 'blob:fake-url');
+    });
+
+    it('produces the same ProcessedDocument shape as a file upload for the same HTML', async () => {
+      const html = '<h1>Title</h1><p>Body text</p>';
+
+      const fromString = processHtmlString(html, {
+        name: 'abc-123',
+        originalFilename: null,
+      });
+      // jsdom's File needs a .text() polyfill (already installed by the
+      // processHtmlFile describe's beforeEach when that block ran); re-add defensively.
+      if (!Blob.prototype.text) {
+        Blob.prototype.text = () => Promise.resolve(html);
+      }
+      const fromFile = await processHtmlFile(
+        new File([html], 'abc-123.html', { type: 'text/html' })
+      );
+
+      expect(fromString.html).toBe(fromFile.html);
+      expect(fromString.doc.type).toBe('DOCUMENT');
+      expect(fromString.doc.children.length).toBe(fromFile.doc.children.length);
+      expect(fromString.source.kind).toBe('html');
+      expect(fromString.source.mime).toBe('text/html');
+      expect(fromString.source.bytes).toBe(html);
+    });
+
+    it('uses the provided name, originalFilename, and a null subtitle', () => {
+      const result = processHtmlString('<p>Hi</p>', {
+        name: 'Demokratis document',
+        originalFilename: null,
+      });
+      expect(result.name).toBe('Demokratis document');
+      expect(result.source.originalFilename).toBeNull();
+      expect(result.subtitle).toBeNull();
+      expect(result.sourceUrl).toBe('blob:fake-url');
+    });
+  });
+
+  describe('deriveNameFromUrl', () => {
+    it('uses the uuid from a /file/<uuid> path, ignoring the query string', () => {
+      const url = 'https://demokratis.ch/file/abc-123?_expiration=999&_hash=deadbeef';
+      expect(deriveNameFromUrl(url)).toBe('abc-123');
+    });
+
+    it('falls back to a default when there is no usable path segment', () => {
+      expect(deriveNameFromUrl('https://demokratis.ch/')).toBe('Demokratis document');
+      expect(deriveNameFromUrl('not a url')).toBe('Demokratis document');
     });
   });
 });

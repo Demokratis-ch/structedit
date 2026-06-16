@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import {
@@ -53,6 +54,8 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn((url: string) => {
     revokedUrls.push(url);
   });
+  // Reset the URL so a loadFile param from one test never leaks into the next.
+  window.history.replaceState({}, '', '/');
 });
 
 afterEach(async () => {
@@ -165,5 +168,139 @@ describe('App', () => {
     // No entry was persisted (the failed write left no record).
     const recents = await listRecents();
     expect(recents).toHaveLength(0);
+  });
+});
+
+/** Build a minimal Response good enough for fetchRemoteDocument under jsdom. */
+function makeFetchResponse(
+  body: string,
+  init: { status?: number; contentType?: string | null } = {}
+): Response {
+  const { status = 200, contentType = 'text/html; charset=utf-8' } = init;
+  const headers = new Headers();
+  if (contentType !== null) headers.set('content-type', contentType);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers,
+    text: () => Promise.resolve(body),
+  } as unknown as Response;
+}
+
+describe('App — loadFile URL import', () => {
+  function setLoadFile(url: string) {
+    window.history.pushState({}, '', `/?loadFile=${encodeURIComponent(url)}`);
+  }
+
+  it('loads a valid loadFile document into the editor and creates a recents entry', async () => {
+    setLoadFile('https://demokratis.ch/file/abc-123');
+    const fetchMock = vi.fn().mockResolvedValue(makeFetchResponse('<h1>Title</h1><p>Body</p>'));
+    globalThis.fetch = fetchMock;
+
+    render(<App />);
+
+    await screen.findByRole('button', { name: /close editor/i });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const recents = await listRecents();
+    expect(recents).toHaveLength(1);
+  });
+
+  it('strips the loadFile param after a load so a refresh would not re-fetch', async () => {
+    setLoadFile('https://demokratis.ch/file/abc-123');
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('<h1>Title</h1>'));
+
+    render(<App />);
+
+    await screen.findByRole('button', { name: /close editor/i });
+    expect(window.location.search).toBe('');
+  });
+
+  it('shows the expiry message on 410 and does not open the editor', async () => {
+    setLoadFile('https://demokratis.ch/file/expired');
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('', { status: 410 }));
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('Link expired, re-open from demokratis.ch.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /close editor/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a distinct invalid-link message on 404', async () => {
+    setLoadFile('https://demokratis.ch/file/missing');
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('', { status: 404 }));
+
+    render(<App />);
+
+    const msg = await screen.findByText(/invalid/i);
+    expect(msg.textContent).not.toBe('Link expired, re-open from demokratis.ch.');
+  });
+
+  it('shows a generic load error on a network/CORS failure', async () => {
+    setLoadFile('https://demokratis.ch/file/x');
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+    render(<App />);
+
+    expect(await screen.findByText(/couldn.t load the document/i)).toBeInTheDocument();
+  });
+
+  it('shows an unsupported-format error when the document parses to nothing', async () => {
+    setLoadFile('https://demokratis.ch/file/empty');
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('<div>   </div>'));
+
+    render(<App />);
+
+    expect(await screen.findByText(/couldn.t read the document/i)).toBeInTheDocument();
+  });
+
+  it('rejects a non-allowlisted host without fetching', async () => {
+    setLoadFile('https://evil.example.com/file/x');
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+
+    render(<App />);
+
+    await screen.findByText(/invalid/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('offers a path back to the upload screen from an error surface', async () => {
+    setLoadFile('https://demokratis.ch/file/expired');
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('', { status: 410 }));
+
+    render(<App />);
+
+    await screen.findByText('Link expired, re-open from demokratis.ch.');
+    fireEvent.click(screen.getByRole('button', { name: /go to upload/i }));
+
+    await screen.findByPlaceholderText(/paste unstructured text/i);
+  });
+
+  it('leaves the upload flow unchanged and does not fetch when no loadFile param is present', async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+
+    render(<App />);
+
+    await screen.findByPlaceholderText(/paste unstructured text/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches at most once under StrictMode', async () => {
+    setLoadFile('https://demokratis.ch/file/abc-123');
+    const fetchMock = vi.fn().mockResolvedValue(makeFetchResponse('<h1>Hi</h1>'));
+    globalThis.fetch = fetchMock;
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    await screen.findByRole('button', { name: /close editor/i });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

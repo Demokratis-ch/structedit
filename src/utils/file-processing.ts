@@ -103,8 +103,16 @@ export function processTextInput(text: string): ProcessedDocument {
   };
 }
 
-export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
-  const html = await file.text();
+/**
+ * Build a {@link ProcessedDocument} from an HTML string. Shared by the file-upload path
+ * ({@link processHtmlFile}) and the `loadFile` URL path, so fetched HTML goes through the
+ * identical parse + source-blob pipeline. The caller supplies the display name, original
+ * filename (null for fetched documents), and source kind.
+ */
+export function processHtmlString(
+  html: string,
+  options: { name: string; originalFilename: string | null; kind?: StoredEntrySource['kind'] }
+): ProcessedDocument {
   const blob = new Blob([html], { type: 'text/html' });
   const sourceUrl = URL.createObjectURL(blob);
   const doc = parseHtmlLegalToTree(html);
@@ -112,10 +120,35 @@ export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
     doc,
     sourceUrl,
     html,
-    source: { kind: 'html', mime: 'text/html', bytes: html, originalFilename: file.name },
-    name: file.name,
+    source: {
+      kind: options.kind ?? 'html',
+      mime: 'text/html',
+      bytes: html,
+      originalFilename: options.originalFilename,
+    },
+    name: options.name,
     subtitle: null,
   };
+}
+
+export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
+  const html = await file.text();
+  return processHtmlString(html, { name: file.name, originalFilename: file.name });
+}
+
+/**
+ * Derive a display name for a document fetched from a signed URL. Uses the last path
+ * segment (the `<uuid>` from `/file/<uuid>`), ignoring the query string, and falls back
+ * to a generic name when there is no usable segment or the URL doesn't parse.
+ */
+export function deriveNameFromUrl(url: string): string {
+  try {
+    const { pathname } = new URL(url);
+    const last = pathname.split('/').filter(Boolean).pop();
+    return last ? decodeURIComponent(last) : 'Demokratis document';
+  } catch {
+    return 'Demokratis document';
+  }
 }
 
 const MAMMOTH_STYLE_MAP = [
