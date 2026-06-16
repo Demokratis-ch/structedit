@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { EditorInterface } from './components/EditorInterface';
 import { Header } from './components/Header';
 import { LoadDocument } from './components/LoadDocument';
+import { RemoteLoadErrorView, RemoteLoadingView } from './components/RemoteDocumentStatus';
 import { Toast } from './components/ui/Toast';
+import { useLoadFromUrl } from './hooks/useLoadFromUrl';
 import { useRecentDocuments } from './hooks/useRecentDocuments';
 import type { DocumentRootNode } from './types/document';
 
@@ -37,6 +39,10 @@ function App() {
     setView('editor');
   };
 
+  // When opened with `?loadFile=<signed URL>`, fetch + load that document into the editor.
+  // Reuses `handleConvert` for the success path; surfaces loading/error states otherwise.
+  const { state: remoteLoad, dismiss: dismissRemoteLoad } = useLoadFromUrl(handleConvert);
+
   const handleResume = async (id: string) => {
     const loaded = await loadEntry(id);
     if (!loaded) return;
@@ -67,7 +73,19 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 bg-white">
-          {view === 'upload' ? (
+          {view === 'editor' && document ? (
+            <EditorInterface
+              initialDocument={document}
+              documentUrl={documentUrl}
+              documentName={fileName}
+              currentEntryId={currentEntryId}
+              onBack={handleBack}
+            />
+          ) : remoteLoad.status === 'loading' ? (
+            <RemoteLoadingView />
+          ) : remoteLoad.status === 'error' ? (
+            <RemoteLoadErrorView reason={remoteLoad.reason} onGoToUpload={dismissRemoteLoad} />
+          ) : (
             <div className="flex-1 overflow-auto p-8">
               <LoadDocument
                 onConvert={handleConvert}
@@ -76,15 +94,7 @@ function App() {
                 onDeleteRecent={deleteEntry}
               />
             </div>
-          ) : document ? (
-            <EditorInterface
-              initialDocument={document}
-              documentUrl={documentUrl}
-              documentName={fileName}
-              currentEntryId={currentEntryId}
-              onBack={handleBack}
-            />
-          ) : null}
+          )}
         </main>
       </div>
       <Toast />
