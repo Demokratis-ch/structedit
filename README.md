@@ -10,6 +10,9 @@ StructEdit is an importer and editor of **tree-structured documents**.
 
 The current `main` branch is always deployed at https://structedit.demokratis.ch/.
 
+## Loading from Demokratis
+StructEdit can be opened with a document preloaded from the [Demokratis](https://demokratis.ch) platform via a signed URL: `https://structedit.demokratis.ch/?loadFile=<url-encoded signed URL>`. The file is fetched, parsed, and opened in the editor. See the [remote-document-loading spec](./openspec/changes/add-loadfile-url-import/specs/remote-document-loading/spec.md).
+
 ## Planned features
 - Direct upload of the structured document to the [Demokratis](https://demokratis.ch) platform.
 - PDF document support
