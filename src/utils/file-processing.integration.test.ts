@@ -2,10 +2,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DocumentNode, NumberedDocumentNode } from '../types/document';
-import { processDocxFile, processHtmlFile } from './file-processing';
+import { processDocxFile, processHtmlFile, processJsonEnvelopeFile } from './file-processing';
 
 const FIXTURE_DIR = path.join(__dirname, '../test/fixtures/realistic/docx/without_table');
 const HTML_FIXTURE_DIR = path.join(__dirname, '../test/fixtures/realistic/html');
+const DOCTREE_FIXTURE_DIR = path.join(__dirname, '../test/fixtures/realistic/doctree');
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 /**
@@ -50,6 +51,13 @@ async function importHtmlFixture(filename: string) {
   const buffer = fs.readFileSync(path.join(HTML_FIXTURE_DIR, filename));
   const file = new File([buffer], filename, { type: 'text/html' });
   return processHtmlFile(file);
+}
+
+/** Read a DocTree JSON envelope fixture and run it through processJsonEnvelopeFile. */
+async function importDoctreeFixture(filename: string) {
+  const buffer = fs.readFileSync(path.join(DOCTREE_FIXTURE_DIR, filename));
+  const file = new File([buffer], filename, { type: 'application/json' });
+  return processJsonEnvelopeFile(file);
 }
 
 /** Assert that the only console.warn calls came from the expected Mammoth prefix. */
@@ -365,6 +373,42 @@ describe('file-processing integration', () => {
       expect(para16).toBeDefined();
       expect(textOf(para16!)).toBe('');
       expect(headings.some((h) => numberOf(h) === null && textOf(h) === 'Grundsatz')).toBe(true);
+    });
+  });
+
+  // A real DocTree envelope previously exported by StructEdit (Download JSON). Re-importing it
+  // must reconstruct the exact tree — no parsing/transform pipeline runs, so the structure is
+  // byte-for-byte what was saved.
+  describe('real DocTree JSON: VORA-EDI', () => {
+    let allNodes: DocumentNode[];
+
+    beforeAll(async () => {
+      const result = await importDoctreeFixture('vora-edi.doctree.json');
+      allNodes = flattenTree(result.doc);
+    });
+
+    it('reconstructs the document root and all node types from the envelope', () => {
+      const counts = (type: string) => allNodes.filter((n) => n.type === type).length;
+      expect(counts('DOCUMENT')).toBe(1);
+      expect(counts('HEADING')).toBe(11);
+      expect(counts('CONTENT')).toBe(38);
+      expect(counts('LIST')).toBe(4);
+      expect(counts('LIST_ITEM')).toBe(21);
+      expect(counts('FOOTNOTE')).toBe(3);
+    });
+
+    it('preserves the law title heading and list-item content', () => {
+      expect(
+        allNodes
+          .filter((n) => n.type === 'HEADING')
+          .map(textOf)
+          .some((t) => t.includes('Verordnung des EDI') && t.includes('(VORA-EDI)'))
+      ).toBe(true);
+      // The lettered list items survive with their numbers intact.
+      const letteredA = allNodes.find(
+        (n) => n.type === 'LIST_ITEM' && (n as NumberedDocumentNode).number === 'a.'
+      );
+      expect(letteredA).toBeDefined();
     });
   });
 });

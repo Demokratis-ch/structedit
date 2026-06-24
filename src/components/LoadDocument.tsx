@@ -172,7 +172,7 @@ export function LoadDocument({
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept=".docx,.doc,.html,.htm"
+              accept=".docx,.doc,.html,.htm,.json"
               onChange={handleFileInputChange}
             />
             <button
@@ -199,7 +199,7 @@ export function LoadDocument({
               <span className="text-base font-medium text-gray-700">
                 Click or drop a document to upload
               </span>
-              <span className="text-xs text-gray-500">DOCX or HTML supported</span>
+              <span className="text-xs text-gray-500">DOCX, HTML, or DocTree JSON supported</span>
             </button>
           </section>
 
