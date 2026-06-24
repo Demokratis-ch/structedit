@@ -1,7 +1,8 @@
 import * as mammoth from 'mammoth';
-import type { DocumentRootNode } from '../types/document';
+import type { DocumentRootNode, LocalizedText } from '../types/document';
+import { DOC_TREE_VERSION, isValidDocTreeEnvelope } from '../types/document';
 import type { StoredEntrySource } from './document-storage';
-import { generateId, parseHtmlLegalToTree } from './document-utils';
+import { generateId, parseHtmlLegalToTree, stripFileExtension } from './document-utils';
 
 export interface ProcessedDocument {
   doc: DocumentRootNode;
@@ -136,6 +137,61 @@ export async function processHtmlFile(file: File): Promise<ProcessedDocument> {
   return processHtmlString(html, { name: file.name, originalFilename: file.name });
 }
 
+/** Prefer the German title, then any other localized title value, then the filename. */
+function pickEnvelopeName(title: LocalizedText, filename: string): string {
+  const candidates = [title.de, ...Object.values(title)];
+  const named = candidates.find((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  return named?.trim() ?? stripFileExtension(filename);
+}
+
+/**
+ * Re-import a DocTree envelope JSON previously produced by StructEdit's "Download JSON".
+ *
+ * A DocTree JSON *is* the document tree — there is no separate "original" document — so
+ * `sourceUrl` is null and `html` is omitted, which makes the editor show only the rendered
+ * Preview (no Original tab). The raw JSON text is kept as the persisted source bytes so the
+ * entry still round-trips through IndexedDB.
+ */
+export async function processJsonEnvelopeFile(file: File): Promise<ProcessedDocument> {
+  const raw = await file.text();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`"${file.name}" is not valid JSON.`);
+  }
+
+  // A present-but-mismatched *numeric* version gets a targeted message rather than the
+  // generic "not a valid document" below (which `isValidDocTreeEnvelope` would also reject
+  // on). A non-numeric DocTreeVersion is malformed, not a real version, so it intentionally
+  // falls through to the generic envelope error.
+  const version = (parsed as { DocTreeVersion?: unknown } | null)?.DocTreeVersion;
+  if (typeof version === 'number' && version !== DOC_TREE_VERSION) {
+    throw new Error(
+      `"${file.name}" was created by an incompatible version of StructEdit ` +
+        `(DocTree v${version}; this version reads v${DOC_TREE_VERSION}).`
+    );
+  }
+
+  if (!isValidDocTreeEnvelope(parsed)) {
+    throw new Error(`"${file.name}" is not a valid StructEdit document (DocTree envelope).`);
+  }
+
+  return {
+    doc: parsed.document,
+    sourceUrl: null,
+    source: {
+      kind: 'json-envelope',
+      mime: 'application/json',
+      bytes: raw,
+      originalFilename: file.name,
+    },
+    name: pickEnvelopeName(parsed.metadata.title, file.name),
+    subtitle: null,
+  };
+}
+
 /**
  * Derive a display name for a document fetched from a signed URL. Uses the last path
  * segment (the `<uuid>` from `/file/<uuid>`), ignoring the query string, and falls back
@@ -257,6 +313,10 @@ export async function processFile(file: File): Promise<ProcessedDocument> {
 
   if (nameLower.endsWith('.pdf') || file.type === 'application/pdf') {
     return processPdfFile(file);
+  }
+
+  if (nameLower.endsWith('.json') || file.type === 'application/json') {
+    return processJsonEnvelopeFile(file);
   }
 
   throw new Error(`Unsupported file type: ${file.name}`);

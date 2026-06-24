@@ -1,0 +1,718 @@
+{
+  "DocTreeVersion": 1,
+  "metadata": {
+    "title": {
+      "de": "fedlex-data-admin-ch-eli-dl-proj-2025-104-cons_1-doc_1-de-pdf-a"
+    }
+  },
+  "document": {
+    "id": "bajufpc",
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "ub75nsx",
+        "number": null,
+        "type": "HEADING",
+        "format": "TEXT",
+        "contents": {
+          "de": "Verordnung des EDI über die Umsetzung des Risikoausgleichs in der Krankenversicherung (VORA-EDI)"
+        },
+        "children": [
+          {
+            "id": "i4aqg1p",
+            "number": null,
+            "type": "CONTENT",
+            "format": "MARKDOWN",
+            "contents": {
+              "de": "**vom …**"
+            },
+            "children": []
+          },
+          {
+            "id": "j6ydlow",
+            "number": null,
+            "type": "CONTENT",
+            "format": "MARKDOWN",
+            "contents": {
+              "de": "*Das Eidgenössische Departement des Innern (EDI)*"
+            },
+            "children": []
+          },
+          {
+            "id": "7z0tasr",
+            "number": null,
+            "type": "CONTENT",
+            "format": "MARKDOWN",
+            "contents": {
+              "de": "gestützt auf die Artikel 4 Absätze 1 und 4, 5 Absatz 5 und 13 Absatz 2 der Verordnung vom 19. Oktober 2016^1^ über den Risikoausgleich in der Krankenversicherung (VORA),"
+            },
+            "children": [
+              {
+                "id": "ti1azu3",
+                "number": "^1^",
+                "type": "FOOTNOTE",
+                "format": "TEXT",
+                "contents": {
+                  "de": "SR 832.112.1"
+                }
+              }
+            ]
+          },
+          {
+            "id": "rcge3o0",
+            "number": null,
+            "type": "CONTENT",
+            "format": "MARKDOWN",
+            "contents": {
+              "de": "*verordnet:*"
+            },
+            "children": []
+          },
+          {
+            "id": "a1lw5sv",
+            "number": "Art. 1",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "PCG-Liste"
+            },
+            "children": [
+              {
+                "id": "sle54kv",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Die pharmazeutischen Kostengruppen (PCG) sind im Anhang festgelegt."
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "pmtj449",
+            "number": "Art. 2",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Hierarchisierung der PCG"
+            },
+            "children": [
+              {
+                "id": "dxrjsjg",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Es gelten folgende Hierarchisierungen:"
+                },
+                "children": []
+              },
+              {
+                "id": "e4rqwnw",
+                "number": null,
+                "type": "LIST",
+                "children": [
+                  {
+                    "id": "i2zhkbv",
+                    "number": "a.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "0if58tp",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Autoimmunkrankheiten (AIK)» ist hierarchisch höher als die PCG «Rheuma (RHE)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "i4tnprq",
+                    "number": "b.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "wh0plqt",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Bipolare Störung regulär (BSR)», die PCG «Psychose (PSY)», die PCG «Neuropathischer Schmerz (SMN)» und die PCG «Sucht ohne Nikotin (ABH)» sind hierarchisch höher als die PCG «Depression (DEP)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ky3jkgt",
+                    "number": "c.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "r9uxmel",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «COPD / Schweres Asthma (COP)» ist hierarchisch höher als die PCG «Asthma (AST)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "rt5prx7",
+                    "number": "d.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "yjtvpnw",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Krebs Biologika (KRB)» und die PCG «Krebs (KRE)» sind hierarchisch höher als die PCG «Hormonsensitive Tumore (KHO)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "evqugdp",
+                    "number": "e.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "lbqh2y3",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Krebs Biologika (KRB)» ist hierarchisch höher als die PCG «Krebs (KRE)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f4mgf7u",
+                    "number": "f.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "53b5hwu",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Psychose Depot (PSD)» ist hierarchisch höher als die PCG «Psychose (PSY)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "6bs5s2b",
+                    "number": "g.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "frff28s",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Neuropathischer Schmerz (SMN)» ist hierarchisch höher als die PCG «Chronische Schmerzen ohne Opioide (SMC)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "voh0978",
+                    "number": "h.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "8twoksg",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Zystische Fibrose zielgerichtete Therapie (ZFZ)» ist hierarchisch höher als die PCG «Zystische Fibrose (ZFI)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "e6lxjy4",
+                    "number": "i.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "fiyofcc",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Die PCG «Krankheiten des zentralen Nervensystems ohne Multiple Sklerose (ZNS)» ist hierarchisch höher als die PCG «Chronische Schmerzen ohne Opioide (SMC)»."
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "8zxnkyf",
+            "number": "Art. 3",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Mindestanzahl Arzneimittelpackungen und standardisierte Tagesdosen von Arzneimitteln"
+            },
+            "children": [
+              {
+                "id": "ycz4s31",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Für die Einteilung in eine PCG muss eine versicherte Person im Jahr vor dem Ausgleichsjahr (Vorjahr) mindestens bezogen haben:"
+                },
+                "children": []
+              },
+              {
+                "id": "303w7lu",
+                "number": null,
+                "type": "LIST",
+                "children": [
+                  {
+                    "id": "wh50cia",
+                    "number": "a.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "vx1ijjk",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die Einteilung in die PCG «Hämophilie (HMP)» und die PCG «Immunglobuline (IMM)»: mindestens eine Arzneimittelpackung;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "1hrskdx",
+                    "number": "b.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "fozrejd",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die Einteilung in die PCG «Krebs Biologika (KRB)», die PCG «Krebs (KRE)», die PCG «Makuladegeneration (MAC)», die PCG «Psychose Depot (PSD)», die PCG «Zystische Fibrose (ZFI)» und die PCG «Zystische Fibrose zielgerichtete Therapie (ZFZ)»: mindestens drei Arzneimittelpackungen;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "8aaclso",
+                    "number": "c.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "ftuex79",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die Einteilung in die PCG «Alzheimer (ALZ)», die PCG «Bipolare Störung regulär (BSR)», die PCG «Hormonsensitive Tumore (KHO)», die PCG «Rheuma (RHE)» und die PCG «Transplantationen (TRA)»: mindestens 90 standardisierte Tagesdosen (DDD) von Arzneimitteln;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "5jbibim",
+                    "number": "d.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "1awowq7",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die Einteilung in die übrigen PCG: mindestens 180 DDD von Arzneimitteln."
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "z5kpjrw",
+            "number": "Art. 4",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Teuerungsfaktoren"
+            },
+            "children": [
+              {
+                "id": "5wdu0au",
+                "number": null,
+                "type": "CONTENT",
+                "format": "MARKDOWN",
+                "contents": {
+                  "de": "^1^ Für jeden Kanton wird, ausgehend von den jeweils in den ersten 14 Monaten abgerechneten Leistungsdaten des Ausgleichsjahres und des Vorjahres, in aggregierten Risikogruppen je ein Teuerungsfaktor ermittelt."
+                },
+                "children": []
+              },
+              {
+                "id": "0ryhcyx",
+                "number": null,
+                "type": "CONTENT",
+                "format": "MARKDOWN",
+                "contents": {
+                  "de": "^2^ Zur Bildung der aggregierten Risikogruppen werden die Risikogruppen nach Artikel 11 VORA wie folgt zusammengefasst:"
+                },
+                "children": []
+              },
+              {
+                "id": "noly9kz",
+                "number": null,
+                "type": "LIST",
+                "children": [
+                  {
+                    "id": "3pzy3ph",
+                    "number": "a.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "8732jur",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Versicherte von 19 -35 Jahren, ohne Indikator Aufenthalt;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "fdb1j00",
+                    "number": "b.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "1frfdfj",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Versicherte von 36 -55 Jahren, ohne Indikator Aufenthalt;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "u0wvb96",
+                    "number": "c.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "8fif0j1",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Versicherte von 56 -75 Jahren, ohne Indikator Aufenthalt;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ud9ehnb",
+                    "number": "d.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "xii8ovj",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Versicherte ab 76 Jahren, ohne Indikator Aufenthalt;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "njwg6k2",
+                    "number": "e.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "8v9rpxi",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "Versicherte mit Indikator Aufenthalt."
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "8pdqyrk",
+                "number": null,
+                "type": "CONTENT",
+                "format": "MARKDOWN",
+                "contents": {
+                  "de": "^3^ Der Teuerungsfaktor wird durch Division der durchschnittlichen Nettoleistungen im Ausgleichsjahr durch die durchschnittlichen Nettoleistungen im Vorjahr ermittelt."
+                },
+                "children": []
+              },
+              {
+                "id": "zh8zqip",
+                "number": null,
+                "type": "CONTENT",
+                "format": "MARKDOWN",
+                "contents": {
+                  "de": "^4^ Die durchschnittlichen Nettoleistungen werden über alle Versicherer hinweg pro aggregierte Risikogruppe nach Absatz 2 berechnet."
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "ot6i9ns",
+            "number": "Art. 5",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Anteil der in der Schweiz in Anspruch genommenen Leistungen"
+            },
+            "children": [
+              {
+                "id": "h1lxxmg",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Der Anteil nach Artikel 17 Absatz 5 KVG beträgt:"
+                },
+                "children": []
+              },
+              {
+                "id": "6qfx87o",
+                "number": null,
+                "type": "LIST",
+                "children": [
+                  {
+                    "id": "2k4nslg",
+                    "number": "a.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "ns78ry1",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die in Deutschland wohnhaften Versicherten: 40 Prozent;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "7l4ez4a",
+                    "number": "b.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "a1wa3ah",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die in Frankreich wohnhaften Versicherten: 75 Prozent;"
+                        },
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "wwee5l4",
+                    "number": "c.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "7dkgggx",
+                        "number": null,
+                        "type": "CONTENT",
+                        "format": "TEXT",
+                        "contents": {
+                          "de": "für die in allen übrigen Wohnsitzstaaten wohnhaften Versicherten: 65 Prozent."
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "pq8n1ak",
+            "number": "Art. 6",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Aufhebung eines anderen Erlasses"
+            },
+            "children": [
+              {
+                "id": "v0yqszs",
+                "number": null,
+                "type": "CONTENT",
+                "format": "MARKDOWN",
+                "contents": {
+                  "de": "Die Verordnung des EDI vom 14. Oktober 2019^2^ über die Umsetzung des Risikoausgleichs in der Krankenversicherung wird aufgehoben."
+                },
+                "children": []
+              },
+              {
+                "id": "wokx8a8",
+                "number": "^2^",
+                "type": "FOOTNOTE",
+                "format": "TEXT",
+                "contents": {
+                  "de": "AS 2019 3415; 2021 62; 2025 146"
+                }
+              }
+            ]
+          },
+          {
+            "id": "ijrut8j",
+            "number": "Art. 7",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Übergangsbestimmung"
+            },
+            "children": [
+              {
+                "id": "4hh68br",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Für die Berechnung des Risikoausgleichs des Ausgleichsjahres 2027 gilt das bisherige Recht."
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "bb7jlau",
+            "number": "Art. 8",
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Inkrafttreten"
+            },
+            "children": [
+              {
+                "id": "75golcy",
+                "number": null,
+                "type": "CONTENT",
+                "format": "TEXT",
+                "contents": {
+                  "de": "Diese Verordnung tritt am 1. Januar 2028 in Kraft."
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "j7n9bg2",
+            "number": null,
+            "type": "CONTENT",
+            "format": "TEXT",
+            "contents": {
+              "de": "Eidgenössisches Departement des Innern:"
+            },
+            "children": []
+          },
+          {
+            "id": "x8pt45h",
+            "number": null,
+            "type": "CONTENT",
+            "format": "TEXT",
+            "contents": {
+              "de": "Elisabeth Baume-Schneider"
+            },
+            "children": []
+          },
+          {
+            "id": "nxjuham",
+            "number": null,
+            "type": "HEADING",
+            "format": "TEXT",
+            "contents": {
+              "de": "Anhang (Art. 1)"
+            },
+            "children": [
+              {
+                "id": "1w9yv5w",
+                "number": null,
+                "type": "HEADING",
+                "format": "MARKDOWN_MINIMAL",
+                "contents": {
+                  "de": "PCG-Liste^3^"
+                },
+                "children": [
+                  {
+                    "id": "w12w1ym",
+                    "number": "^3^",
+                    "type": "FOOTNOTE",
+                    "format": "TEXT",
+                    "contents": {
+                      "de": "Der Inhalt dieses Anhangs wird in der AS und in der SR nur durch Verweis veröffentlicht. Er kann abgerufen werden unter https://fedlex.data.admin.ch/eli/oc/xxx >; Allgemeine Informationen >; Umfang der Veröffentlichung >; Veröffentlichung eines Textteils durch Verweis."
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

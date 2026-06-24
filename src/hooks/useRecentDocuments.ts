@@ -11,7 +11,9 @@ import {
 
 export interface LoadedEntry {
   entry: StoredDocumentEntry;
-  documentUrl: string;
+  /** Blob URL for the "Original" preview, or null when the source has no separate
+   *  original to render (e.g. a re-imported DocTree JSON, which *is* the tree). */
+  documentUrl: string | null;
 }
 
 export interface UseRecentDocuments {
@@ -47,6 +49,11 @@ export function useRecentDocuments(): UseRecentDocuments {
   const loadEntry = useCallback(async (id: string): Promise<LoadedEntry | null> => {
     const raw = await loadEntryFromStorage(id);
     if (!raw || 'status' in raw) return null;
+    // A re-imported DocTree JSON has no separate original to preview — the stored bytes
+    // are the tree itself — so skip the blob URL and let the editor show Preview only.
+    if (raw.source.kind === 'json-envelope') {
+      return { entry: raw, documentUrl: null };
+    }
     const blob = new Blob([raw.source.bytes], { type: raw.source.mime });
     const documentUrl = URL.createObjectURL(blob);
     return { entry: raw, documentUrl };

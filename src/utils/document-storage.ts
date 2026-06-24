@@ -9,7 +9,7 @@ const DB_VERSION = 1;
 const STORE = 'documents';
 const UPDATED_AT_INDEX = 'updatedAt';
 
-export type SourceKind = 'docx' | 'html' | 'pasted-text';
+export type SourceKind = 'docx' | 'html' | 'pasted-text' | 'json-envelope';
 
 export interface StoredEntrySource {
   kind: SourceKind;

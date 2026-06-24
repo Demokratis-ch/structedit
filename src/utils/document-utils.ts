@@ -24,7 +24,7 @@ export const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // Strips only the final extension (e.g. "archive.tar.gz" -> "archive.tar"), so
 // the JSON filename and the envelope title agree on what the "base name" is.
-const stripFileExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
+export const stripFileExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
 
 export const deriveJsonFilename = (filename: string | null | undefined): string => {
   if (!filename) return 'document.json';

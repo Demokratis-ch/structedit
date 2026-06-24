@@ -8,6 +8,7 @@ import {
   processFile,
   processHtmlFile,
   processHtmlString,
+  processJsonEnvelopeFile,
   processPdfFile,
   processTextInput,
 } from './file-processing';
@@ -284,6 +285,20 @@ describe('file-processing', () => {
       await expect(processFile(file)).rejects.toThrow('TODO: set up backend for PDF conversion');
     });
 
+    it('routes .json files to processJsonEnvelopeFile', async () => {
+      const envelope = {
+        DocTreeVersion: 1,
+        metadata: { title: { de: 'Routed' } },
+        document: { id: 'r', type: 'DOCUMENT', children: [] },
+      };
+      const file = new File([JSON.stringify(envelope)], 'doc.json', {
+        type: 'application/json',
+      });
+      const result = await processFile(file);
+      expect(result.doc.type).toBe('DOCUMENT');
+      expect(result.source.kind).toBe('json-envelope');
+    });
+
     it('throws for unsupported file types', async () => {
       const file = new File(['data'], 'test.csv', { type: 'text/csv' });
       await expect(processFile(file)).rejects.toThrow('Unsupported file type');
@@ -328,6 +343,91 @@ describe('file-processing', () => {
       expect(result.source.originalFilename).toBeNull();
       expect(result.subtitle).toBeNull();
       expect(result.sourceUrl).toBe('blob:fake-url');
+    });
+  });
+
+  describe('processJsonEnvelopeFile', () => {
+    // A minimal but structurally valid DocTree envelope (DocTreeVersion 1).
+    const makeEnvelope = (title: Record<string, string>) => ({
+      DocTreeVersion: 1,
+      metadata: { title },
+      document: {
+        id: 'root1',
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'Hello envelope' },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    const jsonFile = (body: string, name = 'doc.json') =>
+      new File([body], name, { type: 'application/json' });
+
+    beforeEach(() => {
+      // jsdom's File doesn't implement .text(); polyfill via FileReader.
+      if (!Blob.prototype.text) {
+        Blob.prototype.text = function () {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsText(this);
+          });
+        };
+      }
+    });
+
+    it('reconstructs the tree and metadata from a valid envelope', async () => {
+      const file = jsonFile(JSON.stringify(makeEnvelope({ de: 'My Title' })));
+      const result = await processJsonEnvelopeFile(file);
+
+      expect(result.doc.type).toBe('DOCUMENT');
+      expect((result.doc.children[0] as ContentDocumentNode).contents).toEqual({
+        de: 'Hello envelope',
+      });
+      // A DocTree JSON *is* the tree — there is no separate original to preview.
+      expect(result.sourceUrl).toBeNull();
+      expect(result.html).toBeUndefined();
+      expect(result.source.kind).toBe('json-envelope');
+      expect(result.source.mime).toBe('application/json');
+      expect(result.subtitle).toBeNull();
+    });
+
+    it('uses the German title as the display name', async () => {
+      const file = jsonFile(JSON.stringify(makeEnvelope({ de: 'Verordnung X' })), 'whatever.json');
+      const result = await processJsonEnvelopeFile(file);
+      expect(result.name).toBe('Verordnung X');
+    });
+
+    it('falls back to the filename (without extension) when the title is empty', async () => {
+      const file = jsonFile(JSON.stringify(makeEnvelope({})), 'my-law.json');
+      const result = await processJsonEnvelopeFile(file);
+      expect(result.name).toBe('my-law');
+    });
+
+    it('rejects malformed JSON', async () => {
+      const file = jsonFile('{ not valid json', 'broken.json');
+      await expect(processJsonEnvelopeFile(file)).rejects.toThrow(/not valid JSON/i);
+    });
+
+    it('rejects a structurally invalid envelope', async () => {
+      const file = jsonFile(JSON.stringify({ DocTreeVersion: 1, metadata: {}, document: {} }));
+      await expect(processJsonEnvelopeFile(file)).rejects.toThrow(
+        /not a valid StructEdit document/i
+      );
+    });
+
+    it('rejects an envelope from an unsupported DocTreeVersion', async () => {
+      const envelope = { ...makeEnvelope({ de: 'X' }), DocTreeVersion: 2 };
+      const file = jsonFile(JSON.stringify(envelope));
+      await expect(processJsonEnvelopeFile(file)).rejects.toThrow(/version/i);
     });
   });
 
