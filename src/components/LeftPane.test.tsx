@@ -92,6 +92,48 @@ describe('LeftPane', () => {
     expect(screen.getByRole('heading', { level: 1, name: /heading one/i })).toBeInTheDocument();
   });
 
+  test('keeps the Preview panel mounted while the Original tab is active', () => {
+    render(
+      <LeftPane
+        documentUrl="http://example.com/doc.html"
+        document={docWithHeading}
+        language="de"
+        onHeadingClick={() => {}}
+      />
+    );
+
+    // Original is the default tab when a documentUrl exists.
+    expect(screen.getByRole('tab', { name: /original/i })).toHaveAttribute('aria-selected', 'true');
+    // The Preview panel stays mounted (just hidden) even while inactive, so its
+    // rendered content and scroll position survive switching back and forth.
+    const previewPanel = screen.getByRole('tabpanel', { name: /preview/i });
+    expect(previewPanel).toHaveAttribute('data-state', 'inactive');
+    expect(
+      within(previewPanel).getByRole('heading', { level: 1, name: /heading one/i })
+    ).toBeInTheDocument();
+  });
+
+  test('keeps the Original panel mounted while the Preview tab is active', async () => {
+    const user = userEvent.setup();
+    render(
+      <LeftPane
+        documentUrl="http://example.com/doc.html"
+        document={docWithHeading}
+        language="de"
+        onHeadingClick={() => {}}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /preview/i }));
+
+    expect(screen.getByRole('tab', { name: /preview/i })).toHaveAttribute('aria-selected', 'true');
+    // The Original panel (and its iframe) stays mounted while inactive, so the
+    // source document's scroll position is not reset.
+    const originalPanel = screen.getByRole('tabpanel', { name: /original/i });
+    expect(originalPanel).toHaveAttribute('data-state', 'inactive');
+    expect(within(originalPanel).getByTitle('Document Viewer')).toBeInTheDocument();
+  });
+
   test('passes onHeadingClick through to DocumentPreview TOC', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
