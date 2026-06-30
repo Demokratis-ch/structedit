@@ -267,6 +267,18 @@ html {
 .tree-node:not(:has(.tree-node)) {
   content-visibility: auto;
   contain-intrinsic-size: auto 80px;
+  /* The add-node buttons protrude ~12px past the border box (-top-3 / -bottom-3 in
+   * RecursiveTreeNode.tsx). content-visibility's implied paint containment would clip
+   * them; widen the paint clip edge so the selected node's buttons stay visible. This
+   * does NOT remove containment, so the off-screen-leaf optimization above is fully
+   * preserved — even on select-all. (issue #135)
+   *
+   * Load-bearing assumption: the engine applies overflow-clip-margin to the clip
+   * imposed by content-visibility's paint containment (not just to `overflow: clip`).
+   * True in Chromium, the only engine that currently ships content-visibility. If a
+   * future engine ships content-visibility without honoring this, the buttons would
+   * clip again — see this rule before the #102 graceful-degradation note above. */
+  overflow-clip-margin: 16px;
 }
 
 /* Table Support in Editor */
