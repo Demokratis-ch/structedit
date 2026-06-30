@@ -30,24 +30,41 @@ export function LeftPane({ documentUrl, document, language, onHeadingClick }: Le
             Preview
           </Tabs.Trigger>
         </Tabs.List>
-        {documentUrl && (
-          <Tabs.Content value="original" className="flex-1 overflow-hidden flex flex-col">
-            <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs shrink-0">
-              This preview has been processed and may not correspond to the original document
-              exactly.
-            </div>
-            <div className="flex-1 min-h-0">
-              <SourcePreview url={documentUrl} />
-            </div>
+        {/*
+          Both panels stay mounted (forceMount) and laid out across tab switches so their scroll
+          positions survive. The inactive panel is hidden with `invisible` (visibility:hidden)
+          rather than `display:none`: display:none would reset the iframe's scroll to 0 and let
+          scroll-anchoring drift the rendered preview. The panels are absolutely stacked inside a
+          relative wrapper so the hidden one stays sized but doesn't take up flow.
+        */}
+        <div className="relative flex-1 min-h-0">
+          {documentUrl && (
+            <Tabs.Content
+              forceMount
+              value="original"
+              className="absolute inset-0 flex flex-col overflow-hidden data-[state=inactive]:invisible data-[state=inactive]:pointer-events-none"
+            >
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs shrink-0">
+                This preview has been processed and may not correspond to the original document
+                exactly.
+              </div>
+              <div className="flex-1 min-h-0">
+                <SourcePreview url={documentUrl} />
+              </div>
+            </Tabs.Content>
+          )}
+          <Tabs.Content
+            forceMount
+            value="preview"
+            className="absolute inset-0 overflow-hidden data-[state=inactive]:invisible data-[state=inactive]:pointer-events-none"
+          >
+            <DocumentPreview
+              document={document}
+              language={language}
+              onHeadingClick={onHeadingClick}
+            />
           </Tabs.Content>
-        )}
-        <Tabs.Content value="preview" className="flex-1 overflow-hidden">
-          <DocumentPreview
-            document={document}
-            language={language}
-            onHeadingClick={onHeadingClick}
-          />
-        </Tabs.Content>
+        </div>
       </Tabs.Root>
     </div>
   );
