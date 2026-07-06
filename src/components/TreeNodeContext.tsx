@@ -23,6 +23,7 @@ export interface TreeCallbacksContextValue {
   onFocus: (id: string) => void;
   onNumberDoubleClick: (e: React.MouseEvent, id: string) => void;
   onUpdateNumber: (id: string, number: string | null) => void;
+  onNumberSubmit: (id: string) => void;
   onAddNodeBefore: (id: string) => void;
   onAddNodeAfter: (id: string) => void;
 }

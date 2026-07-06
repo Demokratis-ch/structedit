@@ -14,6 +14,12 @@ interface NumberBadgeProps {
   placeholder?: 'dashed' | 'bullet';
   onUpdateNumber: (nodeId: string, value: string | null) => void;
   onDoubleClick: (e: React.MouseEvent, nodeId: string) => void;
+  /**
+   * Invoked after the user commits via Enter (keyboard submit), so the parent can return
+   * focus to the tree container and the selection-mode shortcuts work right away (issue #136).
+   * Not called on blur-by-click, so clicking into another pane isn't fought for focus.
+   */
+  onSubmit?: (nodeId: string) => void;
 }
 
 /**
@@ -31,6 +37,7 @@ export function NumberBadge({
   placeholder = 'dashed',
   onUpdateNumber,
   onDoubleClick,
+  onSubmit,
 }: NumberBadgeProps) {
   if (isEditing) {
     return (
@@ -48,7 +55,8 @@ export function NumberBadge({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            (e.target as HTMLInputElement).blur();
+            (e.target as HTMLInputElement).blur(); // commits via onBlur
+            onSubmit?.(nodeId); // return focus to the tree so shortcuts work right away
           }
           if (e.key === 'Escape') {
             e.preventDefault();

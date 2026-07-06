@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
+import { ALT, MOD, SHIFT } from '../utils/platform';
 
 type ToolbarBlockType = 'HEADING' | 'CONTENT' | 'ul' | 'ol' | 'abc' | 'FOOTNOTE';
 // Type used purely to drive the format selector — accepts every content-bearing node type
@@ -44,12 +45,6 @@ interface FloatingToolbarProps {
   markActiveState?: Partial<Record<InlineMark, boolean>>;
   onToggleMark?: (mark: InlineMark) => void;
 }
-
-const IS_MAC =
-  typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.platform ?? '');
-const MOD = IS_MAC ? '⌘' : 'Ctrl+';
-const ALT = IS_MAC ? '⌥' : 'Alt+';
-const SHIFT = IS_MAC ? '⇧' : 'Shift+';
 
 const INLINE_MARK_BUTTONS: ReadonlyArray<{
   mark: InlineMark;

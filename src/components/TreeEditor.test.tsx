@@ -412,8 +412,9 @@ describe('double-click inline editing', () => {
       vi.runAllTimers();
     });
 
-    // Press Enter — for TEXT-format nodes this is a no-op (no sibling, no newline)
+    // Press Enter — for TEXT-format nodes this submits: exits edit mode, no sibling, no newline.
     const editingEl = document.activeElement as HTMLElement;
+    const editingWrapper = editingEl.closest('.tree-node') as HTMLElement;
     await act(async () => {
       fireEvent.keyDown(editingEl, { key: 'Enter' });
     });
@@ -424,16 +425,19 @@ describe('double-click inline editing', () => {
     // No new editable node was inserted into the tree.
     const afterEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
     expect(afterEditableCount).toBe(beforeEditableCount);
+    // Edit mode is exited (issue #136), leaving the node in selection mode for shortcuts.
+    expect(editingWrapper.getAttribute('data-editing')).toBe('false');
 
     vi.useRealTimers();
   });
 
-  test('pressing Enter on a selected (non-editing) node still creates a sibling', async () => {
+  test('pressing Enter on a selected (non-editing) node enters edit mode (no sibling)', async () => {
     vi.useFakeTimers();
     renderTreeEditor();
 
     const firstHeading = getTreePane().getByText('First Heading');
     fireEvent.click(firstHeading);
+    const wrapper = firstHeading.closest('.tree-node') as HTMLElement;
 
     const beforeEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
     const container = getContainer();
@@ -442,9 +446,10 @@ describe('double-click inline editing', () => {
       vi.runAllTimers();
     });
 
-    // A new content node should now be inserted into the tree (one more contenteditable)
+    // No sibling was created — the node is now in edit mode (issue #136).
     const afterEditableCount = getContainer().querySelectorAll('[contenteditable]').length;
-    expect(afterEditableCount).toBe(beforeEditableCount + 1);
+    expect(afterEditableCount).toBe(beforeEditableCount);
+    expect(wrapper.getAttribute('data-editing')).toBe('true');
 
     vi.useRealTimers();
   });
@@ -870,27 +875,22 @@ describe('node operations via keyboard', () => {
     expect(getTreePane().getByText('Second Heading')).toBeInTheDocument();
   });
 
-  test('Enter key in selection mode creates a new node after the selected one', () => {
+  test('Enter key in selection mode edits the selected node (does not create a node)', () => {
     renderTreeEditor();
     const container = getContainer();
 
     selectFirstNode();
+    const firstWrapper = getTreePane().getByText('First Heading').closest('.tree-node');
 
     // Press Enter while in selection mode (not editing)
     fireEvent.keyDown(container, { key: 'Enter' });
 
-    // A new empty node should appear between the two headings
+    // No new node was inserted — still just the two headings.
     const allDraggables = container.querySelectorAll('[draggable]');
-    expect(allDraggables.length).toBe(3);
+    expect(allDraggables.length).toBe(2);
 
-    // The new node sits between First Heading and Second Heading
-    expect(allDraggables[0].textContent).toContain('First Heading');
-    expect(allDraggables[2].textContent).toContain('Second Heading');
-
-    // The new node is an empty content node with an editable area
-    const newNodeEditable = allDraggables[1].querySelector('[contenteditable]');
-    expect(newNodeEditable).not.toBeNull();
-    expect(newNodeEditable!.textContent).toBe('');
+    // The selected node is now in edit mode (issue #136).
+    expect(firstWrapper?.getAttribute('data-editing')).toBe('true');
   });
 
   test('Tab indents selected node under previous sibling', () => {

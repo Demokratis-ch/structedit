@@ -6,9 +6,11 @@ import { useInlineMarks } from '../hooks/useInlineMarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
 import type { Language, NodeFormat } from '../types/document';
+import { MOD } from '../utils/platform';
 import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
+import { Kbd } from './ui/Kbd';
 
 interface TreeEditorProps {
   editor: TreeEditorHandle;
@@ -197,6 +199,12 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     store.setEditingNumberId(null);
   };
 
+  // After a number is committed via the keyboard (Enter), return focus to the tree
+  // container so selection-mode shortcuts work right away (issue #136).
+  const handleNumberSubmit = () => {
+    containerRef.current?.focus();
+  };
+
   const handleSetHoveredHandleId = (id: string | null) => {
     store.setHoveredHandleId(id);
   };
@@ -221,6 +229,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
   cbRef.current.setEditingId = handleSetEditingId;
   cbRef.current.handleNumberDblClick = handleNumberDblClick;
   cbRef.current.handleUpdateNumber = handleUpdateNumber;
+  cbRef.current.handleNumberSubmit = handleNumberSubmit;
   cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
   cbRef.current.handleAddNodeAfter = handleAddNodeAfter;
 
@@ -241,6 +250,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       onNumberDoubleClick: (e: React.MouseEvent, id: string) =>
         cbRef.current.handleNumberDblClick(e, id),
       onUpdateNumber: (id: string, n: string | null) => cbRef.current.handleUpdateNumber(id, n),
+      onNumberSubmit: (id: string) => cbRef.current.handleNumberSubmit(id),
       onAddNodeBefore: (id: string) => cbRef.current.handleAddNodeBefore(id),
       onAddNodeAfter: (id: string) => cbRef.current.handleAddNodeAfter(id),
     }),
@@ -258,29 +268,15 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       onClick={clearSelection}
     >
       <div className="max-w-5xl mx-auto py-12 pr-8 pl-16 pb-48 @max-[640px]:max-w-none @max-[640px]:pl-4 @max-[640px]:pr-2">
-        <div className="mb-8 pb-4 border-b border-gray-100 flex justify-between items-end">
-          <div>
-            <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
-            <p className="text-gray-500">
-              Click to select. Shift+Click to select range. Double-click to edit. Enter on a
-              selected node creates a new sibling; in edit mode it inserts a newline (for
-              newline-capable formats).
-            </p>
-          </div>
-          <div className="text-xs text-gray-400 hidden sm:block text-right space-y-1">
-            <div>
-              <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
-                Tab
-              </kbd>{' '}
-              indent
-            </div>
-            <div>
-              <kbd className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
-                Shift+Tab
-              </kbd>{' '}
-              outdent
-            </div>
-          </div>
+        <div className="mb-8 pb-4 border-b border-gray-100">
+          <h2 className="text-2xl font-bold mb-1">Tree Editor</h2>
+          <p className="text-gray-500">
+            Click to select. <Kbd>Shift</Kbd>+Click to select range. Double-click or press{' '}
+            <Kbd>Enter</Kbd> to edit; <Kbd>Tab</Kbd> and <Kbd>Shift+Tab</Kbd> indent and outdent.
+            Finish editing with <Kbd>Esc</Kbd> or <Kbd>{MOD}Enter</Kbd>; in single-line formats{' '}
+            <Kbd>Enter</Kbd> also finishes, while in newline-capable formats <Kbd>Enter</Kbd>{' '}
+            inserts a line break.
+          </p>
         </div>
         <div className="min-h-[300px] relative">
           {treeDocument.children.length === 0 ? (
