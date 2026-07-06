@@ -49,7 +49,6 @@ export function useKeyboardShortcuts({
     flattenedNodes,
     store,
     moveSelection,
-    addNodeAfter,
     removeNodes,
     changeNodeTypes,
     indentSelected,
@@ -60,16 +59,21 @@ export function useKeyboardShortcuts({
     undo,
     redo,
     lastSelectedId,
+    anchorId,
   } = editor;
 
   const handleBlockKeyDown = (e: React.KeyboardEvent, id: string) => {
     if (e.key === 'Enter') {
-      // Sibling creation moves to the global (selected, non-editing) handler.
-      // In edit mode Enter never creates a sibling; behaviour depends on the node's format.
+      // Sibling creation lives in the global (selected, non-editing) handler; stop this
+      // keydown from also bubbling there. Otherwise the single-line branch below clears
+      // editingId and the same event would then hit the global handler and create a
+      // sibling. Same guard as the Escape branch.
       e.preventDefault();
+      e.stopPropagation();
       const node = flattenedNodes.find((fn) => fn.node.id === id)?.node;
       const format = node && 'format' in node ? (node as { format: NodeFormat }).format : 'TEXT';
-      // TEXT and MARKDOWN_MINIMAL are single-line — Enter is a no-op. The other formats
+      // TEXT and MARKDOWN_MINIMAL are single-line — Enter submits (exit edit mode, keep the
+      // node selected). The other formats
       // accept a literal `\n`; execCommand is the only reliable cross-browser path inside
       // contentEditable, and its onInput propagates the new text via ContentBlock.
       //
@@ -79,7 +83,16 @@ export function useKeyboardShortcuts({
       // the newline was silently lost the instant it was typed (issue #129).
       // `insertLineBreak` inserts a real '\n' text node that `textContent` preserves.
       const NEWLINE_FORMATS: NodeFormat[] = ['NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN'];
-      if (NEWLINE_FORMATS.includes(format)) {
+      // Cmd/Ctrl+Enter always commits and exits — the explicit submit for multi-line formats
+      // where a bare Enter inserts a newline (also honoured on single-line formats for
+      // simplicity). A bare Enter submits single-line formats and inserts a break otherwise.
+      const submit = e.metaKey || e.ctrlKey || !NEWLINE_FORMATS.includes(format);
+      if (submit) {
+        // Leave edit mode but keep the node selected and return focus to the container, so
+        // the selection-mode shortcuts work immediately (issue #136). Mirrors Escape below.
+        store.setEditingId(null);
+        containerRef.current?.focus();
+      } else {
         window.document.execCommand?.('insertLineBreak');
       }
       return;
@@ -209,8 +222,40 @@ export function useKeyboardShortcuts({
       e.preventDefault();
       moveSelection(e.key === 'ArrowDown' ? 'down' : 'up', e.shiftKey);
     } else if (e.key === 'Enter' && lastSelectedId.current) {
+      // Enter edit mode on the focused selected node (issue #136). Collapse to that single
+      // node and edit — mirroring the double-click path (useSelection.handleNodeDoubleClick).
+      // Content-bearing nodes get text edit (caret placed at the end); container nodes that
+      // only carry a number (LIST / LIST_ITEM) get number edit instead.
       e.preventDefault();
-      addNodeAfter(lastSelectedId.current);
+      const id = lastSelectedId.current;
+      const fn = flattenedNodes.find((f) => f.node.id === id);
+      if (fn) {
+        const isTextEdit = 'contents' in fn.node;
+        store.batch(() => {
+          store.setSelection(new Set([id]));
+          if (isTextEdit) {
+            store.setEditingNumberId(null);
+            store.setEditingId(id);
+          } else if ('number' in fn.node) {
+            store.setEditingId(null);
+            store.setEditingNumberId(id);
+          }
+        });
+        anchorId.current = id;
+        if (isTextEdit) {
+          setTimeout(() => {
+            const el = blockRefs.current[id];
+            if (el) {
+              el.focus();
+              const r = window.document.createRange();
+              r.selectNodeContents(el);
+              r.collapse(false);
+              window.getSelection()?.removeAllRanges();
+              window.getSelection()?.addRange(r);
+            }
+          }, 0);
+        }
+      }
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
       deleteSelected();

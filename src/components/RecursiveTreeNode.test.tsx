@@ -41,6 +41,7 @@ const defaultCallbacks: TreeCallbacksContextValue = {
   onFocus: vi.fn(),
   onNumberDoubleClick: vi.fn(),
   onUpdateNumber: vi.fn(),
+  onNumberSubmit: vi.fn(),
   onAddNodeBefore: vi.fn(),
   onAddNodeAfter: vi.fn(),
 };

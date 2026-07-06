@@ -92,6 +92,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       onFocus,
       onNumberDoubleClick,
       onUpdateNumber,
+      onNumberSubmit,
       onAddNodeBefore,
       onAddNodeAfter,
     } = useTreeCallbacks();
@@ -173,6 +174,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         placeholder={placeholder}
         onUpdateNumber={onUpdateNumber}
         onDoubleClick={onNumberDoubleClick}
+        onSubmit={onNumberSubmit}
       />
     );
 

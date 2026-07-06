@@ -74,6 +74,26 @@ describe('NumberBadge', () => {
       fireEvent.keyDown(input, { key: 'Escape' });
       expect(onUpdateNumber).toHaveBeenCalledWith('n1', '1');
     });
+
+    test('Enter commits the number (via blur) and calls onSubmit with the node id', () => {
+      const onUpdateNumber = vi.fn();
+      const onSubmit = vi.fn();
+      const { container } = render(
+        <NumberBadge
+          {...baseProps}
+          value="1"
+          isEditing
+          onUpdateNumber={onUpdateNumber}
+          onSubmit={onSubmit}
+        />
+      );
+      const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+      input.value = '2.';
+      fireEvent.keyDown(input, { key: 'Enter' });
+      // Enter blurs, which commits the trimmed value, then hands focus back via onSubmit.
+      expect(onUpdateNumber).toHaveBeenCalledWith('n1', '2.');
+      expect(onSubmit).toHaveBeenCalledWith('n1');
+    });
   });
 
   describe('display mode with a value', () => {

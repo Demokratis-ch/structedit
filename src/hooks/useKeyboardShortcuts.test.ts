@@ -115,13 +115,14 @@ describe('useKeyboardShortcuts — global handler', () => {
     expect([...result.current.editor.store.getSelectedIds()]).toEqual(['h2']);
   });
 
-  test('Enter on a selected node creates a sibling after it', () => {
+  test('Enter on a selected node enters edit mode (does not create a sibling)', () => {
     const result = setup(twoHeadings());
     select(result, 'h1');
 
     act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
 
-    expect(result.current.editor.document.children.length).toBe(3);
+    expect(result.current.editor.store.getEditingId()).toBe('h1');
+    expect(result.current.editor.document.children.length).toBe(2);
   });
 
   test('Delete removes the selected node', () => {
@@ -335,6 +336,148 @@ describe('useKeyboardShortcuts — in-edit Enter inserts a newline', () => {
     act(() => result.current.handlers.handleBlockKeyDown(e, id));
 
     expect(e.preventDefault).toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+
+    delete (window.document as { execCommand?: unknown }).execCommand;
+  });
+});
+
+describe('useKeyboardShortcuts — Enter enters edit mode (issue #136)', () => {
+  /** A list with a single list item, plus a content node, for edit-entry tests. */
+  const listAndContent = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'content',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Body' },
+        children: [],
+      },
+      {
+        id: 'list',
+        number: null,
+        type: 'LIST',
+        children: [
+          {
+            id: 'item',
+            number: 'a',
+            type: 'LIST_ITEM',
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  test('Enter on a selected content node enters text edit mode', () => {
+    const result = setup(listAndContent());
+    select(result, 'content');
+
+    act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
+
+    expect(result.current.editor.store.getEditingId()).toBe('content');
+    expect(result.current.editor.store.getEditingNumberId()).toBeNull();
+  });
+
+  test('Enter on a selected list item (no contents) enters number edit mode', () => {
+    const result = setup(listAndContent());
+    select(result, 'item');
+
+    act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
+
+    expect(result.current.editor.store.getEditingNumberId()).toBe('item');
+    expect(result.current.editor.store.getEditingId()).toBeNull();
+  });
+
+  test('Enter collapses a multi-selection to the focused node before editing', () => {
+    const result = setup(listAndContent());
+    select(result, 'content');
+    select(result, 'item', { ctrlKey: true }); // now {content, item}, focus on item
+
+    act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
+
+    expect([...result.current.editor.store.getSelectedIds()]).toEqual(['item']);
+    expect(result.current.editor.store.getEditingNumberId()).toBe('item');
+  });
+
+  test('Enter with no selection is a no-op', () => {
+    const result = setup(listAndContent());
+
+    act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
+
+    expect(result.current.editor.store.getEditingId()).toBeNull();
+    expect(result.current.editor.store.getEditingNumberId()).toBeNull();
+  });
+});
+
+describe('useKeyboardShortcuts — Enter submits a single-line edit (issue #136)', () => {
+  const singleLineDoc = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'text',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'a' },
+        children: [],
+      },
+      {
+        id: 'markdown',
+        number: null,
+        type: 'CONTENT',
+        format: 'MARKDOWN',
+        contents: { de: 'a' },
+        children: [],
+      },
+    ],
+  });
+
+  test('Enter in a single-line node exits edit mode (keeps the node selected)', () => {
+    const result = setup(singleLineDoc());
+    select(result, 'text');
+    act(() => result.current.editor.store.setEditingId('text'));
+
+    act(() => result.current.handlers.handleBlockKeyDown(makeKbd({ key: 'Enter' }), 'text'));
+
+    expect(result.current.editor.store.getEditingId()).toBeNull();
+    expect([...result.current.editor.store.getSelectedIds()]).toEqual(['text']);
+  });
+
+  test('Enter in a newline-format node stays in edit mode (inserts a break instead)', () => {
+    const result = setup(singleLineDoc());
+    const exec = vi.fn().mockReturnValue(true);
+    (window.document as unknown as { execCommand?: unknown }).execCommand = exec;
+    act(() => result.current.editor.store.setEditingId('markdown'));
+
+    act(() => result.current.handlers.handleBlockKeyDown(makeKbd({ key: 'Enter' }), 'markdown'));
+
+    expect(result.current.editor.store.getEditingId()).toBe('markdown');
+    expect(exec).toHaveBeenCalledWith('insertLineBreak');
+
+    delete (window.document as { execCommand?: unknown }).execCommand;
+  });
+
+  // Cmd/Ctrl+Enter is the explicit "commit and exit" for multi-line formats (where a bare
+  // Enter inserts a newline) — applied to single-line formats too for simplicity.
+  test.each([
+    ['metaKey', { metaKey: true }],
+    ['ctrlKey', { ctrlKey: true }],
+  ])('%s+Enter in a newline-format node commits and exits edit mode', (_label, mods) => {
+    const result = setup(singleLineDoc());
+    const exec = vi.fn().mockReturnValue(true);
+    (window.document as unknown as { execCommand?: unknown }).execCommand = exec;
+    act(() => result.current.editor.store.setEditingId('markdown'));
+
+    act(() =>
+      result.current.handlers.handleBlockKeyDown(makeKbd({ key: 'Enter', ...mods }), 'markdown')
+    );
+
+    expect(result.current.editor.store.getEditingId()).toBeNull();
     expect(exec).not.toHaveBeenCalled();
 
     delete (window.document as { execCommand?: unknown }).execCommand;
