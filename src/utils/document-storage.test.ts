@@ -12,6 +12,8 @@ import {
   loadEntry,
   MAX_RECENTS,
   StorageQuotaUnresolvableError,
+  subscribeToStructuralChanges,
+  updateEntryName,
   updateEntryTree,
 } from './document-storage';
 
@@ -199,6 +201,61 @@ describe('document-storage', () => {
 
     it('throws when the entry does not exist', async () => {
       await expect(updateEntryTree('missing-id', makeTree())).rejects.toThrow();
+    });
+  });
+
+  describe('updateEntryName', () => {
+    it('renames the entry and bumps updatedAt — everything else untouched', async () => {
+      const input = makeFileEntryInput();
+      const created = await createEntry(input);
+      await new Promise((r) => setTimeout(r, 5));
+
+      await updateEntryName(input.id, 'Vernehmlassung Q3');
+
+      const loaded = await loadEntry(input.id);
+      if (!loaded || 'status' in loaded) throw new Error('entry should be valid');
+
+      expect(loaded.name).toBe('Vernehmlassung Q3');
+      expect(loaded.updatedAt).toBeGreaterThan(created.updatedAt);
+      expect(loaded.createdAt).toBe(created.createdAt);
+      expect(loaded.tree).toEqual(created.tree);
+      expect(loaded.subtitle).toBe(created.subtitle);
+      expect(loaded.byteSize).toBe(created.byteSize);
+      expect(loaded.source.originalFilename).toBe('bill.docx');
+    });
+
+    it('throws when the entry does not exist', async () => {
+      await expect(updateEntryName('missing-id', 'x')).rejects.toThrow(/missing entry/);
+    });
+
+    it('does not fire the structural-change notifier', async () => {
+      const input = makeFileEntryInput();
+      await createEntry(input);
+
+      let notified = 0;
+      const unsubscribe = subscribeToStructuralChanges(() => {
+        notified++;
+      });
+      try {
+        await updateEntryName(input.id, 'renamed');
+        expect(notified).toBe(0);
+      } finally {
+        unsubscribe();
+      }
+    });
+
+    it('propagates write failures without quota recovery', async () => {
+      const input = makeFileEntryInput();
+      await createEntry(input);
+
+      __setWriteFailHookForTesting(() => quotaError());
+
+      await expect(updateEntryName(input.id, 'renamed')).rejects.toThrow();
+
+      __setWriteFailHookForTesting(null);
+      const loaded = await loadEntry(input.id);
+      if (!loaded || 'status' in loaded) throw new Error('entry should be valid');
+      expect(loaded.name).toBe('bill.docx');
     });
   });
 
