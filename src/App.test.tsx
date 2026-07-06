@@ -10,6 +10,7 @@ import {
   closeDb,
   createEntry,
   listRecents,
+  loadEntry,
 } from './utils/document-storage';
 
 function makeTree() {
@@ -143,6 +144,51 @@ describe('App', () => {
     await waitFor(() => {
       expect(revokedUrls).toContain(documentUrl);
     });
+  });
+
+  it('renaming in the header updates the breadcrumb and persists to the stored entry', async () => {
+    const seeded = makeInput({ name: 'renameme.docx' });
+    await createEntry(seeded);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByText('renameme.docx'));
+    await screen.findByRole('button', { name: /close editor/i });
+
+    fireEvent.doubleClick(screen.getByText('renameme.docx'));
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Vernehmlassung Q3' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.getByText('Vernehmlassung Q3')).toBeInTheDocument();
+    expect(screen.queryByText('renameme.docx')).not.toBeInTheDocument();
+
+    await waitFor(async () => {
+      const entry = await loadEntry(seeded.id);
+      if (!entry || 'status' in entry) throw new Error('entry should be valid');
+      expect(entry.name).toBe('Vernehmlassung Q3');
+    });
+  });
+
+  it('renaming still updates the breadcrumb when the entry was never stored', async () => {
+    // Force the initial create to fail so currentEntryId stays null.
+    __setStorageEstimatorForTesting(() => null);
+    __setWriteFailHookForTesting(() => new DOMException('quota', 'QuotaExceededError'));
+
+    render(<App />);
+
+    const textarea = await screen.findByPlaceholderText(/paste unstructured text/i);
+    fireEvent.change(textarea, { target: { value: 'Hello world' } });
+    fireEvent.click(screen.getByRole('button', { name: /convert text/i }));
+    await screen.findByRole('button', { name: /close editor/i });
+
+    fireEvent.doubleClick(screen.getByText(/^Untitled \(/));
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Renamed anyway' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.getByText('Renamed anyway')).toBeInTheDocument();
+    expect(await listRecents()).toHaveLength(0);
   });
 
   it('shows a quota toast when the initial create fails — editor still opens', async () => {

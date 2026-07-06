@@ -357,6 +357,38 @@ async function attemptUpdate(id: string, tree: DocumentRootNode): Promise<void> 
   await awaitTransaction(tx);
 }
 
+export function updateEntryName(id: string, name: string): Promise<void> {
+  return trackWrite(updateEntryNameImpl(id, name));
+}
+
+// Unlike updateEntryTree there is no quota recovery here: a name write is tiny,
+// so evicting entries to make room for it is never warranted. Failures simply
+// propagate. No notifyStructuralChange either — same rationale as updateEntryTree.
+//
+// Racing autosave is safe: updateEntryTree never writes `name` (it spreads the
+// existing entry), and both read-modify-writes run inside a single readwrite
+// transaction, which IndexedDB serializes per object store — so neither ordering
+// can lose the rename.
+async function updateEntryNameImpl(id: string, name: string): Promise<void> {
+  checkWriteFailHook();
+
+  const db = await openDb();
+  const tx = db.transaction(STORE, 'readwrite');
+  const store = tx.objectStore(STORE);
+  const existing = await promisifyRequest<StoredDocumentEntry | undefined>(store.get(id));
+  if (!existing) {
+    tx.abort();
+    throw new Error(`Cannot update missing entry: ${id}`);
+  }
+  const updated: StoredDocumentEntry = {
+    ...existing,
+    name,
+    updatedAt: Date.now(),
+  };
+  store.put(updated);
+  await awaitTransaction(tx);
+}
+
 async function projectUpdatedEntry(
   id: string,
   tree: DocumentRootNode

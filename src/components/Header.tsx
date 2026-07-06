@@ -1,8 +1,29 @@
+import { useRef, useState } from 'react';
+
 interface HeaderProps {
   documentName?: string | null;
+  onRename: (name: string) => void;
 }
 
-export function Header({ documentName }: HeaderProps = {}) {
+export function Header({ documentName, onRename }: HeaderProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  // Escape unmounts the input, which can still fire a blur with the discarded
+  // value — this flag makes that trailing blur a no-op.
+  const cancelledRef = useRef(false);
+
+  const startEditing = () => {
+    cancelledRef.current = false;
+    setIsEditing(true);
+  };
+
+  const commit = (value: string) => {
+    setIsEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== documentName) {
+      onRename(trimmed);
+    }
+  };
+
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="px-6 py-4">
@@ -17,7 +38,55 @@ export function Header({ documentName }: HeaderProps = {}) {
             </div>
             {documentName && (
               <div className="text-grey-mid text-3xl font-light">
-                &nbsp;&rsaquo;&nbsp;&nbsp;<span>{documentName}</span>
+                &nbsp;&rsaquo;&nbsp;&nbsp;
+                {isEditing ? (
+                  <input
+                    type="text"
+                    defaultValue={documentName}
+                    ref={(el) => {
+                      el?.focus();
+                      el?.select();
+                    }}
+                    aria-label="Document title"
+                    className="font-serif text-3xl font-light text-grey-mid border border-blue-400 rounded px-1 outline-none bg-white"
+                    onBlur={(e) => {
+                      if (cancelledRef.current) return;
+                      commit(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        // Delegate to blur so commit has a single entry point —
+                        // a direct commit here would unmount the input and the
+                        // trailing focusout would commit a second time.
+                        (e.target as HTMLInputElement).blur();
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelledRef.current = true;
+                        setIsEditing(false);
+                      }
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="cursor-pointer"
+                    title="Double-click or press Enter to rename"
+                    onDoubleClick={startEditing}
+                    onKeyDown={(e) => {
+                      // Explicit keyboard handling: a plain (single) click must
+                      // NOT start editing, so we can't rely on the native
+                      // Enter/Space → click activation.
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        startEditing();
+                      }
+                    }}
+                  >
+                    {documentName}
+                  </button>
+                )}
               </div>
             )}
           </div>

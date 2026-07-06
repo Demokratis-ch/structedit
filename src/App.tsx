@@ -7,6 +7,7 @@ import { Toast } from './components/ui/Toast';
 import { useLoadFromUrl } from './hooks/useLoadFromUrl';
 import { useRecentDocuments } from './hooks/useRecentDocuments';
 import type { DocumentRootNode } from './types/document';
+import { updateEntryName } from './utils/document-storage';
 
 function App() {
   const [document, setDocument] = useState<DocumentRootNode | null>(null);
@@ -53,6 +54,17 @@ function App() {
     setView('editor');
   };
 
+  const handleRename = (name: string) => {
+    setFileName(name);
+    // No entry id means the initial persist failed (e.g. storage full) — the
+    // rename still applies in-memory, it just won't survive a reload.
+    if (currentEntryId) {
+      updateEntryName(currentEntryId, name).catch((err) => {
+        console.error('Failed to persist rename', err);
+      });
+    }
+  };
+
   const handleBack = () => {
     setView('upload');
     setDocument(null);
@@ -69,7 +81,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 font-sans text-gray-900 overflow-hidden">
-      <Header documentName={fileName} />
+      <Header documentName={fileName} onRename={handleRename} />
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col min-w-0 bg-white">
