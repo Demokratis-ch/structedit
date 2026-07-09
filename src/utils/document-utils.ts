@@ -143,7 +143,7 @@ export const parseHtmlToTree = (
       'br',
       'a',
     ],
-    ALLOWED_ATTR: ['href', 'target', 'type', 'data-list-style-type'],
+    ALLOWED_ATTR: ['href', 'target', 'type', 'data-list-style-type', 'class'],
   });
 
   const parser = new DOMParser();
@@ -205,6 +205,29 @@ export const parseHtmlToTree = (
     return 'MARKDOWN';
   };
 
+  /**
+   * Extract a node's inner HTML as a CONTENT node and add it to the current parent, the
+   * same way a `<p>` is handled. Returns whether a node was actually emitted (a node with
+   * no real text, e.g. an icon-only wrapper, emits nothing).
+   */
+  const emitTextContent = (domNode: Node): boolean => {
+    const rawHtml = getInnerHtml(domNode);
+    if (!rawHtml) return false;
+    const format = chooseFormat('CONTENT', rawHtml);
+    const content = htmlToMarkdown(rawHtml, format);
+    if (!content) return false;
+    const contentNode: ContentDocumentNode = {
+      id: generateId(),
+      number: null,
+      type: 'CONTENT',
+      format,
+      contents: { [language]: content },
+      children: [],
+    };
+    addChild(contentNode);
+    return true;
+  };
+
   // Inline HTML of an <li>, excluding nested <ol>/<ul>. Inline marks (e.g. <sup>) are
   // kept so chooseFormat / htmlToMarkdown can decide the right format and preserve
   // markup like Mammoth's <sup>N</sup> Absatznummer prefix.
@@ -220,6 +243,38 @@ export const parseHtmlToTree = (
       }
     }
     return html.trim();
+  };
+
+  // div.number nodes already folded into a numbered CONTENT/HEADING node (see the `div`
+  // branch of walkDom) are recorded here so the normal recursion skips them instead of
+  // duplicating them.
+  const consumedAsNumber = new Set<Element>();
+
+  // True only while walking the *other* children of a div.paragraph/div.article (see
+  // below). Scopes the "bare div text counts as a paragraph" allowance (further down) to
+  // that specific context, instead of applying it to every div in the document — outside
+  // a numbered container, a div with no <p> wrapper still contributes no content, exactly
+  // as before this feature existed.
+  let insideNumberedContainer = false;
+
+  // A div.paragraph or div.article owns any div.number nested inside it; a nested div of
+  // either kind owns its own numbering marker instead, so the search must not cross into one.
+  const isNumberedContainer = (el: Element): boolean =>
+    el.classList.contains('paragraph') || el.classList.contains('article');
+
+  /**
+   * Depth-first search for a `div.number` descendant of a numbered container (div.paragraph
+   * or div.article), without crossing into a nested numbered container. Other wrapper
+   * elements (of any tag) in between are transparent to the search.
+   */
+  const findNumberDescendant = (container: Element): Element | undefined => {
+    for (const child of Array.from(container.children)) {
+      if (child.classList.contains('number')) return child;
+      if (isNumberedContainer(child)) continue;
+      const found = findNumberDescendant(child);
+      if (found) return found;
+    }
+    return undefined;
   };
 
   const processListElement = (domNode: Node, tagName: string): ListDocumentNode => {
@@ -276,6 +331,7 @@ export const parseHtmlToTree = (
   const walkDom = (domNode: Node) => {
     if (domNode.nodeType === Node.COMMENT_NODE) return;
     if (domNode.nodeName === 'SCRIPT' || domNode.nodeName === 'STYLE') return;
+    if (consumedAsNumber.has(domNode as Element)) return;
 
     const tagName = domNode.nodeName.toLowerCase();
 
@@ -314,28 +370,90 @@ export const parseHtmlToTree = (
 
     // Divs - transparent containers, recurse into children
     if (tagName === 'div') {
+      const el = domNode as HTMLElement;
+
+      // Numbering markers: a div.number anywhere inside a div.paragraph or
+      // div.article (possibly wrapped in other elements, but not inside a nested numbered
+      // container) becomes the `number` field of, respectively, a CONTENT or a HEADING node.
+      // Its first processed sibling supplies the node's own `contents`. Further siblings
+      // become non-numbered CONTENT nodes: flat siblings for div.paragraph (a CONTENT node's
+      // children may only be FOOTNOTEs, so they can't nest there), nested children for
+      // div.article (a HEADING node can hold arbitrary block children).
+      const isArticle = el.classList?.contains('article') ?? false;
+      const numberDescendant =
+        isArticle || el.classList?.contains('paragraph') ? findNumberDescendant(el) : undefined;
+
+      if (numberDescendant) {
+        const rawHtml = getInnerHtml(numberDescendant);
+        const numberFormat = chooseFormat('HEADING', rawHtml);
+        const number = htmlToMarkdown(rawHtml, numberFormat).trim() || null;
+        consumedAsNumber.add(numberDescendant);
+
+        // Process the container's other children into a scratch root so they can be
+        // inspected (first vs. rest) before being wired into the real tree.
+        const collector: DocumentRootNode = { id: generateId(), type: 'DOCUMENT', children: [] };
+        const wasInsideNumberedContainer = insideNumberedContainer;
+        insideNumberedContainer = true;
+        parentStack.push(collector);
+        Array.from(el.childNodes).forEach(walkDom);
+        parentStack.pop();
+        insideNumberedContainer = wasInsideNumberedContainer;
+
+        const [firstSibling, ...restSiblings] = collector.children;
+        const firstIsContent = firstSibling?.type === 'CONTENT';
+        const format = firstIsContent ? firstSibling.format : 'TEXT';
+        const contents = firstIsContent ? firstSibling.contents : { [language]: '' };
+        const mergedFootnotes = firstIsContent ? firstSibling.children : [];
+        const remaining = firstIsContent ? restSiblings : collector.children;
+
+        if (isArticle) {
+          const heading: HeadingDocumentNode = {
+            id: generateId(),
+            number,
+            type: 'HEADING',
+            format,
+            contents,
+            children: [...mergedFootnotes, ...remaining],
+          };
+          addChild(heading);
+        } else {
+          const contentNode: ContentDocumentNode = {
+            id: generateId(),
+            number,
+            type: 'CONTENT',
+            format,
+            contents,
+            children: mergedFootnotes,
+          };
+          addChild(contentNode);
+          remaining.forEach((sibling) => {
+            addChild(sibling);
+          });
+        }
+        return;
+      }
+
+      // Within a div.paragraph/div.article, some formats
+      // put label text directly inside a div with no <p> wrapper. Treat a div carrying its
+      // own direct text the same as a <p> — but only in that scope; text nested inside a
+      // child element (e.g. positioned PDF-export <span>s) doesn't count either way.
+      const hasOwnText =
+        insideNumberedContainer &&
+        Array.from(el.childNodes).some(
+          (child) =>
+            child.nodeType === Node.TEXT_NODE && (child.textContent || '').trim().length > 0
+        );
+      if (hasOwnText && emitTextContent(el)) {
+        return;
+      }
+
       Array.from(domNode.childNodes).forEach(walkDom);
       return;
     }
 
     // Paragraphs - create content nodes
     if (tagName === 'p') {
-      const rawHtml = getInnerHtml(domNode);
-      if (rawHtml) {
-        const format = chooseFormat('CONTENT', rawHtml);
-        const content = htmlToMarkdown(rawHtml, format);
-        if (content) {
-          const contentNode: ContentDocumentNode = {
-            id: generateId(),
-            number: null,
-            type: 'CONTENT',
-            format,
-            contents: { [language]: content },
-            children: [],
-          };
-          addChild(contentNode);
-        }
-      }
+      emitTextContent(domNode);
       return;
     }
 
