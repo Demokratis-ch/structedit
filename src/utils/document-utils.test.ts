@@ -318,6 +318,262 @@ describe('Document Utils', () => {
       expect(content.contents.de).toBe('^1^ Dieser Erlass regelt das Bildungswesen.');
     });
 
+    describe('div.number inside div.paragraph inferred as a numbered CONTENT node', () => {
+      it('turns div.number into a CONTENT node carrying the number field', () => {
+        const html =
+          '<div class="paragraph"><div class="number">Art. 5</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.type).toBe('CONTENT');
+        expect(content.number).toBe('Art. 5');
+      });
+
+      it('merges the first sibling into the contents of the numbered CONTENT node', () => {
+        const html =
+          '<div class="paragraph"><div class="number">Art. 5</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.contents.de).toBe('Right to privacy');
+        expect(content.format).toBe('TEXT');
+      });
+
+      it('adds further siblings as separate, non-numbered CONTENT nodes', () => {
+        const html =
+          '<div class="paragraph"><div class="number">Art. 5</div>' +
+          '<p>First paragraph</p><p>Second paragraph</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(2);
+        const numbered = doc.children[0] as ContentDocumentNode;
+        expect(numbered.number).toBe('Art. 5');
+        expect(numbered.contents.de).toBe('First paragraph');
+        const extra = doc.children[1] as ContentDocumentNode;
+        expect(extra.type).toBe('CONTENT');
+        expect(extra.number).toBeNull();
+        expect(extra.contents.de).toBe('Second paragraph');
+      });
+
+      it('leaves contents empty when div.number has no other siblings', () => {
+        const html = '<div class="paragraph"><div class="number">Art. 5</div></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.number).toBe('Art. 5');
+        expect(content.contents.de).toBe('');
+      });
+
+      it('keeps consecutive div.paragraph numbered nodes as siblings, not nested in each other', () => {
+        const html =
+          '<div class="paragraph"><div class="number">Art. 5</div><p>First</p></div>' +
+          '<div class="paragraph"><div class="number">Art. 6</div><p>Second</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(2);
+        const first = doc.children[0] as ContentDocumentNode;
+        const second = doc.children[1] as ContentDocumentNode;
+        expect(first.number).toBe('Art. 5');
+        expect(second.number).toBe('Art. 6');
+      });
+
+      it('ignores div.number when not inside a div.paragraph', () => {
+        const html = '<div class="number"><p>5</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.type).toBe('CONTENT');
+        expect(content.number).toBeNull();
+      });
+
+      it('finds div.number wrapped in intervening divs inside div.paragraph', () => {
+        const html =
+          '<div class="paragraph"><div class="inner-wrap"><div class="another-wrap">' +
+          '<div class="number">Art. 5</div></div></div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const content = doc.children[0] as ContentDocumentNode;
+        expect(content.type).toBe('CONTENT');
+        expect(content.number).toBe('Art. 5');
+        expect(content.contents.de).toBe('Right to privacy');
+      });
+
+      it('does not duplicate the number text into an extra CONTENT node for the wrapper divs', () => {
+        const html =
+          '<div class="paragraph"><div class="inner-wrap"><div class="number">Art. 5</div>' +
+          '</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        // Only one CONTENT node should surface: the wrapper div and the consumed number
+        // div must not also produce nodes of their own.
+        expect(doc.children.length).toBe(1);
+        expect(doc.children[0].type).toBe('CONTENT');
+      });
+
+      it('does not reach into a nested div.paragraph for its number', () => {
+        const html =
+          '<div class="paragraph"><p>Outer intro</p>' +
+          '<div class="paragraph"><div class="number">Art. 6</div><p>Nested</p></div></div>';
+        const doc = parseHtmlToTree(html);
+        // Outer paragraph has no div.number of its own, so it stays transparent;
+        // only the inner paragraph produces a numbered CONTENT node.
+        expect(doc.children.length).toBe(2);
+        const outerContent = doc.children[0] as ContentDocumentNode;
+        expect(outerContent.type).toBe('CONTENT');
+        expect(outerContent.number).toBeNull();
+        expect(outerContent.contents.de).toBe('Outer intro');
+        const innerContent = doc.children[1] as ContentDocumentNode;
+        expect(innerContent.type).toBe('CONTENT');
+        expect(innerContent.number).toBe('Art. 6');
+        expect(innerContent.contents.de).toBe('Nested');
+      });
+
+      it('leaves div.paragraph without a div.number child unaffected', () => {
+        const html = '<div class="paragraph"><p>Just text</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        expect(doc.children[0].type).toBe('CONTENT');
+      });
+    });
+
+    describe('div.number inside div.article inferred as a HEADING node', () => {
+      it('turns div.number into a HEADING node carrying the number field', () => {
+        const html =
+          '<div class="article"><div class="number">Art. 5</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.type).toBe('HEADING');
+        expect(heading.number).toBe('Art. 5');
+      });
+
+      it('merges the first sibling into the contents of the HEADING node', () => {
+        const html =
+          '<div class="article"><div class="number">Art. 5</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.contents.de).toBe('Right to privacy');
+        expect(heading.format).toBe('TEXT');
+      });
+
+      it('nests further siblings as unnumbered CONTENT children of the HEADING node', () => {
+        const html =
+          '<div class="article"><div class="number">Art. 5</div>' +
+          '<p>First paragraph</p><p>Second paragraph</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.number).toBe('Art. 5');
+        expect(heading.contents.de).toBe('First paragraph');
+        expect(heading.children.length).toBe(1);
+        const nested = heading.children[0] as ContentDocumentNode;
+        expect(nested.type).toBe('CONTENT');
+        expect(nested.number).toBeNull();
+        expect(nested.contents.de).toBe('Second paragraph');
+      });
+
+      it('leaves contents and children empty when div.number has no siblings', () => {
+        const html = '<div class="article"><div class="number">Art. 5</div></div>';
+        const doc = parseHtmlToTree(html);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.number).toBe('Art. 5');
+        expect(heading.contents.de).toBe('');
+        expect(heading.children.length).toBe(0);
+      });
+
+      it('keeps consecutive div.article headings as siblings, not nested in each other', () => {
+        const html =
+          '<div class="article"><div class="number">Art. 5</div><p>First</p></div>' +
+          '<div class="article"><div class="number">Art. 6</div><p>Second</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(2);
+        const first = doc.children[0] as HeadingDocumentNode;
+        const second = doc.children[1] as HeadingDocumentNode;
+        expect(first.number).toBe('Art. 5');
+        expect(second.number).toBe('Art. 6');
+      });
+
+      it('finds div.number wrapped in intervening divs inside div.article', () => {
+        const html =
+          '<div class="article"><div class="inner-wrap"><div class="number">Art. 5</div>' +
+          '</div><p>Right to privacy</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.type).toBe('HEADING');
+        expect(heading.number).toBe('Art. 5');
+        expect(heading.contents.de).toBe('Right to privacy');
+      });
+
+      it('does not reach into a nested div.article for its number', () => {
+        const html =
+          '<div class="article"><p>Outer intro</p>' +
+          '<div class="article"><div class="number">Art. 6</div><p>Nested</p></div></div>';
+        const doc = parseHtmlToTree(html);
+        // The outer article has no div.number of its own, so it stays a transparent div;
+        // only the inner article produces a HEADING node.
+        expect(doc.children.length).toBe(2);
+        const outerContent = doc.children[0] as ContentDocumentNode;
+        expect(outerContent.type).toBe('CONTENT');
+        expect(outerContent.contents.de).toBe('Outer intro');
+        const innerHeading = doc.children[1] as HeadingDocumentNode;
+        expect(innerHeading.type).toBe('HEADING');
+        expect(innerHeading.number).toBe('Art. 6');
+        expect(innerHeading.contents.de).toBe('Nested');
+      });
+
+      it('does not cross a div.paragraph boundary when searching from a div.article', () => {
+        const html =
+          '<div class="article"><p>Outer intro</p>' +
+          '<div class="paragraph"><div class="number">Art. 6</div><p>Nested</p></div></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(2);
+        const outerContent = doc.children[0] as ContentDocumentNode;
+        expect(outerContent.type).toBe('CONTENT');
+        expect(outerContent.contents.de).toBe('Outer intro');
+        const innerContent = doc.children[1] as ContentDocumentNode;
+        expect(innerContent.type).toBe('CONTENT');
+        expect(innerContent.number).toBe('Art. 6');
+      });
+
+      it('leaves div.article without a div.number child unaffected', () => {
+        const html = '<div class="article"><p>Just text</p></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        expect(doc.children[0].type).toBe('CONTENT');
+      });
+
+      it('picks up a first sibling whose own text is not wrapped in a <p>', () => {
+        // Real-world files sometimes put the text directly inside a div, several
+        // levels below div.article, with no <p> wrapper and an empty sibling div in between.
+        const html =
+          '<div class="article"><div class="wrapper">' +
+          '<div class="number">Art. 7</div>' +
+          '<div class="text">Filler text</div>' +
+          '<div class="another"></div>' +
+          '</div></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(1);
+        const heading = doc.children[0] as HeadingDocumentNode;
+        expect(heading.type).toBe('HEADING');
+        expect(heading.number).toBe('Art. 7');
+        expect(heading.contents.de).toBe('Filler text');
+      });
+    });
+
+    describe('bare text directly inside a div outside any div.paragraph/div.article', () => {
+      it('does not extract text from a div with no <p> wrapper', () => {
+        const html = '<div>Some text with no p wrapper</div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(0);
+      });
+
+      it('does not squash a div and its nested block children into one CONTENT node', () => {
+        // A div carrying its own direct text *and* nested block-level siblings must not
+        // have its whole innerHTML flattened into a single node — each nested div is
+        // still its own, separately-parsed unit (here, dropped, since neither has a <p>).
+        const html = '<div>Intro remark<div>Nested one</div><div>Nested two</div></div>';
+        const doc = parseHtmlToTree(html);
+        expect(doc.children.length).toBe(0);
+      });
+    });
+
     describe('format selection per spec D8 / importer scenarios', () => {
       it('Plain heading imports as TEXT format', () => {
         const doc = parseHtmlToTree('<h1>Intro</h1>');
