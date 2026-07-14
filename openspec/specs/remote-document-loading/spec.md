@@ -1,7 +1,7 @@
 # remote-document-loading Specification
 
 ## Purpose
-TBD - created by archiving change add-loadfile-url-import. Update Purpose after archive.
+Open StructEdit with a document preloaded from the Demokratis platform via a signed URL (`?loadFile=<url-encoded URL>`): fetch the document from an allowlisted host, parse it through the HTML pipeline, and land the user directly in the editor — with explicit loading and error states, upload-equivalent persistence, and one-shot consumption of the parameter.
 ## Requirements
 ### Requirement: Load a document from the `loadFile` query parameter
 
@@ -81,7 +81,8 @@ produce different messages.
 
 The system SHALL fetch a `loadFile` URL only when its host is on a configurable allowlist, and SHALL
 reject any other host before performing a fetch. The allowlist SHALL default to `demokratis.ch` and
-SHALL be configurable (without code changes) to add additional hosts. Host matching SHALL accept an
+SHALL be configurable (without code changes) to add additional hosts via the
+`VITE_LOADFILE_ALLOWED_HOSTS` environment variable (comma-separated, set at build time). Host matching SHALL accept an
 exact host or a subdomain of an allowlisted host on a dot boundary, and SHALL reject look-alike hosts.
 The URL scheme SHALL be `https` (with `http://localhost` permitted only in development).
 

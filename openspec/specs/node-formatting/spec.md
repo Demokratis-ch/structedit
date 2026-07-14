@@ -1,7 +1,7 @@
 # node-formatting Specification
 
 ## Purpose
-TBD - created by archiving change add-per-node-formatting-mode. Update Purpose after archive.
+Give every content-bearing node a per-node formatting mode (`NodeFormat`, from plain text up to full Markdown) matching the Demokratis platform's formatting levels. Covers the format data model and validation rules, the deterministic sanitized renderer, per-type allow-lists, editor behavior while editing formatted content, the toolbar format selector, and how the HTML importer chooses a format per node.
 ## Requirements
 ### Requirement: Format levels are defined and uniquely identified
 The system SHALL define exactly five formatting levels — `TEXT`, `NEWLINES`, `MARKDOWN_MINIMAL`, `MARKDOWN_INLINE`, `MARKDOWN` — exposed as a `NodeFormat` string-literal union with `SCREAMING_SNAKE_CASE` values matching the Demokratis platform spec. Each level SHALL have a deterministic rendering contract (newline handling and allowed inline/block elements) used by every consumer.
@@ -127,21 +127,23 @@ When a node's format is `TEXT`, `NEWLINES`, `MARKDOWN_MINIMAL`, `MARKDOWN_INLINE
 
 ### Requirement: Enter in edit mode never creates a sibling node
 The system SHALL NOT create a sibling node when the user presses `Enter` while editing the contents of a node. Behaviour SHALL depend on the edited node's format:
-- `TEXT` → `Enter` is intercepted and ignored (no newline inserted, no sibling created)
-- `MARKDOWN_MINIMAL` → `Enter` is intercepted and ignored (single-line format)
+- `TEXT` → `Enter` submits: edit mode exits, the node stays selected, and no character is inserted into the source
+- `MARKDOWN_MINIMAL` → `Enter` submits identically (single-line format)
 - `NEWLINES`, `MARKDOWN_INLINE`, `MARKDOWN` → `Enter` inserts a literal `\n` into the source at the cursor position
 
 `Shift+Enter` SHALL behave identically to `Enter` for all formats.
 
-`Enter` while a node is selected but NOT in edit mode SHALL continue to create a sibling node via `addNodeAfter` — the existing global handler is unchanged.
+`Cmd+Enter` (macOS) / `Ctrl+Enter` SHALL submit — exit edit mode keeping the node selected — for **all** formats, providing the explicit submit for the newline-capable formats where a bare `Enter` inserts a break.
 
-#### Scenario: Enter in TEXT-format edit mode does nothing
+`Enter` while a node is selected but NOT in edit mode SHALL enter edit mode on that node (text edit for content-bearing nodes; number edit for `list`/`list_item` containers), collapsing the selection to it — it SHALL NOT create a sibling. Sibling creation is available through the add-node buttons only.
+
+#### Scenario: Enter in TEXT-format edit mode submits
 - **WHEN** the user is editing a `content` node with `format: 'TEXT'` and presses `Enter`
-- **THEN** no sibling node is created, no character is inserted into the source, and `preventDefault` is called
+- **THEN** no sibling node is created, no character is inserted into the source, edit mode exits with the node still selected, and `preventDefault` is called
 
-#### Scenario: Enter in MARKDOWN_MINIMAL edit mode does nothing
+#### Scenario: Enter in MARKDOWN_MINIMAL edit mode submits
 - **WHEN** the user is editing a `heading` node with `format: 'MARKDOWN_MINIMAL'` and presses `Enter`
-- **THEN** no sibling node is created, no character is inserted into the source, and `preventDefault` is called
+- **THEN** no sibling node is created, no character is inserted into the source, edit mode exits with the node still selected, and `preventDefault` is called
 
 #### Scenario: Enter in NEWLINES edit mode inserts \n
 - **WHEN** the user is editing a `content` node with `format: 'NEWLINES'` and presses `Enter` between two characters
@@ -151,12 +153,18 @@ The system SHALL NOT create a sibling node when the user presses `Enter` while e
 - **WHEN** the user is editing a `content` node with `format: 'MARKDOWN'` and presses `Enter`
 - **THEN** a `\n` is inserted at the cursor and no sibling is created
 
-#### Scenario: Enter on selected (non-editing) node still creates sibling
+#### Scenario: Cmd/Ctrl+Enter submits any format
+- **WHEN** the user is editing a `content` node with `format: 'MARKDOWN'` and presses `Cmd+Enter` (or `Ctrl+Enter`)
+- **THEN** no `\n` is inserted, edit mode exits, and the node remains selected
+
+#### Scenario: Enter on selected (non-editing) node enters edit mode
 - **WHEN** a node is selected (not in edit mode) and the user presses `Enter`
-- **THEN** the existing behaviour applies: `addNodeAfter` creates a new sibling
+- **THEN** no sibling is created; the selection collapses to the focused node and edit mode opens on it — text edit with the caret at the end for a content-bearing node, number edit for a `list`/`list_item` container
 
 ### Requirement: User can change a node's format from the floating toolbar
-When the selection is exactly one content-bearing node, the system SHALL display a format selector in the `FloatingToolbar` populated only with formats from `ALLOWED_FORMATS[node.type]`. Choosing a value SHALL invoke `useTreeOperations.changeNodeFormat(id, format)`, which commits a single history entry. The selector SHALL NOT appear when the selection is empty, multiple, or a container-only node.
+When the selection is exactly one content-bearing node **other than `image`**, the system SHALL display a format selector in the `FloatingToolbar` populated only with formats from `ALLOWED_FORMATS[node.type]`. Choosing a value SHALL invoke `useTreeOperations.changeNodeFormat(id, format)`, which commits a single history entry. The selector SHALL NOT appear when the selection is empty, multiple, or a container-only node.
+
+Although `ALLOWED_FORMATS.image` permits `TEXT` and `NEWLINES` at the data-model level (validation and import), the UI does not offer a format selector for image nodes — an image keeps the format assigned at import or creation.
 
 #### Scenario: Selector lists only allowed formats for the selected type
 - **WHEN** a single `heading` node is selected
@@ -169,6 +177,10 @@ When the selection is exactly one content-bearing node, the system SHALL display
 #### Scenario: Selector is hidden for multi-selection
 - **WHEN** two or more nodes are selected
 - **THEN** no format selector is rendered
+
+#### Scenario: Selector is hidden for a selected image node
+- **WHEN** a single `image` node is selected
+- **THEN** no format selector is rendered, even though `image` is content-bearing and has a non-empty allow-list
 
 #### Scenario: Choosing a format commits one history entry
 - **WHEN** the user changes the selected node's format from `TEXT` to `MARKDOWN`

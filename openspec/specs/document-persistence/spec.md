@@ -1,7 +1,7 @@
 # document-persistence Specification
 
 ## Purpose
-TBD - created by archiving change add-autosave-and-recents. Update Purpose after archive.
+Persist the user's work to IndexedDB so it survives reloads without an explicit save action: debounced autosave of the active tree, a recent-documents picker (resume, rename, delete), the original source stored alongside the tree so the side-by-side preview can be rebuilt, schema versioning with migrations, and a quota strategy that silently evicts old entries when that helps and surfaces a toast only when nothing can.
 ## Requirements
 ### Requirement: Autosave writes the active document to IndexedDB
 
@@ -24,7 +24,7 @@ The system SHALL persist the active document tree to IndexedDB whenever it chang
 
 ### Requirement: Source bytes are persisted alongside the tree
 
-For each saved entry the system SHALL persist the original source bytes (the uploaded DOCX/HTML or the pasted text) together with their MIME type and original filename. On resume, the system SHALL rebuild the side-by-side source preview from those bytes — the user SHALL NOT need to re-attach the original file.
+For each saved entry the system SHALL persist the original source bytes together with their MIME type and original filename, tagged with a `source.kind` recording the entry's origin: `'docx'` (uploaded DOCX), `'html'` (uploaded HTML file **or** a document fetched via a `loadFile` URL — see the remote-document-loading spec), `'pasted-text'`, or `'json-envelope'` (re-imported DocTree JSON). On resume, the system SHALL rebuild the side-by-side source preview from those bytes — the user SHALL NOT need to re-attach the original file — except for `'json-envelope'` entries, where the JSON *is* the tree and no separate "Original" preview exists.
 
 #### Scenario: DOCX upload persists the renderable HTML produced by mammoth
 
@@ -42,6 +42,12 @@ For each saved entry the system SHALL persist the original source bytes (the upl
 - **WHEN** the user clicks a recent entry in the picker
 - **THEN** the editor opens with the entry's tree and a fresh blob URL constructed from `source.bytes` and `source.mime`, so the source-preview pane shows the original document
 
+#### Scenario: DocTree JSON import persists the raw JSON but has no source preview
+
+- **WHEN** the user uploads a DocTree-envelope `.json` file previously produced by "Download JSON"
+- **THEN** the stored entry's `source.kind` is `'json-envelope'`, `source.mime` is `'application/json'`, `source.bytes` is the raw JSON text, and the entry's `name` is derived from `metadata.title` (German first, then any locale) falling back to the filename
+- **AND** both at import and on resume the editor's `documentUrl` is `null`, so only the rendered Preview is shown — there is no "Original" pane to rebuild because the JSON is the tree itself
+
 ### Requirement: Every upload creates a new entry
 
 The system SHALL create a new entry for every upload or conversion action, regardless of whether an entry with the same source already exists. The system SHALL NOT deduplicate by file hash or filename.
@@ -58,7 +64,7 @@ The system SHALL create a new entry for every upload or conversion action, regar
 
 ### Requirement: Pasted-text entries receive an auto-generated name
 
-The system SHALL name pasted-text entries `"Untitled (YYYY-MM-DD HH:mm)"` using the local-time creation timestamp, and SHALL store a subtitle equal to the first ~40 characters of the source (trimmed, with a trailing ellipsis when truncated). File-upload entries SHALL be named with the original filename and SHALL have a `null` subtitle.
+The system SHALL name pasted-text entries `"Untitled (YYYY-MM-DD HH:mm)"` using the local-time creation timestamp, and SHALL store a subtitle equal to the first ~40 characters of the source (trimmed, with a trailing ellipsis when truncated). File-upload entries SHALL initially be named with the original filename and SHALL have a `null` subtitle. (Names can subsequently be changed by the user — see the rename requirement.)
 
 #### Scenario: Pasted text yields a timestamped name and subtitle
 
@@ -69,6 +75,20 @@ The system SHALL name pasted-text entries `"Untitled (YYYY-MM-DD HH:mm)"` using 
 
 - **WHEN** the user uploads `Vorlage Botschaft.docx`
 - **THEN** the new entry's `name` equals `"Vorlage Botschaft.docx"` and its `subtitle` is `null`
+
+### Requirement: The document title is renameable and the rename persists
+
+The system SHALL let the user rename the open document inline from the header (double-click, or focus + Enter/Space, opens an input; Enter or blur commits the trimmed value; Escape cancels; empty or unchanged input is a no-op). A committed rename SHALL update the in-memory title immediately and persist to the entry's `name` in IndexedDB via `updateEntryName`. When there is no current entry (the initial persist failed, e.g. storage full), the rename SHALL still apply in memory without blocking or erroring — it simply does not survive a reload. The persisted name flows into the JSON export.
+
+#### Scenario: Committing a rename persists to the entry
+
+- **WHEN** the user renames the open document from `"bill.docx"` to `"Revised bill"` and commits
+- **THEN** the header shows `"Revised bill"`, the entry's `name` in IndexedDB equals `"Revised bill"`, and the recents picker shows the new name after returning to the upload view
+
+#### Scenario: Rename without a persisted entry still applies in memory
+
+- **WHEN** the initial persist failed (no `currentEntryId`) and the user commits a rename
+- **THEN** the header shows the new title and no persistence error blocks the interaction
 
 ### Requirement: Recents are listed up to 20, sorted by most recent update
 
@@ -93,17 +113,19 @@ The system SHALL expose a "recent documents" list on the upload view containing 
 
 Eviction deletes the entry with the oldest `updatedAt` and has two triggers — a 20-entry cap, and a quota-driven retry — that share one rule: **eviction only happens when it would actually allow the write to succeed**. Eviction is silent in both cases. The cap SHALL be exposed as a named constant `MAX_RECENTS = 20`.
 
+The two triggers apply to different operations: the count cap applies only when **creating** a new entry; the quota-driven retry applies to **any** write that raises `QuotaExceededError` — including an autosave update of an existing entry, which may therefore evict *other* (older) entries under the same budget rules. The entry being written is never itself an eviction candidate.
+
 #### Scenario: Creating a 21st entry silently evicts the oldest (count cap)
 
 - **GIVEN** 20 entries in IndexedDB, with the oldest having `updatedAt = T0`
 - **WHEN** the user uploads a new file, creating a 21st entry
 - **THEN** at the end of the transaction IndexedDB contains 20 entries, the new one is present, the entry with `updatedAt = T0` is absent, and no toast or banner is shown
 
-#### Scenario: Updating an existing entry never evicts
+#### Scenario: Updating an existing entry never evicts on the count cap
 
 - **GIVEN** 20 entries in IndexedDB
-- **WHEN** an autosave updates one of them (`updateEntryTree`)
-- **THEN** the count remains 20 and no entry is deleted
+- **WHEN** an autosave updates one of them (`updateEntryTree`) without hitting a quota error
+- **THEN** the count remains 20 and no entry is deleted (only quota pressure — never the count cap — can trigger eviction on an update)
 
 #### Scenario: Quota-driven eviction silently makes room when it can
 
