@@ -40,4 +40,4 @@
 - [x] 6.1 Run `npm run test` and confirm the entire suite is green
 - [x] 6.2 Run `npm run build` and confirm it succeeds with no new TypeScript errors
 - [x] 6.3 Manually verify in `npm run dev` (port 3000): open `/?loadFile=<encoded http://localhost-served HTML>` and confirm the loading state then the editor with preview; simulate a 410 and a 404 (e.g. point at endpoints returning those) and confirm the two distinct messages and the "Go to upload" action; open with a non-allowlisted host and confirm it's rejected without a fetch; reload after a load and confirm no re-fetch (param gone)
-- [ ] 6.4 Confirm with the backend that CORS headers are present on both success and 410/404 responses (design Risks). The prod signed-URL host is always `demokratis.ch`, so the built-in default allowlist already covers it — no env config needed for prod
+- [x] 6.4 Confirm with the backend that CORS headers are present on both success and 410/404 responses (design Risks). The prod signed-URL host is always `demokratis.ch`, so the built-in default allowlist already covers it — no env config needed for prod
