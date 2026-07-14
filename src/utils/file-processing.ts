@@ -145,21 +145,27 @@ function pickEnvelopeName(title: LocalizedText, filename: string): string {
 }
 
 /**
- * Re-import a DocTree envelope JSON previously produced by StructEdit's "Download JSON".
+ * Build a {@link ProcessedDocument} from a DocTree envelope JSON string. Shared by the
+ * `.json` file-upload path ({@link processJsonEnvelopeFile}) and the `loadFile` URL path.
+ * `name` is the fallback display name (the envelope's localized title wins) and the label
+ * used in error messages; `originalFilename` is null for fetched documents.
  *
  * A DocTree JSON *is* the document tree — there is no separate "original" document — so
  * `sourceUrl` is null and `html` is omitted, which makes the editor show only the rendered
  * Preview (no Original tab). The raw JSON text is kept as the persisted source bytes so the
  * entry still round-trips through IndexedDB.
+ *
+ * Throws on malformed JSON, a structurally invalid envelope, or a `DocTreeVersion` mismatch.
  */
-export async function processJsonEnvelopeFile(file: File): Promise<ProcessedDocument> {
-  const raw = await file.text();
-
+export function processJsonEnvelopeString(
+  raw: string,
+  options: { name: string; originalFilename: string | null }
+): ProcessedDocument {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error(`"${file.name}" is not valid JSON.`);
+    throw new Error(`"${options.name}" is not valid JSON.`);
   }
 
   // A present-but-mismatched *numeric* version gets a targeted message rather than the
@@ -169,13 +175,13 @@ export async function processJsonEnvelopeFile(file: File): Promise<ProcessedDocu
   const version = (parsed as { DocTreeVersion?: unknown } | null)?.DocTreeVersion;
   if (typeof version === 'number' && version !== DOC_TREE_VERSION) {
     throw new Error(
-      `"${file.name}" was created by an incompatible version of StructEdit ` +
+      `"${options.name}" was created by an incompatible version of StructEdit ` +
         `(DocTree v${version}; this version reads v${DOC_TREE_VERSION}).`
     );
   }
 
   if (!isValidDocTreeEnvelope(parsed)) {
-    throw new Error(`"${file.name}" is not a valid StructEdit document (DocTree envelope).`);
+    throw new Error(`"${options.name}" is not a valid StructEdit document (DocTree envelope).`);
   }
 
   return {
@@ -185,11 +191,17 @@ export async function processJsonEnvelopeFile(file: File): Promise<ProcessedDocu
       kind: 'json-envelope',
       mime: 'application/json',
       bytes: raw,
-      originalFilename: file.name,
+      originalFilename: options.originalFilename,
     },
-    name: pickEnvelopeName(parsed.metadata.title, file.name),
+    name: pickEnvelopeName(parsed.metadata.title, options.name),
     subtitle: null,
   };
+}
+
+/** Re-import a DocTree envelope JSON previously produced by StructEdit's "Download JSON". */
+export async function processJsonEnvelopeFile(file: File): Promise<ProcessedDocument> {
+  const raw = await file.text();
+  return processJsonEnvelopeString(raw, { name: file.name, originalFilename: file.name });
 }
 
 /**

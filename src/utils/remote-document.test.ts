@@ -116,11 +116,35 @@ describe('resolveAllowedHosts', () => {
 describe('fetchRemoteDocument', () => {
   const URL_OK = 'https://demokratis.ch/file/abc-123';
 
-  it('returns the html for a 200 HTML response', async () => {
+  it('returns html content for a 200 HTML response', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(makeResponse('<h1>Hi</h1>'));
     const result = await fetchRemoteDocument(URL_OK, fetchImpl);
-    expect(result).toEqual({ ok: true, html: '<h1>Hi</h1>', sourceUrl: URL_OK });
+    expect(result).toEqual({
+      ok: true,
+      content: { kind: 'html', html: '<h1>Hi</h1>' },
+      sourceUrl: URL_OK,
+    });
     expect(fetchImpl).toHaveBeenCalledWith(URL_OK);
+  });
+
+  it('returns raw json content for a 200 JSON response', async () => {
+    const body = '{"DocTreeVersion":1}';
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(makeResponse(body, { contentType: 'application/json; charset=utf-8' }));
+    expect(await fetchRemoteDocument(URL_OK, fetchImpl)).toEqual({
+      ok: true,
+      content: { kind: 'json', raw: body },
+      sourceUrl: URL_OK,
+    });
+  });
+
+  it('treats a +json structured-syntax content-type as json', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(makeResponse('{}', { contentType: 'application/ld+json' }));
+    const result = await fetchRemoteDocument(URL_OK, fetchImpl);
+    expect(result).toEqual({ ok: true, content: { kind: 'json', raw: '{}' }, sourceUrl: URL_OK });
   });
 
   it('maps 410 to expired', async () => {
@@ -146,18 +170,28 @@ describe('fetchRemoteDocument', () => {
     expect(await fetchRemoteDocument(URL_OK, fetchImpl)).toEqual({ ok: false, reason: 'network' });
   });
 
-  it('maps a non-HTML content-type to unsupported-content', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue(makeResponse('{"a":1}', { contentType: 'application/json' }));
+  it('maps a content-type that is neither HTML nor JSON to unsupported-content', async () => {
+    for (const contentType of ['text/plain', 'application/pdf', null]) {
+      const fetchImpl = vi.fn().mockResolvedValue(makeResponse('some body', { contentType }));
+      expect(await fetchRemoteDocument(URL_OK, fetchImpl)).toEqual({
+        ok: false,
+        reason: 'unsupported-content',
+      });
+    }
+  });
+
+  it('maps an empty HTML body to unsupported-content', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(makeResponse('   '));
     expect(await fetchRemoteDocument(URL_OK, fetchImpl)).toEqual({
       ok: false,
       reason: 'unsupported-content',
     });
   });
 
-  it('maps an empty HTML body to unsupported-content', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(makeResponse('   '));
+  it('maps an empty JSON body to unsupported-content', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(makeResponse('   ', { contentType: 'application/json' }));
     expect(await fetchRemoteDocument(URL_OK, fetchImpl)).toEqual({
       ok: false,
       reason: 'unsupported-content',

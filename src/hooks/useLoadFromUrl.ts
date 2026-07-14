@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../components/ui/Toast';
 import type { DocumentRootNode } from '../types/document';
 import { isEmptyDocument } from '../utils/document-utils';
-import { deriveNameFromUrl, processHtmlString } from '../utils/file-processing';
+import {
+  deriveNameFromUrl,
+  type ProcessedDocument,
+  processHtmlString,
+  processJsonEnvelopeString,
+} from '../utils/file-processing';
 import { persistInitialEntry } from '../utils/persist-entry';
 import {
   fetchRemoteDocument,
@@ -92,10 +97,26 @@ export function useLoadFromUrl(onLoaded: OnRemoteDocumentLoaded): {
             return;
           }
 
-          const processed = processHtmlString(result.html, {
-            name: deriveNameFromUrl(result.sourceUrl),
-            originalFilename: null,
-          });
+          const name = deriveNameFromUrl(result.sourceUrl);
+          let processed: ProcessedDocument;
+          if (result.content.kind === 'json') {
+            // The body must be a DocTree envelope; anything else is not a document
+            // StructEdit can read, which is exactly the unsupported-content surface.
+            try {
+              processed = processJsonEnvelopeString(result.content.raw, {
+                name,
+                originalFilename: null,
+              });
+            } catch {
+              setState({ status: 'error', reason: 'unsupported-content' });
+              return;
+            }
+          } else {
+            processed = processHtmlString(result.content.html, {
+              name,
+              originalFilename: null,
+            });
+          }
           if (isEmptyDocument(processed.doc)) {
             setState({ status: 'error', reason: 'unsupported-content' });
             return;
