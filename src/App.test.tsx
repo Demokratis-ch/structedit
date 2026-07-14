@@ -209,7 +209,9 @@ describe('App', () => {
     expect(viewport.textContent?.toLowerCase()).toContain('storage');
 
     // The editor still opens — the in-memory tree is unaffected by the failed write.
-    expect(screen.getByRole('button', { name: /close editor/i })).toBeInTheDocument();
+    // Await it: the toast and the editor mount are independent async updates, so the
+    // button may not be present the instant the toast appears (races under CI load).
+    expect(await screen.findByRole('button', { name: /close editor/i })).toBeInTheDocument();
 
     // No entry was persisted (the failed write left no record).
     const recents = await listRecents();
