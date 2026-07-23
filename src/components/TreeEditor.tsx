@@ -1,13 +1,23 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useInlineMarks } from '../hooks/useInlineMarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
-import type { Language, NodeFormat } from '../types/document';
+import {
+  type ContributionMode,
+  type DocumentNode,
+  type Language,
+  type NodeFormat,
+  PROPOSABLE_TYPES,
+} from '../types/document';
 import { MOD } from '../utils/platform';
-import { FloatingToolbar } from './FloatingToolbar';
+import {
+  type ContributionScope,
+  type ContributionTypeFilter,
+  FloatingToolbar,
+} from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 import { Kbd } from './ui/Kbd';
@@ -45,6 +55,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     updateNodeContents,
     updateNodeNumber,
     changeNodeFormat,
+    changeNodeContributionMode,
+    changeSubtreeContributionMode,
     moveNodeById,
     deleteSelected,
     moveSelectedToTop,
@@ -123,6 +135,64 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     if (selectedCount !== 1) return;
     const selectedId = Array.from(selectedIds)[0];
     if (selectedId) changeNodeFormat(selectedId, format);
+  };
+
+  // The contribution mode shared by the whole selection: a single mode when all selected nodes
+  // agree, `'mixed'` when they differ, or `undefined` when none carry a mode. Drives the active
+  // state of the mode picker.
+  const selectedNodeMode = useMemo<ContributionMode | 'mixed' | undefined>(() => {
+    if (selectedIds.size === 0) return undefined;
+    const byId = new Map<string, DocumentNode>();
+    for (const fn of flattenedNodes) byId.set(fn.node.id, fn.node);
+    let seen: ContributionMode | undefined;
+    let first = true;
+    for (const id of selectedIds) {
+      const node = byId.get(id);
+      if (!node) continue;
+      const mode = node.contributionMode;
+      if (first) {
+        seen = mode;
+        first = false;
+      } else if (mode !== seen) {
+        return 'mixed';
+      }
+    }
+    return seen;
+  }, [selectedIds, flattenedNodes]);
+
+  // id → node type, for resolving the selection's types (proposable gate + type-filtered apply).
+  const typeById = useMemo(() => {
+    const m = new Map<string, DocumentNode['type']>();
+    for (const fn of flattenedNodes) m.set(fn.node.id, fn.node.type);
+    return m;
+  }, [flattenedNodes]);
+
+  // Whether the selection includes at least one proposable node — gates the PROPOSAL option.
+  const selectionHasProposable = useMemo<boolean>(() => {
+    if (selectedIds.size === 0) return false;
+    for (const id of selectedIds) {
+      const t = typeById.get(id);
+      if (t && (PROPOSABLE_TYPES as readonly string[]).includes(t)) return true;
+    }
+    return false;
+  }, [selectedIds, typeById]);
+
+  // Bulk-apply controls: scope (this node / + descendants) and an optional node-type filter.
+  const [contributionScope, setContributionScope] = useState<ContributionScope>('node');
+  const [contributionTypeFilter, setContributionTypeFilter] =
+    useState<ContributionTypeFilter>('all');
+
+  const handleChangeContributionMode = (mode: ContributionMode | undefined) => {
+    if (selectedIds.size === 0) return;
+    const ids = [...selectedIds];
+    const filter = contributionTypeFilter === 'all' ? undefined : contributionTypeFilter;
+    if (contributionScope === 'subtree') {
+      changeSubtreeContributionMode(ids, mode, filter);
+    } else {
+      // Node-only scope: when a type filter is set, only affect selected nodes of that type.
+      const scoped = filter ? ids.filter((id) => typeById.get(id) === filter) : ids;
+      changeNodeContributionMode(scoped, mode);
+    }
   };
 
   const { inlineMarks, handleToggleMark } = useInlineMarks({ updateNodeNumber });
@@ -305,8 +375,15 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         isEditing={!!editingId || !!editingNumberId}
         selectedNodeType={selectedNodeType}
         selectedNodeFormat={selectedNodeFormat}
+        selectedNodeMode={selectedNodeMode}
+        selectionHasProposable={selectionHasProposable}
         onUpdateType={handleBulkUpdateType}
         onChangeFormat={handleChangeFormat}
+        onChangeContributionMode={handleChangeContributionMode}
+        contributionScope={contributionScope}
+        onChangeContributionScope={setContributionScope}
+        contributionTypeFilter={contributionTypeFilter}
+        onChangeContributionTypeFilter={setContributionTypeFilter}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
         onMoveSelectedToTop={moveSelectedToTop}
