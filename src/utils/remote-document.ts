@@ -90,8 +90,16 @@ export function parseLoadFileParam(search: string, allowedHosts: string[]): Pars
 /** Failure reasons that can arise from the network fetch itself. */
 export type RemoteFetchErrorReason = 'expired' | 'not-found' | 'network' | 'unsupported-content';
 
+/**
+ * What a successful fetch carried, so the caller picks the matching pipeline:
+ * HTML goes through the legal-HTML parser, JSON is validated as a DocTree envelope.
+ * This layer stays transport-only — it classifies the content type and reads the
+ * body, but never parses JSON or touches the document model.
+ */
+export type RemoteDocumentContent = { kind: 'html'; html: string } | { kind: 'json'; raw: string };
+
 export type RemoteFetchResult =
-  | { ok: true; html: string; sourceUrl: string }
+  | { ok: true; content: RemoteDocumentContent; sourceUrl: string }
   | { ok: false; reason: RemoteFetchErrorReason };
 
 function looksLikeHtml(contentType: string | null): boolean {
@@ -100,13 +108,20 @@ function looksLikeHtml(contentType: string | null): boolean {
   return ct.includes('text/html') || ct.includes('application/xhtml');
 }
 
+function looksLikeJson(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const ct = contentType.toLowerCase();
+  // `+json` covers structured-syntax suffixes like application/ld+json.
+  return ct.includes('application/json') || ct.includes('+json');
+}
+
 /**
  * Fetch a (pre-validated) document URL and map the outcome to a discriminated result.
  * `fetchImpl` is injectable so tests exercise every status branch without a network.
  *
  * Mapping: 410 → expired, 404 → not-found, any other non-OK status or thrown error
- * (CORS/offline surface as `TypeError`) → network, a non-HTML or empty 2xx body →
- * unsupported-content.
+ * (CORS/offline surface as `TypeError`) → network, a 2xx body that is neither HTML
+ * nor JSON, or is empty → unsupported-content.
  */
 export async function fetchRemoteDocument(
   url: string,
@@ -125,22 +140,26 @@ export async function fetchRemoteDocument(
     return { ok: false, reason: 'network' };
   }
 
-  if (!looksLikeHtml(response.headers.get('content-type'))) {
+  const contentType = response.headers.get('content-type');
+  const kind = looksLikeHtml(contentType) ? 'html' : looksLikeJson(contentType) ? 'json' : null;
+  if (!kind) {
     return { ok: false, reason: 'unsupported-content' };
   }
 
-  let html: string;
+  let body: string;
   try {
-    html = await response.text();
+    body = await response.text();
   } catch {
     return { ok: false, reason: 'network' };
   }
 
-  if (!html.trim()) {
+  if (!body.trim()) {
     return { ok: false, reason: 'unsupported-content' };
   }
 
-  return { ok: true, html, sourceUrl: url };
+  const content: RemoteDocumentContent =
+    kind === 'html' ? { kind, html: body } : { kind, raw: body };
+  return { ok: true, content, sourceUrl: url };
 }
 
 /** Every reason a `loadFile` load can fail, across parsing and fetching. */

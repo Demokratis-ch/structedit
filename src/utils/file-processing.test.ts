@@ -9,6 +9,7 @@ import {
   processHtmlFile,
   processHtmlString,
   processJsonEnvelopeFile,
+  processJsonEnvelopeString,
   processPdfFile,
   processTextInput,
 } from './file-processing';
@@ -428,6 +429,60 @@ describe('file-processing', () => {
       const envelope = { ...makeEnvelope({ de: 'X' }), DocTreeVersion: 2 };
       const file = jsonFile(JSON.stringify(envelope));
       await expect(processJsonEnvelopeFile(file)).rejects.toThrow(/version/i);
+    });
+
+    // The string entry point shared with the `loadFile` URL path. The file-based
+    // tests above double as the characterization that the upload path is unchanged.
+    describe('processJsonEnvelopeString', () => {
+      it('reconstructs the tree from a valid envelope string', () => {
+        const raw = JSON.stringify(makeEnvelope({ de: 'My Title' }));
+        const result = processJsonEnvelopeString(raw, { name: 'abc-123', originalFilename: null });
+
+        expect(result.doc.type).toBe('DOCUMENT');
+        expect((result.doc.children[0] as ContentDocumentNode).contents).toEqual({
+          de: 'Hello envelope',
+        });
+        // A DocTree JSON *is* the tree — no separate original to preview.
+        expect(result.sourceUrl).toBeNull();
+        expect(result.html).toBeUndefined();
+        expect(result.source.kind).toBe('json-envelope');
+        expect(result.source.mime).toBe('application/json');
+        expect(result.source.bytes).toBe(raw);
+        expect(result.source.originalFilename).toBeNull();
+        expect(result.subtitle).toBeNull();
+      });
+
+      it('prefers the envelope title over the fallback name', () => {
+        const raw = JSON.stringify(makeEnvelope({ de: 'Verordnung X' }));
+        const result = processJsonEnvelopeString(raw, { name: 'abc-123', originalFilename: null });
+        expect(result.name).toBe('Verordnung X');
+      });
+
+      it('falls back to the given name when the title is empty', () => {
+        const raw = JSON.stringify(makeEnvelope({}));
+        const result = processJsonEnvelopeString(raw, { name: 'abc-123', originalFilename: null });
+        expect(result.name).toBe('abc-123');
+      });
+
+      it('throws on malformed JSON', () => {
+        expect(() =>
+          processJsonEnvelopeString('{ not valid json', { name: 'x', originalFilename: null })
+        ).toThrow(/not valid JSON/i);
+      });
+
+      it('throws on a structurally invalid envelope', () => {
+        const raw = JSON.stringify({ DocTreeVersion: 1, metadata: {}, document: {} });
+        expect(() => processJsonEnvelopeString(raw, { name: 'x', originalFilename: null })).toThrow(
+          /not a valid StructEdit document/i
+        );
+      });
+
+      it('throws on an unsupported DocTreeVersion', () => {
+        const raw = JSON.stringify({ ...makeEnvelope({ de: 'X' }), DocTreeVersion: 2 });
+        expect(() => processJsonEnvelopeString(raw, { name: 'x', originalFilename: null })).toThrow(
+          /version/i
+        );
+      });
     });
   });
 

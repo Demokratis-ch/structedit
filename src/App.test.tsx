@@ -264,6 +264,48 @@ describe('App — loadFile URL import', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('loads a DocTree JSON envelope into the editor without an Original tab', async () => {
+    setLoadFile('https://demokratis.ch/file/abc-123');
+    const envelope = {
+      DocTreeVersion: 1,
+      metadata: { title: { de: 'Remote Envelope' } },
+      document: makeTree(),
+    };
+    const raw = JSON.stringify(envelope);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(makeFetchResponse(raw, { contentType: 'application/json' }));
+
+    render(<App />);
+
+    await screen.findByRole('button', { name: /close editor/i });
+    // The envelope *is* the document — no original to preview, only the rendered Preview.
+    expect(screen.queryByRole('tab', { name: 'Original' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Preview' })).toBeInTheDocument();
+
+    const recents = await listRecents();
+    expect(recents).toHaveLength(1);
+    const entry = recents[0];
+    expect('status' in entry).toBe(false);
+    if (!('status' in entry)) {
+      expect(entry.name).toBe('Remote Envelope');
+      expect(entry.source.kind).toBe('json-envelope');
+      expect(entry.source.bytes).toBe(raw);
+    }
+  });
+
+  it('shows the unsupported-format error when JSON is not a valid DocTree envelope', async () => {
+    setLoadFile('https://demokratis.ch/file/not-an-envelope');
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(makeFetchResponse('{"foo": 1}', { contentType: 'application/json' }));
+
+    render(<App />);
+
+    expect(await screen.findByText(/couldn.t read the document/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /close editor/i })).not.toBeInTheDocument();
+  });
+
   it('shows the expiry message on 410 and does not open the editor', async () => {
     setLoadFile('https://demokratis.ch/file/expired');
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse('', { status: 410 }));
