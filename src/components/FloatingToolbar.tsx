@@ -2,12 +2,15 @@ import {
   ArrowDownToLine,
   ArrowUpToLine,
   Asterisk,
+  Ban,
   Bold,
   Heading,
   Italic,
   List,
   ListOrdered,
   Merge,
+  MessageSquare,
+  PenLine,
   SortAsc,
   Strikethrough,
   Subscript,
@@ -16,7 +19,12 @@ import {
   Type,
   X,
 } from 'lucide-react';
-import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
+import {
+  ALLOWED_FORMATS,
+  type ContentBearingNodeType,
+  type ContributionMode,
+  type NodeFormat,
+} from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
 
@@ -32,8 +40,14 @@ interface FloatingToolbarProps {
   isEditing: boolean;
   selectedNodeType?: SelectorNodeType | null;
   selectedNodeFormat?: NodeFormat;
+  /** Common contribution mode of the selection: a mode, `undefined` (all default), or `'mixed'`. */
+  selectedNodeMode?: ContributionMode | 'mixed';
+  /** Whether at least one selected node is proposable (heading/content/footnote). */
+  selectionHasProposable?: boolean;
   onUpdateType: (type: ToolbarBlockType) => void;
   onChangeFormat?: (format: NodeFormat) => void;
+  /** Set (or clear, with `undefined`) the contribution mode on the whole selection. */
+  onChangeContributionMode?: (mode: ContributionMode | undefined) => void;
   onDelete: () => void;
   onClearSelection: () => void;
   onMoveSelectedToTop?: () => void;
@@ -69,13 +83,30 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
 
 const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
 
+// The contribution-mode picker: how consultation participants may interact with the selected
+// element(s). `undefined` is the element-type default; `PROPOSAL` is offered only when the
+// selection includes a proposable node (heading/content/footnote).
+const MODE_BUTTONS: ReadonlyArray<{
+  mode: ContributionMode | undefined;
+  Icon: typeof Ban | null;
+  label: string;
+}> = [
+  { mode: undefined, Icon: null, label: 'Default (element-type default)' },
+  { mode: 'NONE', Icon: Ban, label: 'None — locked, no interaction' },
+  { mode: 'REMARK', Icon: MessageSquare, label: 'Remark — annotations only' },
+  { mode: 'PROPOSAL', Icon: PenLine, label: 'Proposal — annotations and amendment proposals' },
+];
+
 export function FloatingToolbar({
   selectedCount,
   isEditing,
   selectedNodeType,
   selectedNodeFormat,
+  selectedNodeMode,
+  selectionHasProposable = false,
   onUpdateType,
   onChangeFormat,
+  onChangeContributionMode,
   onDelete,
   onClearSelection,
   onMoveSelectedToTop,
@@ -190,6 +221,44 @@ export function FloatingToolbar({
               </option>
             ))}
           </select>
+        </>
+      )}
+
+      {selectedCount > 0 && !isEditing && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <div
+            data-testid="contribution-mode-group"
+            className="inline-flex items-center gap-0.5"
+            title="Contribution mode — how participants may interact with the selected element(s)"
+          >
+            <span className="text-xs text-gray-500 px-1 select-none">Mode</span>
+            {MODE_BUTTONS.map(({ mode, Icon, label }) => {
+              const active = selectedNodeMode === mode;
+              const disabled = mode === 'PROPOSAL' && !selectionHasProposable;
+              return (
+                <button
+                  key={mode ?? 'default'}
+                  type="button"
+                  data-testid={`mode-${mode ? mode.toLowerCase() : 'default'}`}
+                  aria-pressed={active}
+                  aria-label={label}
+                  title={
+                    disabled
+                      ? 'Proposal is only available on headings, content and footnotes'
+                      : label
+                  }
+                  disabled={disabled}
+                  onClick={() => onChangeContributionMode?.(mode)}
+                  className={`rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
+                    Icon ? 'p-1.5' : 'px-1.5 py-1 text-xs'
+                  } ${active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                >
+                  {Icon ? <Icon size={16} /> : 'Default'}
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
 

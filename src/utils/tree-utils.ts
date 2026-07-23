@@ -1,7 +1,9 @@
 import {
   type BlockDocumentNode,
   type ContentBearingNodeType,
+  type ContributionMode,
   canHaveFormat,
+  canHaveMode,
   type DocumentNode,
   type DocumentRootNode,
   type FootnoteDocumentNode,
@@ -127,6 +129,33 @@ export function changeNodeFormat(
   if (!CONTENT_BEARING_TYPES.includes(node.type as ContentBearingNodeType)) return root;
   if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return root;
   return updateNodeAtPath(root, path, (n) => ({ ...n, format }) as DocumentNode);
+}
+
+/**
+ * Set (or clear) a node's contribution mode. No-op (returns the same root reference) when the node
+ * doesn't exist, the requested mode isn't allowed for its type, or the node already carries it.
+ * Passing `undefined` clears the field entirely, so a cleared node is indistinguishable from a
+ * never-set one after a JSON round-trip. Unlike {@link changeNodeFormat}, every node type — the
+ * root and containers included — is eligible.
+ */
+export function setNodeContributionMode(
+  root: DocumentRootNode,
+  path: NodePath,
+  mode: ContributionMode | undefined
+): DocumentRootNode {
+  const node = getNodeAtPath(root, path);
+  if (!node) return root;
+  if (mode !== undefined && !canHaveMode(node.type, mode)) return root;
+  // Already in the requested state (treating an absent field as `undefined`) — preserve reference.
+  if ((node.contributionMode ?? undefined) === mode) return root;
+  return updateNodeAtPath(root, path, (n) => {
+    if (mode === undefined) {
+      const next = { ...n };
+      delete (next as { contributionMode?: ContributionMode }).contributionMode;
+      return next as DocumentNode;
+    }
+    return { ...n, contributionMode: mode } as DocumentNode;
+  });
 }
 
 /**

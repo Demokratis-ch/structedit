@@ -5929,4 +5929,74 @@ describe('useTreeOperations', () => {
       expect(result.current.canMergeIds(['li1', 'li1-content'])).toBe(false);
     });
   });
+
+  describe('changeNodeContributionMode', () => {
+    test('sets a mode across a multi-node selection in a single commit', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeNodeContributionMode(['p1', 'h1b'], 'REMARK');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const nIdx = buildIndices(newDoc).nodeIndex;
+      expect(getNodeAtPath(newDoc, nIdx.get('p1')!)?.contributionMode).toBe('REMARK');
+      expect(getNodeAtPath(newDoc, nIdx.get('h1b')!)?.contributionMode).toBe('REMARK');
+    });
+
+    test('skips nodes whose type cannot hold the mode', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      // PROPOSAL is valid on the heading but not on the list container.
+      act(() => {
+        result.current.changeNodeContributionMode(['h1', 'list1'], 'PROPOSAL');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const nIdx = buildIndices(newDoc).nodeIndex;
+      expect(getNodeAtPath(newDoc, nIdx.get('h1')!)?.contributionMode).toBe('PROPOSAL');
+      expect(getNodeAtPath(newDoc, nIdx.get('list1')!)?.contributionMode).toBeUndefined();
+    });
+
+    test('clears the mode when passed undefined', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.changeNodeContributionMode(['p1'], 'NONE');
+      });
+      const setDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      // Re-render the hook over the updated document, then clear.
+      const idx2 = buildIndices(setDoc);
+      const { result: result2 } = renderHook(() =>
+        useTreeOperations({
+          document: setDoc,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        result2.current.changeNodeContributionMode(['p1'], undefined);
+      });
+
+      const clearedDoc = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const node = getNodeAtPath(clearedDoc, buildIndices(clearedDoc).nodeIndex.get('p1')!)!;
+      expect(node.contributionMode).toBeUndefined();
+    });
+
+    test('does not commit when nothing changes (mode rejected by every node)', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        // PROPOSAL on a list container only → no valid change.
+        result.current.changeNodeContributionMode(['list1'], 'PROPOSAL');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
 });

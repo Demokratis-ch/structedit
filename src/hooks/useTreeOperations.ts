@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type {
   ContentBearingNodeType,
   ContentDocumentNode,
+  ContributionMode,
   DocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
@@ -30,6 +31,7 @@ import {
   insertNodeAtPath,
   moveNode,
   removeNodeAtPath,
+  setNodeContributionMode,
   updateChildrenAtPath,
   updateNodeAtPath,
 } from '../utils/tree-utils';
@@ -235,6 +237,37 @@ export const useTreeOperations = ({
 
       const newDoc = changeNodeFormatInTree(document, path, format);
       commit(newDoc);
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
+   * Set (or clear) the contribution mode on every given node in a single history entry. Nodes
+   * whose type can't hold the requested mode are skipped (their existing mode is left untouched),
+   * so painting a mode across a mixed selection only affects the nodes it validly applies to.
+   * Passing `undefined` clears the mode. Rebuilds indices between iterations like the other
+   * multi-node ops so processing order doesn't matter.
+   */
+  const changeNodeContributionMode = useCallback(
+    (ids: string[], mode: ContributionMode | undefined) => {
+      let doc = document;
+      let changed = false;
+
+      for (const id of ids) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const path = idx.get(id);
+        if (!path) continue;
+
+        const result = setNodeContributionMode(doc, path, mode);
+        if (result !== doc) {
+          doc = result;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        commit(doc);
+      }
     },
     [document, nodeIndex, commit]
   );
@@ -482,6 +515,7 @@ export const useTreeOperations = ({
     outdentNodes,
     changeNodeTypes,
     changeNodeFormat,
+    changeNodeContributionMode,
     mergeNodes,
     canMergeIds,
     moveNodeById,

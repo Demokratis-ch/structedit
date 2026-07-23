@@ -15,6 +15,7 @@ import {
   mergeAdjacentLists,
   moveNode,
   removeNodeAtPath,
+  setNodeContributionMode,
   updateNodeAtPath,
 } from './tree-utils';
 
@@ -992,5 +993,82 @@ describe('changeNodeFormat', () => {
     const doc = createTestDocument();
     const result = changeNodeFormat(doc, [99], 'TEXT');
     expect(result).toBe(doc);
+  });
+});
+
+describe('setNodeContributionMode', () => {
+  const docWith = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'H' },
+        children: [],
+      } as HeadingDocumentNode,
+      {
+        id: 'c',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'C' },
+        children: [],
+      } as ContentDocumentNode,
+      {
+        id: 'l',
+        number: null,
+        type: 'LIST',
+        children: [createListItem('li', '1.', 'x')],
+      } as ListDocumentNode,
+    ],
+  });
+
+  test('sets a mode on a content node', () => {
+    const next = setNodeContributionMode(docWith(), [1], 'REMARK');
+    expect(getNodeAtPath(next, [1])?.contributionMode).toBe('REMARK');
+  });
+
+  test('sets PROPOSAL on a proposable node (heading)', () => {
+    const next = setNodeContributionMode(docWith(), [0], 'PROPOSAL');
+    expect(getNodeAtPath(next, [0])?.contributionMode).toBe('PROPOSAL');
+  });
+
+  test('sets NONE on a container (list)', () => {
+    const next = setNodeContributionMode(docWith(), [2], 'NONE');
+    expect(getNodeAtPath(next, [2])?.contributionMode).toBe('NONE');
+  });
+
+  test('clearing removes the field entirely', () => {
+    const set = setNodeContributionMode(docWith(), [1], 'NONE');
+    const cleared = setNodeContributionMode(set, [1], undefined);
+    const node = getNodeAtPath(cleared, [1])!;
+    expect(node.contributionMode).toBeUndefined();
+    expect('contributionMode' in node).toBe(false);
+  });
+
+  test('is a no-op (same ref) when the mode is disallowed for the type', () => {
+    const doc = docWith();
+    // PROPOSAL is not allowed on a LIST container.
+    expect(setNodeContributionMode(doc, [2], 'PROPOSAL')).toBe(doc);
+  });
+
+  test('is a no-op (same ref) when the node already carries the mode', () => {
+    const doc = setNodeContributionMode(docWith(), [1], 'REMARK');
+    expect(setNodeContributionMode(doc, [1], 'REMARK')).toBe(doc);
+  });
+
+  test('is a no-op (same ref) when clearing an already-absent mode', () => {
+    const doc = docWith();
+    expect(setNodeContributionMode(doc, [1], undefined)).toBe(doc);
+  });
+
+  test('leaves contents and format untouched', () => {
+    const next = setNodeContributionMode(docWith(), [1], 'NONE');
+    const node = getNodeAtPath(next, [1]) as ContentDocumentNode;
+    expect(node.contents).toEqual({ de: 'C' });
+    expect(node.format).toBe('TEXT');
   });
 });

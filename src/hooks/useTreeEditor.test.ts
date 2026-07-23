@@ -535,4 +535,32 @@ describe('useTreeEditor', () => {
       expect(result.current.document).toBe(originalDoc);
     });
   });
+
+  describe('changeNodeContributionMode', () => {
+    test('is exposed on the handle and sets a mode with undo/redo', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      expect(typeof result.current.changeNodeContributionMode).toBe('function');
+
+      const findP1 = () =>
+        (result.current.document.children[0] as HeadingDocumentNode)
+          .children[0] as ContentDocumentNode;
+
+      act(() => {
+        result.current.changeNodeContributionMode(['p1'], 'REMARK');
+      });
+      expect(findP1().contributionMode).toBe('REMARK');
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(findP1().contributionMode).toBeUndefined();
+
+      act(() => {
+        result.current.redo();
+      });
+      expect(findP1().contributionMode).toBe('REMARK');
+    });
+  });
 });

@@ -393,3 +393,88 @@ describe('FloatingToolbar — merge button', () => {
     expect(onMerge).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('FloatingToolbar — contribution mode picker', () => {
+  const modeProps = {
+    ...baseProps,
+    onChangeContributionMode: vi.fn(),
+  };
+
+  test('is hidden when nothing is selected', () => {
+    render(<FloatingToolbar {...modeProps} />);
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+
+  test('is hidden while editing', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} isEditing={true} />);
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+
+  test('is shown for a single selection', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeType="CONTENT" />);
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+  });
+
+  test('is shown for a multi selection (containers included)', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={4} />);
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+  });
+
+  test('disables PROPOSAL when the selection has no proposable node', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectionHasProposable={false} />);
+    expect(screen.getByTestId('mode-proposal')).toBeDisabled();
+  });
+
+  test('enables PROPOSAL when the selection includes a proposable node', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectionHasProposable={true} />);
+    expect(screen.getByTestId('mode-proposal')).not.toBeDisabled();
+  });
+
+  test('each button calls onChangeContributionMode with its value', () => {
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectionHasProposable={true}
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.click(screen.getByTestId('mode-none'));
+    fireEvent.click(screen.getByTestId('mode-remark'));
+    fireEvent.click(screen.getByTestId('mode-proposal'));
+    fireEvent.click(screen.getByTestId('mode-default'));
+    expect(onChangeContributionMode.mock.calls.map((c) => c[0])).toEqual([
+      'NONE',
+      'REMARK',
+      'PROPOSAL',
+      undefined,
+    ]);
+  });
+
+  test('marks the button matching selectedNodeMode as pressed', () => {
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectedNodeMode="REMARK"
+        selectionHasProposable={true}
+      />
+    );
+    expect(screen.getByTestId('mode-remark')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('mode-none')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('marks Default as pressed when the selection has no mode set', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode={undefined} />);
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('marks nothing pressed for a mixed selection', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={2} selectedNodeMode="mixed" />);
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-none')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-remark')).toHaveAttribute('aria-pressed', 'false');
+  });
+});
