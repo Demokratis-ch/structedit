@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useInlineMarks } from '../hooks/useInlineMarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -13,7 +13,11 @@ import {
   PROPOSABLE_TYPES,
 } from '../types/document';
 import { MOD } from '../utils/platform';
-import { FloatingToolbar } from './FloatingToolbar';
+import {
+  type ContributionScope,
+  type ContributionTypeFilter,
+  FloatingToolbar,
+} from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 import { Kbd } from './ui/Kbd';
@@ -52,6 +56,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     updateNodeNumber,
     changeNodeFormat,
     changeNodeContributionMode,
+    changeSubtreeContributionMode,
     moveNodeById,
     deleteSelected,
     moveSelectedToTop,
@@ -155,21 +160,39 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     return seen;
   }, [selectedIds, flattenedNodes]);
 
+  // id → node type, for resolving the selection's types (proposable gate + type-filtered apply).
+  const typeById = useMemo(() => {
+    const m = new Map<string, DocumentNode['type']>();
+    for (const fn of flattenedNodes) m.set(fn.node.id, fn.node.type);
+    return m;
+  }, [flattenedNodes]);
+
   // Whether the selection includes at least one proposable node — gates the PROPOSAL option.
   const selectionHasProposable = useMemo<boolean>(() => {
     if (selectedIds.size === 0) return false;
-    const typeById = new Map<string, DocumentNode['type']>();
-    for (const fn of flattenedNodes) typeById.set(fn.node.id, fn.node.type);
     for (const id of selectedIds) {
       const t = typeById.get(id);
       if (t && (PROPOSABLE_TYPES as readonly string[]).includes(t)) return true;
     }
     return false;
-  }, [selectedIds, flattenedNodes]);
+  }, [selectedIds, typeById]);
+
+  // Bulk-apply controls: scope (this node / + descendants) and an optional node-type filter.
+  const [contributionScope, setContributionScope] = useState<ContributionScope>('node');
+  const [contributionTypeFilter, setContributionTypeFilter] =
+    useState<ContributionTypeFilter>('all');
 
   const handleChangeContributionMode = (mode: ContributionMode | undefined) => {
     if (selectedIds.size === 0) return;
-    changeNodeContributionMode([...selectedIds], mode);
+    const ids = [...selectedIds];
+    const filter = contributionTypeFilter === 'all' ? undefined : contributionTypeFilter;
+    if (contributionScope === 'subtree') {
+      changeSubtreeContributionMode(ids, mode, filter);
+    } else {
+      // Node-only scope: when a type filter is set, only affect selected nodes of that type.
+      const scoped = filter ? ids.filter((id) => typeById.get(id) === filter) : ids;
+      changeNodeContributionMode(scoped, mode);
+    }
   };
 
   const { inlineMarks, handleToggleMark } = useInlineMarks({ updateNodeNumber });
@@ -357,6 +380,10 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         onUpdateType={handleBulkUpdateType}
         onChangeFormat={handleChangeFormat}
         onChangeContributionMode={handleChangeContributionMode}
+        contributionScope={contributionScope}
+        onChangeContributionScope={setContributionScope}
+        contributionTypeFilter={contributionTypeFilter}
+        onChangeContributionTypeFilter={setContributionTypeFilter}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
         onMoveSelectedToTop={moveSelectedToTop}

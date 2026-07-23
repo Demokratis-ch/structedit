@@ -563,4 +563,53 @@ describe('useTreeEditor', () => {
       expect(findP1().contributionMode).toBe('REMARK');
     });
   });
+
+  describe('bulk contribution mode', () => {
+    test('exposes changeSubtreeContributionMode with undo/redo over the subtree', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      expect(typeof result.current.changeSubtreeContributionMode).toBe('function');
+      expect(typeof result.current.changeDocumentContributionMode).toBe('function');
+
+      const h1 = () => result.current.document.children[0] as HeadingDocumentNode;
+      const p1 = () => h1().children[0] as ContentDocumentNode;
+
+      act(() => {
+        result.current.changeSubtreeContributionMode(['h1'], 'NONE');
+      });
+      expect(h1().contributionMode).toBe('NONE');
+      expect(p1().contributionMode).toBe('NONE');
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(h1().contributionMode).toBeUndefined();
+      expect(p1().contributionMode).toBeUndefined();
+
+      act(() => {
+        result.current.redo();
+      });
+      expect(h1().contributionMode).toBe('NONE');
+      expect(p1().contributionMode).toBe('NONE');
+    });
+
+    test('changeDocumentContributionMode applies across the whole document in one undo step', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      act(() => {
+        result.current.changeDocumentContributionMode('REMARK');
+      });
+      expect(result.current.document.contributionMode).toBe('REMARK');
+      expect((result.current.document.children[0] as HeadingDocumentNode).contributionMode).toBe(
+        'REMARK'
+      );
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(result.current.document.contributionMode).toBeUndefined();
+    });
+  });
 });

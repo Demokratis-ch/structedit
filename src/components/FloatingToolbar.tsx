@@ -23,6 +23,7 @@ import {
   ALLOWED_FORMATS,
   type ContentBearingNodeType,
   type ContributionMode,
+  type DocumentNode,
   type NodeFormat,
 } from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
@@ -48,6 +49,12 @@ interface FloatingToolbarProps {
   onChangeFormat?: (format: NodeFormat) => void;
   /** Set (or clear, with `undefined`) the contribution mode on the whole selection. */
   onChangeContributionMode?: (mode: ContributionMode | undefined) => void;
+  /** Bulk scope: apply to the selected node(s) only, or also to their descendants. */
+  contributionScope?: ContributionScope;
+  onChangeContributionScope?: (scope: ContributionScope) => void;
+  /** Bulk type filter: restrict the apply to one node type (`'all'` = every type in scope). */
+  contributionTypeFilter?: ContributionTypeFilter;
+  onChangeContributionTypeFilter?: (filter: ContributionTypeFilter) => void;
   onDelete: () => void;
   onClearSelection: () => void;
   onMoveSelectedToTop?: () => void;
@@ -97,6 +104,22 @@ const MODE_BUTTONS: ReadonlyArray<{
   { mode: 'PROPOSAL', Icon: PenLine, label: 'Proposal — annotations and amendment proposals' },
 ];
 
+/** Scope of a bulk mode apply: the selected node(s) only, or each selected node plus descendants. */
+export type ContributionScope = 'node' | 'subtree';
+
+/** Node-type filter for a bulk mode apply. `'all'` means every type in scope. */
+export type ContributionTypeFilter = DocumentNode['type'] | 'all';
+
+export const MODE_TYPE_FILTERS: ReadonlyArray<{ value: ContributionTypeFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'HEADING', label: 'Headings' },
+  { value: 'CONTENT', label: 'Content' },
+  { value: 'FOOTNOTE', label: 'Footnotes' },
+  { value: 'LIST', label: 'Lists' },
+  { value: 'LIST_ITEM', label: 'List items' },
+  { value: 'IMAGE', label: 'Images' },
+];
+
 export function FloatingToolbar({
   selectedCount,
   isEditing,
@@ -107,6 +130,10 @@ export function FloatingToolbar({
   onUpdateType,
   onChangeFormat,
   onChangeContributionMode,
+  contributionScope = 'node',
+  onChangeContributionScope,
+  contributionTypeFilter = 'all',
+  onChangeContributionTypeFilter,
   onDelete,
   onClearSelection,
   onMoveSelectedToTop,
@@ -258,6 +285,52 @@ export function FloatingToolbar({
                 </button>
               );
             })}
+
+            {/* Scope: apply to the selected node(s) only, or also their descendants. */}
+            <div className="ml-1 inline-flex items-center rounded-md border border-gray-700/40 bg-gray-800/60 p-0.5">
+              {(['node', 'subtree'] as const).map((scope) => {
+                const scopeLabel =
+                  scope === 'node'
+                    ? 'Apply to the selected element(s) only'
+                    : 'Also apply to everything inside (descendants)';
+                return (
+                  <button
+                    key={scope}
+                    type="button"
+                    data-testid={`mode-scope-${scope}`}
+                    aria-pressed={contributionScope === scope}
+                    aria-label={scopeLabel}
+                    title={scopeLabel}
+                    onClick={() => onChangeContributionScope?.(scope)}
+                    className={`rounded px-1.5 py-1 text-xs transition-colors ${
+                      contributionScope === scope
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    {scope === 'node' ? 'This' : '+ Inside'}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Optional node-type filter for the apply. */}
+            <select
+              data-testid="mode-type-filter"
+              aria-label="Only apply to node type"
+              title="Restrict the mode to a node type"
+              value={contributionTypeFilter}
+              onChange={(e) =>
+                onChangeContributionTypeFilter?.(e.target.value as ContributionTypeFilter)
+              }
+              className="ml-1 rounded-md bg-gray-800 px-1.5 py-1 text-xs text-white hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {MODE_TYPE_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {`only: ${f.label}`}
+                </option>
+              ))}
+            </select>
           </div>
         </>
       )}

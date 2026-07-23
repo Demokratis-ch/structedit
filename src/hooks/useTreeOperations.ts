@@ -32,6 +32,7 @@ import {
   moveNode,
   removeNodeAtPath,
   setNodeContributionMode,
+  setSubtreeContributionMode,
   updateChildrenAtPath,
   updateNodeAtPath,
 } from '../utils/tree-utils';
@@ -270,6 +271,52 @@ export const useTreeOperations = ({
       }
     },
     [document, nodeIndex, commit]
+  );
+
+  /**
+   * Bulk apply (or clear) a contribution mode over the subtree of every given node — each selected
+   * node plus all its descendants — in a single history entry. `keepOutermostIds` drops any
+   * selected descendant whose ancestor is also selected (the ancestor's subtree already covers it).
+   * The optional `typeFilter` restricts which node types are affected; the mode is clamped per node
+   * so it only lands where the type allows it. Passing `undefined` clears the mode across the subtree.
+   */
+  const changeSubtreeContributionMode = useCallback(
+    (ids: string[], mode: ContributionMode | undefined, typeFilter?: DocumentNode['type']) => {
+      let doc = document;
+      let changed = false;
+
+      for (const id of keepOutermostIds(ids, nodeIndex)) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const path = idx.get(id);
+        if (!path) continue;
+
+        const result = setSubtreeContributionMode(doc, path, mode, typeFilter);
+        if (result !== doc) {
+          doc = result;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        commit(doc);
+      }
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
+   * Bulk apply (or clear) a contribution mode across the entire document (root + every node),
+   * optionally restricted to a node type. Clamped per node; single history entry. This is the
+   * whole-document analogue of Demokratis's cross-document bulk form.
+   */
+  const changeDocumentContributionMode = useCallback(
+    (mode: ContributionMode | undefined, typeFilter?: DocumentNode['type']) => {
+      const result = setSubtreeContributionMode(document, [], mode, typeFilter);
+      if (result !== document) {
+        commit(result);
+      }
+    },
+    [document, commit]
   );
 
   /**
@@ -516,6 +563,8 @@ export const useTreeOperations = ({
     changeNodeTypes,
     changeNodeFormat,
     changeNodeContributionMode,
+    changeSubtreeContributionMode,
+    changeDocumentContributionMode,
     mergeNodes,
     canMergeIds,
     moveNodeById,

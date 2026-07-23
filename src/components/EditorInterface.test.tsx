@@ -176,3 +176,22 @@ describe('document outline', () => {
     vi.useRealTimers();
   });
 });
+
+describe('whole-document contribution mode', () => {
+  test('applies a mode across the whole document from the toolbar menu', () => {
+    const { container } = renderEditorInterface();
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    fireEvent.click(screen.getByTestId('doc-mode-remark'));
+    // Both headings are marked (the document root is not rendered as a tree node).
+    expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(2);
+  });
+
+  test('a type filter limits the whole-document apply', () => {
+    const { container } = renderEditorInterface();
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    fireEvent.change(screen.getByTestId('doc-mode-type-filter'), { target: { value: 'CONTENT' } });
+    fireEvent.click(screen.getByTestId('doc-mode-remark'));
+    // The test document has no CONTENT nodes → nothing is marked.
+    expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(0);
+  });
+});

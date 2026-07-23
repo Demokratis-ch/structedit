@@ -1596,3 +1596,69 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
     expect(getContainer().innerHTML).toContain('<strong>1</strong>');
   });
 });
+
+describe('bulk contribution mode via the toolbar', () => {
+  const docWithChild = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'Section' },
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'Body' },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  const renderWith = (doc: DocumentRootNode) =>
+    render(
+      <EditorInterface
+        initialDocument={doc}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+  const selectSection = () =>
+    fireEvent.click(within(screen.getByTestId('tree-editor-pane')).getByText('Section'));
+
+  test('"+ Inside" scope applies the mode down the whole subtree', () => {
+    const { container } = renderWith(docWithChild());
+    selectSection();
+    fireEvent.click(screen.getByTestId('mode-scope-subtree'));
+    fireEvent.click(screen.getByTestId('mode-remark'));
+    // Both the heading and its content child carry the mode.
+    expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(2);
+  });
+
+  test('"This" scope applies only to the selected node', () => {
+    const { container } = renderWith(docWithChild());
+    selectSection();
+    // scope defaults to node ("This")
+    fireEvent.click(screen.getByTestId('mode-remark'));
+    expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(1);
+  });
+
+  test('a type filter in "This" scope skips selected nodes of other types', () => {
+    const { container } = renderWith(docWithChild());
+    selectSection(); // a HEADING is selected
+    fireEvent.change(screen.getByTestId('mode-type-filter'), { target: { value: 'CONTENT' } });
+    fireEvent.click(screen.getByTestId('mode-remark'));
+    // The selected heading is filtered out → nothing marked.
+    expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(0);
+  });
+});

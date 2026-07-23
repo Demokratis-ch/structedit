@@ -478,3 +478,60 @@ describe('FloatingToolbar — contribution mode picker', () => {
     expect(screen.getByTestId('mode-remark')).toHaveAttribute('aria-pressed', 'false');
   });
 });
+
+describe('FloatingToolbar — bulk scope & type filter', () => {
+  const bulkProps = {
+    ...baseProps,
+    onChangeContributionMode: vi.fn(),
+    onChangeContributionScope: vi.fn(),
+    onChangeContributionTypeFilter: vi.fn(),
+  };
+
+  test('renders the scope toggle and type filter with a selection', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={2} />);
+    expect(screen.getByTestId('mode-scope-node')).toBeTruthy();
+    expect(screen.getByTestId('mode-scope-subtree')).toBeTruthy();
+    expect(screen.getByTestId('mode-type-filter')).toBeTruthy();
+  });
+
+  test('reflects the active scope via aria-pressed', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={1} contributionScope="subtree" />);
+    expect(screen.getByTestId('mode-scope-subtree')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('mode-scope-node')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('clicking a scope button calls onChangeContributionScope', () => {
+    const onChangeContributionScope = vi.fn();
+    render(
+      <FloatingToolbar
+        {...bulkProps}
+        selectedCount={1}
+        contributionScope="node"
+        onChangeContributionScope={onChangeContributionScope}
+      />
+    );
+    fireEvent.click(screen.getByTestId('mode-scope-subtree'));
+    expect(onChangeContributionScope).toHaveBeenCalledWith('subtree');
+  });
+
+  test('the type filter offers all node types and fires onChange', () => {
+    const onChangeContributionTypeFilter = vi.fn();
+    render(
+      <FloatingToolbar
+        {...bulkProps}
+        selectedCount={1}
+        onChangeContributionTypeFilter={onChangeContributionTypeFilter}
+      />
+    );
+    const filter = screen.getByTestId('mode-type-filter') as HTMLSelectElement;
+    const values = Array.from(filter.options).map((o) => o.value);
+    expect(values).toEqual(['all', 'HEADING', 'CONTENT', 'FOOTNOTE', 'LIST', 'LIST_ITEM', 'IMAGE']);
+    fireEvent.change(filter, { target: { value: 'CONTENT' } });
+    expect(onChangeContributionTypeFilter).toHaveBeenCalledWith('CONTENT');
+  });
+
+  test('reflects the current type filter value', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={1} contributionTypeFilter="FOOTNOTE" />);
+    expect((screen.getByTestId('mode-type-filter') as HTMLSelectElement).value).toBe('FOOTNOTE');
+  });
+});

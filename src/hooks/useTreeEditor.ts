@@ -43,6 +43,8 @@ export const useTreeEditor = (
     changeNodeTypes,
     changeNodeFormat,
     changeNodeContributionMode,
+    changeSubtreeContributionMode,
+    changeDocumentContributionMode,
     mergeNodes,
     canMergeIds,
     moveNodeById,
@@ -201,6 +203,8 @@ export const useTreeEditor = (
     changeNodeTypes,
     changeNodeFormat,
     changeNodeContributionMode,
+    changeSubtreeContributionMode,
+    changeDocumentContributionMode,
     moveNodeById,
 
     // Bulk operations
