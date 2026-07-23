@@ -15,6 +15,8 @@ import {
   mergeAdjacentLists,
   moveNode,
   removeNodeAtPath,
+  setNodeContributionMode,
+  setSubtreeContributionMode,
   updateNodeAtPath,
 } from './tree-utils';
 
@@ -992,5 +994,191 @@ describe('changeNodeFormat', () => {
     const doc = createTestDocument();
     const result = changeNodeFormat(doc, [99], 'TEXT');
     expect(result).toBe(doc);
+  });
+});
+
+describe('setNodeContributionMode', () => {
+  const docWith = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'H' },
+        children: [],
+      } as HeadingDocumentNode,
+      {
+        id: 'c',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'C' },
+        children: [],
+      } as ContentDocumentNode,
+      {
+        id: 'l',
+        number: null,
+        type: 'LIST',
+        children: [createListItem('li', '1.', 'x')],
+      } as ListDocumentNode,
+    ],
+  });
+
+  test('sets a mode on a content node', () => {
+    const next = setNodeContributionMode(docWith(), [1], 'REMARK');
+    expect(getNodeAtPath(next, [1])?.contributionMode).toBe('REMARK');
+  });
+
+  test('sets PROPOSAL on a proposable node (heading)', () => {
+    const next = setNodeContributionMode(docWith(), [0], 'PROPOSAL');
+    expect(getNodeAtPath(next, [0])?.contributionMode).toBe('PROPOSAL');
+  });
+
+  test('sets NONE on a container (list)', () => {
+    const next = setNodeContributionMode(docWith(), [2], 'NONE');
+    expect(getNodeAtPath(next, [2])?.contributionMode).toBe('NONE');
+  });
+
+  test('clearing removes the field entirely', () => {
+    const set = setNodeContributionMode(docWith(), [1], 'NONE');
+    const cleared = setNodeContributionMode(set, [1], undefined);
+    const node = getNodeAtPath(cleared, [1])!;
+    expect(node.contributionMode).toBeUndefined();
+    expect('contributionMode' in node).toBe(false);
+  });
+
+  test('is a no-op (same ref) when the mode is disallowed for the type', () => {
+    const doc = docWith();
+    // PROPOSAL is not allowed on a LIST container.
+    expect(setNodeContributionMode(doc, [2], 'PROPOSAL')).toBe(doc);
+  });
+
+  test('is a no-op (same ref) when the node already carries the mode', () => {
+    const doc = setNodeContributionMode(docWith(), [1], 'REMARK');
+    expect(setNodeContributionMode(doc, [1], 'REMARK')).toBe(doc);
+  });
+
+  test('is a no-op (same ref) when clearing an already-absent mode', () => {
+    const doc = docWith();
+    expect(setNodeContributionMode(doc, [1], undefined)).toBe(doc);
+  });
+
+  test('leaves contents and format untouched', () => {
+    const next = setNodeContributionMode(docWith(), [1], 'NONE');
+    const node = getNodeAtPath(next, [1]) as ContentDocumentNode;
+    expect(node.contents).toEqual({ de: 'C' });
+    expect(node.format).toBe('TEXT');
+  });
+});
+
+describe('setSubtreeContributionMode', () => {
+  // root > h1 > [ c1(CONTENT), l1(LIST) > li1(LIST_ITEM) > li1c(CONTENT) ]
+  const nestedDoc = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'H' },
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'C' },
+            children: [],
+          },
+          {
+            id: 'l1',
+            number: null,
+            type: 'LIST',
+            children: [
+              {
+                id: 'li1',
+                number: '1.',
+                type: 'LIST_ITEM',
+                children: [
+                  {
+                    id: 'li1c',
+                    number: null,
+                    type: 'CONTENT',
+                    format: 'TEXT',
+                    contents: { de: 'x' },
+                    children: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const modeAt = (root: DocumentRootNode, path: number[]) =>
+    getNodeAtPath(root, path)?.contributionMode;
+
+  test('applies a mode to the subtree root and all descendants', () => {
+    const next = setSubtreeContributionMode(nestedDoc(), [0], 'NONE');
+    expect(modeAt(next, [0])).toBe('NONE'); // heading
+    expect(modeAt(next, [0, 0])).toBe('NONE'); // content
+    expect(modeAt(next, [0, 1])).toBe('NONE'); // list
+    expect(modeAt(next, [0, 1, 0])).toBe('NONE'); // list_item
+    expect(modeAt(next, [0, 1, 0, 0])).toBe('NONE'); // nested content
+  });
+
+  test('clamps a mode to types that can hold it (PROPOSAL skips list / list_item)', () => {
+    const next = setSubtreeContributionMode(nestedDoc(), [0], 'PROPOSAL');
+    expect(modeAt(next, [0])).toBe('PROPOSAL'); // heading
+    expect(modeAt(next, [0, 0])).toBe('PROPOSAL'); // content
+    expect(modeAt(next, [0, 1])).toBeUndefined(); // list — clamped
+    expect(modeAt(next, [0, 1, 0])).toBeUndefined(); // list_item — clamped
+    expect(modeAt(next, [0, 1, 0, 0])).toBe('PROPOSAL'); // nested content
+  });
+
+  test('honours the type filter (only matching-type nodes are affected)', () => {
+    const next = setSubtreeContributionMode(nestedDoc(), [0], 'REMARK', 'CONTENT');
+    expect(modeAt(next, [0])).toBeUndefined(); // heading — filtered out
+    expect(modeAt(next, [0, 0])).toBe('REMARK'); // content
+    expect(modeAt(next, [0, 1])).toBeUndefined(); // list — filtered out
+    expect(modeAt(next, [0, 1, 0, 0])).toBe('REMARK'); // nested content
+  });
+
+  test('clears the mode across the subtree when passed undefined', () => {
+    const set = setSubtreeContributionMode(nestedDoc(), [0], 'NONE');
+    const cleared = setSubtreeContributionMode(set, [0], undefined);
+    expect(modeAt(cleared, [0])).toBeUndefined();
+    expect(modeAt(cleared, [0, 0])).toBeUndefined();
+    expect(modeAt(cleared, [0, 1, 0, 0])).toBeUndefined();
+  });
+
+  test('is idempotent — reapplying the same mode returns the same reference', () => {
+    const set = setSubtreeContributionMode(nestedDoc(), [0], 'NONE');
+    expect(setSubtreeContributionMode(set, [0], 'NONE')).toBe(set);
+  });
+
+  test('returns the same root when the path does not resolve', () => {
+    const d = nestedDoc();
+    expect(setSubtreeContributionMode(d, [9], 'NONE')).toBe(d);
+  });
+
+  test('an empty path applies to the whole document (root included)', () => {
+    const next = setSubtreeContributionMode(nestedDoc(), [], 'NONE');
+    expect(next.contributionMode).toBe('NONE'); // document root
+    expect(modeAt(next, [0])).toBe('NONE');
+    expect(modeAt(next, [0, 1, 0, 0])).toBe('NONE');
+  });
+
+  test('whole-document PROPOSAL clamps the document root but sets proposable nodes', () => {
+    const next = setSubtreeContributionMode(nestedDoc(), [], 'PROPOSAL');
+    expect(next.contributionMode).toBeUndefined(); // DOCUMENT cannot hold PROPOSAL
+    expect(modeAt(next, [0])).toBe('PROPOSAL');
+    expect(modeAt(next, [0, 1, 0, 0])).toBe('PROPOSAL');
   });
 });

@@ -1,4 +1,6 @@
 import { Download, Redo, Undo, X } from 'lucide-react';
+import type { ContributionMode, DocumentNode } from '../types/document';
+import { DocumentContributionModeMenu } from './DocumentContributionModeMenu';
 import { Button } from './ui/button';
 
 interface ToolbarProps {
@@ -10,6 +12,11 @@ interface ToolbarProps {
   historyIndex: number;
   historyLength: number;
   onDownload: () => void;
+  /** Apply (or clear) a contribution mode across the whole document, optionally by node type. */
+  onSetDocumentContributionMode: (
+    mode: ContributionMode | undefined,
+    typeFilter?: DocumentNode['type']
+  ) => void;
 }
 
 export function Toolbar({
@@ -21,6 +28,7 @@ export function Toolbar({
   historyIndex,
   historyLength,
   onDownload,
+  onSetDocumentContributionMode,
 }: ToolbarProps) {
   return (
     <div className="h-16 border-b border-gray-200 bg-white px-6 flex items-center justify-between shrink-0 z-10">
@@ -43,10 +51,13 @@ export function Toolbar({
         </div>
       </div>
 
-      <Button variant="outline" onClick={onDownload}>
-        <Download className="w-4 h-4 mr-2" />
-        Download JSON
-      </Button>
+      <div className="flex items-center gap-2">
+        <DocumentContributionModeMenu onApply={onSetDocumentContributionMode} />
+        <Button variant="outline" onClick={onDownload}>
+          <Download className="w-4 h-4 mr-2" />
+          Download JSON
+        </Button>
+      </div>
     </div>
   );
 }

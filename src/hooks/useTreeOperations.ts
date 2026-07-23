@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type {
   ContentBearingNodeType,
   ContentDocumentNode,
+  ContributionMode,
   DocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
@@ -30,6 +31,8 @@ import {
   insertNodeAtPath,
   moveNode,
   removeNodeAtPath,
+  setNodeContributionMode,
+  setSubtreeContributionMode,
   updateChildrenAtPath,
   updateNodeAtPath,
 } from '../utils/tree-utils';
@@ -237,6 +240,83 @@ export const useTreeOperations = ({
       commit(newDoc);
     },
     [document, nodeIndex, commit]
+  );
+
+  /**
+   * Set (or clear) the contribution mode on every given node in a single history entry. Nodes
+   * whose type can't hold the requested mode are skipped (their existing mode is left untouched),
+   * so painting a mode across a mixed selection only affects the nodes it validly applies to.
+   * Passing `undefined` clears the mode. Rebuilds indices between iterations like the other
+   * multi-node ops so processing order doesn't matter.
+   */
+  const changeNodeContributionMode = useCallback(
+    (ids: string[], mode: ContributionMode | undefined) => {
+      let doc = document;
+      let changed = false;
+
+      for (const id of ids) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const path = idx.get(id);
+        if (!path) continue;
+
+        const result = setNodeContributionMode(doc, path, mode);
+        if (result !== doc) {
+          doc = result;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        commit(doc);
+      }
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
+   * Bulk apply (or clear) a contribution mode over the subtree of every given node — each selected
+   * node plus all its descendants — in a single history entry. `keepOutermostIds` drops any
+   * selected descendant whose ancestor is also selected (the ancestor's subtree already covers it).
+   * The optional `typeFilter` restricts which node types are affected; the mode is clamped per node
+   * so it only lands where the type allows it. Passing `undefined` clears the mode across the subtree.
+   */
+  const changeSubtreeContributionMode = useCallback(
+    (ids: string[], mode: ContributionMode | undefined, typeFilter?: DocumentNode['type']) => {
+      let doc = document;
+      let changed = false;
+
+      for (const id of keepOutermostIds(ids, nodeIndex)) {
+        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
+        const path = idx.get(id);
+        if (!path) continue;
+
+        const result = setSubtreeContributionMode(doc, path, mode, typeFilter);
+        if (result !== doc) {
+          doc = result;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        commit(doc);
+      }
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
+   * Bulk apply (or clear) a contribution mode across the entire document (root + every node),
+   * optionally restricted to a node type. Clamped per node; single history entry. This is the
+   * whole-document analogue of Demokratis's cross-document bulk form.
+   */
+  const changeDocumentContributionMode = useCallback(
+    (mode: ContributionMode | undefined, typeFilter?: DocumentNode['type']) => {
+      const result = setSubtreeContributionMode(document, [], mode, typeFilter);
+      if (result !== document) {
+        commit(result);
+      }
+    },
+    [document, commit]
   );
 
   /**
@@ -482,6 +562,9 @@ export const useTreeOperations = ({
     outdentNodes,
     changeNodeTypes,
     changeNodeFormat,
+    changeNodeContributionMode,
+    changeSubtreeContributionMode,
+    changeDocumentContributionMode,
     mergeNodes,
     canMergeIds,
     moveNodeById,

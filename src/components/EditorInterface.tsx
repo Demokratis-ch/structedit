@@ -82,6 +82,7 @@ export function EditorInterface({
         historyIndex={editor.historyIndex}
         historyLength={editor.historyLength}
         onDownload={handleDownload}
+        onSetDocumentContributionMode={editor.changeDocumentContributionMode}
       />
       <div className="flex-1 flex overflow-hidden" ref={resizable.containerRef}>
         <div style={{ width: resizable.size, flexShrink: 0 }} className="min-w-0">

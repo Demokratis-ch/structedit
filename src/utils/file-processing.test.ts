@@ -483,6 +483,31 @@ describe('file-processing', () => {
           /version/i
         );
       });
+
+      it('reconstructs contribution modes from a valid envelope', () => {
+        const env = makeEnvelope({ de: 'X' });
+        (env.document.children[0] as { contributionMode?: string }).contributionMode = 'REMARK';
+        const raw = JSON.stringify(env);
+        const result = processJsonEnvelopeString(raw, { name: 'x', originalFilename: null });
+        expect((result.doc.children[0] as ContentDocumentNode).contributionMode).toBe('REMARK');
+      });
+
+      it('throws when a node carries an invalid mode (PROPOSAL on a LIST)', () => {
+        const raw = JSON.stringify({
+          DocTreeVersion: 1,
+          metadata: { title: { de: 'X' } },
+          document: {
+            id: 'root1',
+            type: 'DOCUMENT',
+            children: [
+              { id: 'l1', number: null, type: 'LIST', contributionMode: 'PROPOSAL', children: [] },
+            ],
+          },
+        });
+        expect(() => processJsonEnvelopeString(raw, { name: 'x', originalFilename: null })).toThrow(
+          /not a valid StructEdit document/i
+        );
+      });
     });
   });
 

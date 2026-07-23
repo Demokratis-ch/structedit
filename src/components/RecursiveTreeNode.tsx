@@ -1,9 +1,9 @@
-import { GripVertical, Plus } from 'lucide-react';
+import { Ban, GripVertical, MessageSquare, PenLine, Plus } from 'lucide-react';
 import type React from 'react';
 import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
-import type { DocumentNode, NodeFormat } from '../types/document';
+import type { ContributionMode, DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
 import { NumberBadge } from './NumberBadge';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
@@ -39,6 +39,26 @@ const AddNodeButton: React.FC<{
     <Plus size={12} />
   </button>
 );
+
+// Per-mode presentation for the always-visible contribution-mode pill. Icons mirror the Demokratis
+// editor (ban / comment / pen-line); an absent mode renders no pill.
+const MODE_INDICATOR: Record<ContributionMode, { Icon: typeof Ban; cls: string; label: string }> = {
+  NONE: {
+    Icon: Ban,
+    cls: 'text-gray-500 bg-gray-100 border-gray-300',
+    label: 'Locked — no participant interaction',
+  },
+  REMARK: {
+    Icon: MessageSquare,
+    cls: 'text-blue-600 bg-blue-50 border-blue-200',
+    label: 'Remark — participants may annotate',
+  },
+  PROPOSAL: {
+    Icon: PenLine,
+    cls: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+    label: 'Proposal — participants may annotate and propose amendments',
+  },
+};
 
 /**
  * Recursive tree node component. Each node subscribes to its own UI state
@@ -266,6 +286,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         data-dragging={isDragging ? 'true' : 'false'}
         data-receiving-parent={isReceivingParent ? 'true' : 'false'}
         data-hovered-handle={isHoveredHandle ? 'true' : 'false'}
+        data-contribution-mode={node.contributionMode ?? 'default'}
         draggable={!isAnyNodeEditing}
         onDragStart={(e) => {
           e.stopPropagation();
@@ -323,11 +344,26 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         {!isEditing && <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />}
         {!isEditing && <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />}
 
-        {/* Node type indicator */}
+        {/* Contribution mode indicator (always visible when a mode is set) */}
+        {node.contributionMode &&
+          (() => {
+            const { Icon, cls, label } = MODE_INDICATOR[node.contributionMode];
+            return (
+              <span
+                data-testid="contribution-mode-indicator"
+                className={`tree-node-mode-indicator absolute top-1 right-1 z-10 inline-flex items-center rounded border px-1 py-0.5 ${cls}`}
+                title={label}
+              >
+                <Icon size={12} />
+              </span>
+            );
+          })()}
+
+        {/* Node type indicator (shifts left to clear the mode pill when one is shown) */}
         <span
-          className="tree-node-type-indicator absolute top-1 right-1 text-xs text-gray-400 select-none z-10
+          className={`tree-node-type-indicator absolute top-1 ${node.contributionMode ? 'right-8' : 'right-1'} text-xs text-gray-400 select-none z-10
             transition-opacity duration-150
-            opacity-0 group-hover:opacity-70"
+            opacity-0 group-hover:opacity-70`}
         >
           {'format' in node ? `${node.type} · ${node.format}` : node.type}
         </span>
