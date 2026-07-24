@@ -11,6 +11,8 @@ import type {
   Language,
   NodeFormat,
   ParentType,
+  QuestionDocumentNode,
+  QuestionFlavour,
 } from '../types/document';
 import { canBeChildOf, canHaveFormat } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -23,6 +25,8 @@ import {
   type ListStyle,
   mergeNodesInDoc,
   outdentNodeInDoc,
+  setQuestionFlavour,
+  wrapContentInQuestion,
 } from '../utils/tree-mutations';
 import {
   buildIndices,
@@ -320,6 +324,39 @@ export const useTreeOperations = ({
   );
 
   /**
+   * Promote a `CONTENT` node to a questionnaire question: it is wrapped in place by a `QUESTION`
+   * and becomes that question's prompt, with the answer section for `flavour` added after it.
+   * Returns the new question's id, or `null` when the node can't be wrapped (unknown id, not a
+   * content node, or already a question's prompt).
+   */
+  const wrapInQuestion = useCallback(
+    (nodeId: string, flavour: QuestionFlavour) => {
+      const path = nodeIndex.get(nodeId);
+      if (!path) return null;
+      const next = wrapContentInQuestion(document, path, flavour, language);
+      if (next === document) return null;
+      commit(next);
+      return (getNodeAtPath(next, path) as QuestionDocumentNode).id;
+    },
+    [document, nodeIndex, language, commit]
+  );
+
+  /**
+   * Change a question's flavour (single ↔ multiple ↔ free text), keeping its prompt. No-op when the
+   * node isn't a question or is already in that flavour. See {@link setQuestionFlavour} for what
+   * survives each conversion.
+   */
+  const changeQuestionFlavour = useCallback(
+    (questionId: string, flavour: QuestionFlavour) => {
+      const path = nodeIndex.get(questionId);
+      if (!path) return;
+      const next = setQuestionFlavour(document, path, flavour, language);
+      if (next !== document) commit(next);
+    },
+    [document, nodeIndex, language, commit]
+  );
+
+  /**
    * Update node number/label.
    */
   const updateNodeNumber = useCallback(
@@ -565,6 +602,8 @@ export const useTreeOperations = ({
     changeNodeContributionMode,
     changeSubtreeContributionMode,
     changeDocumentContributionMode,
+    wrapInQuestion,
+    changeQuestionFlavour,
     mergeNodes,
     canMergeIds,
     moveNodeById,

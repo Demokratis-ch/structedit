@@ -670,3 +670,254 @@ describe('FloatingToolbar — bulk scope & type filter', () => {
     expect((screen.getByTestId('mode-type-filter') as HTMLSelectElement).value).toBe('FOOTNOTE');
   });
 });
+
+describe('FloatingToolbar — the question popover', () => {
+  const questionProps = {
+    ...baseProps,
+    selectedCount: 1,
+    selectedNodeType: 'CONTENT' as const,
+    canWrapInQuestion: true,
+    onSelectQuestionFlavour: vi.fn(),
+  };
+
+  test('hides the trigger when the selection is neither wrappable nor a question', () => {
+    render(<FloatingToolbar {...questionProps} canWrapInQuestion={false} />);
+    expect(screen.queryByTestId('make-question-toggle')).toBeNull();
+  });
+
+  test('hides the trigger while editing', () => {
+    render(<FloatingToolbar {...questionProps} isEditing />);
+    expect(screen.queryByTestId('make-question-toggle')).toBeNull();
+  });
+
+  test('shows the trigger for a single wrappable content node', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    expect(screen.getByTestId('make-question-toggle')).toBeTruthy();
+  });
+
+  test('shows the trigger for a selection already inside a question', () => {
+    render(
+      <FloatingToolbar {...questionProps} canWrapInQuestion={false} questionFlavour="single" />
+    );
+    expect(screen.getByTestId('make-question-toggle')).toBeTruthy();
+  });
+
+  test('the panel is closed until the trigger is clicked', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+  });
+
+  test('offers the three flavours and reports the chosen one', () => {
+    const onSelectQuestionFlavour = vi.fn();
+    render(
+      <FloatingToolbar {...questionProps} onSelectQuestionFlavour={onSelectQuestionFlavour} />
+    );
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-multiple'));
+    expect(onSelectQuestionFlavour).toHaveBeenCalledWith('multiple');
+
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+    expect(onSelectQuestionFlavour).toHaveBeenCalledWith('single');
+
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-text'));
+    expect(onSelectQuestionFlavour).toHaveBeenCalledWith('text');
+  });
+
+  test('marks the current flavour as active for an existing question', () => {
+    render(
+      <FloatingToolbar {...questionProps} canWrapInQuestion={false} questionFlavour="multiple" />
+    );
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    expect(screen.getByTestId('make-question-multiple')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('make-question-single')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('marks no flavour active when the node is not yet a question', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    for (const f of ['single', 'multiple', 'text']) {
+      expect(screen.getByTestId(`make-question-${f}`)).toHaveAttribute('aria-pressed', 'false');
+    }
+  });
+
+  test('the trigger is icon-only, naming its purpose and the current flavour accessibly', () => {
+    const { rerender } = render(<FloatingToolbar {...questionProps} />);
+    const toggle = () => screen.getByTestId('make-question-toggle');
+    // No visible text — the meaning lives in the accessible name and the tooltip.
+    expect(toggle().textContent).toBe('');
+    expect(toggle()).toHaveAttribute('aria-label', 'Make a question');
+
+    rerender(
+      <FloatingToolbar {...questionProps} canWrapInQuestion={false} questionFlavour="text" />
+    );
+    expect(toggle().textContent).toBe('');
+    expect(toggle()).toHaveAttribute('aria-label', 'Question type: Free text');
+  });
+
+  test('closes the panel after a flavour is picked', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+
+  test('closes the panel on Escape', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+});
+
+describe('FloatingToolbar — question keyboard shortcuts', () => {
+  const questionProps = {
+    ...baseProps,
+    selectedCount: 1,
+    selectedNodeType: 'CONTENT' as const,
+    canWrapInQuestion: true,
+    onSelectQuestionFlavour: vi.fn(),
+  };
+
+  test('pressing "q" opens the panel from selection mode', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+    fireEvent.keyDown(document, { key: 'q' });
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+  });
+
+  test('"q" also opens it for a selection already inside a question', () => {
+    render(
+      <FloatingToolbar {...questionProps} canWrapInQuestion={false} questionFlavour="single" />
+    );
+    fireEvent.keyDown(document, { key: 'q' });
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+  });
+
+  test('the open shortcut is ignored while typing in an editable target', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: 'q' });
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+    input.remove();
+  });
+
+  test('the open shortcut is ignored when a modifier is held', () => {
+    render(<FloatingToolbar {...questionProps} />);
+    fireEvent.keyDown(document, { key: 'q', metaKey: true });
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+
+  test.each([
+    ['1', 'single'],
+    ['2', 'multiple'],
+    ['3', 'text'],
+  ] as const)('while open, pressing %s picks its flavour and closes', (digit, expected) => {
+    const onSelectQuestionFlavour = vi.fn();
+    render(
+      <FloatingToolbar {...questionProps} onSelectQuestionFlavour={onSelectQuestionFlavour} />
+    );
+    fireEvent.keyDown(document, { key: 'q' });
+    fireEvent.keyDown(document, { key: digit });
+    expect(onSelectQuestionFlavour).toHaveBeenCalledTimes(1);
+    expect(onSelectQuestionFlavour).toHaveBeenCalledWith(expected);
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+
+  test('digit keys do nothing while the panel is closed', () => {
+    const onSelectQuestionFlavour = vi.fn();
+    render(
+      <FloatingToolbar {...questionProps} onSelectQuestionFlavour={onSelectQuestionFlavour} />
+    );
+    fireEvent.keyDown(document, { key: '2' });
+    expect(onSelectQuestionFlavour).not.toHaveBeenCalled();
+  });
+
+  test('4 is not bound (only three flavours exist)', () => {
+    const onSelectQuestionFlavour = vi.fn();
+    render(
+      <FloatingToolbar {...questionProps} onSelectQuestionFlavour={onSelectQuestionFlavour} />
+    );
+    fireEvent.keyDown(document, { key: 'q' });
+    fireEvent.keyDown(document, { key: '4' });
+    expect(onSelectQuestionFlavour).not.toHaveBeenCalled();
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+  });
+
+  test('the mode popover keeps its own digits when it is the open one', () => {
+    // Both popovers are mounted for a question selection; only the open one may consume digits.
+    const onSelectQuestionFlavour = vi.fn();
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...questionProps}
+        questionFlavour="single"
+        onSelectQuestionFlavour={onSelectQuestionFlavour}
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.keyDown(document, { key: 'i' });
+    fireEvent.keyDown(document, { key: '2' });
+    expect(onChangeContributionMode).toHaveBeenCalledWith('NONE');
+    expect(onSelectQuestionFlavour).not.toHaveBeenCalled();
+  });
+});
+
+describe('FloatingToolbar — only one popover open at a time', () => {
+  // Both popovers are mounted for a question selection and both consume digits, so opening one must
+  // close the other or a single digit press would be handled twice.
+  const bothProps = {
+    ...baseProps,
+    selectedCount: 1,
+    selectedNodeType: 'CONTENT' as const,
+    questionFlavour: 'single' as const,
+    onSelectQuestionFlavour: vi.fn(),
+    onChangeContributionMode: vi.fn(),
+  };
+
+  test('opening the mode panel closes the question panel', () => {
+    render(<FloatingToolbar {...bothProps} />);
+    fireEvent.keyDown(document, { key: 'q' });
+    fireEvent.keyDown(document, { key: 'i' });
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+
+  test('opening the question panel closes the mode panel', () => {
+    render(<FloatingToolbar {...bothProps} />);
+    fireEvent.keyDown(document, { key: 'i' });
+    fireEvent.keyDown(document, { key: 'q' });
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+
+  test('a digit is handled by exactly one popover', () => {
+    const onSelectQuestionFlavour = vi.fn();
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...bothProps}
+        onSelectQuestionFlavour={onSelectQuestionFlavour}
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.keyDown(document, { key: 'q' });
+    fireEvent.keyDown(document, { key: 'i' });
+    fireEvent.keyDown(document, { key: '2' });
+    expect(onChangeContributionMode).toHaveBeenCalledTimes(1);
+    expect(onSelectQuestionFlavour).not.toHaveBeenCalled();
+  });
+
+  test('clicking one trigger closes the other panel', () => {
+    render(<FloatingToolbar {...bothProps} />);
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    expect(screen.getByTestId('make-question-panel')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('contribution-mode-toggle'));
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+    expect(screen.queryByTestId('make-question-panel')).toBeNull();
+  });
+});

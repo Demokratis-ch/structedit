@@ -26,6 +26,8 @@ export interface TreeCallbacksContextValue {
   onNumberSubmit: (id: string) => void;
   onAddNodeBefore: (id: string) => void;
   onAddNodeAfter: (id: string) => void;
+  onAddOption: (questionId: string) => void;
+  onRemoveOption: (optionId: string) => void;
 }
 
 export const TreeCallbacksContext = createContext<TreeCallbacksContextValue>(null!);

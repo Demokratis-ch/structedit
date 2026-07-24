@@ -5,17 +5,21 @@ import {
   Ban,
   Bold,
   ChevronDown,
+  Circle,
   Heading,
   Italic,
   List,
   ListOrdered,
   Merge,
+  MessageCircleQuestionMark,
   MessageSquare,
   PenLine,
   SortAsc,
+  SquareCheck,
   Strikethrough,
   Subscript,
   Superscript,
+  TextCursorInput,
   Trash2,
   Type,
   X,
@@ -27,6 +31,7 @@ import {
   type ContributionMode,
   type DocumentNode,
   type NodeFormat,
+  type QuestionFlavour,
 } from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
@@ -63,6 +68,12 @@ interface FloatingToolbarProps {
   onMoveSelectedToBottom?: () => void;
   canMerge?: boolean;
   onMerge?: () => void;
+  /** Whether the selection is a single content node that may be promoted to a question. */
+  canWrapInQuestion?: boolean;
+  /** Flavour of the question the selection belongs to, when it is inside one. */
+  questionFlavour?: QuestionFlavour;
+  /** Promote the selected content node to a question, or re-shape the question it belongs to. */
+  onSelectQuestionFlavour?: (flavour: QuestionFlavour) => void;
   inlineMarksTarget?: InlineMarksTarget | null;
   inlineMarksFormat?: NodeFormat;
   markActiveState?: Partial<Record<InlineMark, boolean>>;
@@ -125,6 +136,37 @@ export type ContributionScope = 'node' | 'subtree';
 /** Node-type filter for a bulk mode apply. `'all'` means every type in scope. */
 export type ContributionTypeFilter = DocumentNode['type'] | 'all';
 
+/** Bare-key shortcut (in selection mode) that opens the question dropdown. */
+const QUESTION_SHORTCUT = 'q';
+/** Digit keys selecting the three flavours (in QUESTION_FLAVOURS order) while the dropdown is open. */
+const QUESTION_DIGITS = ['1', '2', '3'] as const;
+
+const QUESTION_FLAVOURS: ReadonlyArray<{
+  flavour: QuestionFlavour;
+  Icon: typeof Circle;
+  label: string;
+  hint: string;
+}> = [
+  {
+    flavour: 'single',
+    Icon: Circle,
+    label: 'Single choice',
+    hint: 'Participants pick exactly one option',
+  },
+  {
+    flavour: 'multiple',
+    Icon: SquareCheck,
+    label: 'Multiple choice',
+    hint: 'Participants pick any number of options',
+  },
+  {
+    flavour: 'text',
+    Icon: TextCursorInput,
+    label: 'Free text',
+    hint: 'Participants write their own answer',
+  },
+];
+
 export const MODE_TYPE_FILTERS: ReadonlyArray<{ value: ContributionTypeFilter; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'HEADING', label: 'Headings' },
@@ -155,11 +197,18 @@ export function FloatingToolbar({
   onMoveSelectedToBottom,
   canMerge = false,
   onMerge,
+  canWrapInQuestion = false,
+  questionFlavour,
+  onSelectQuestionFlavour,
   inlineMarksTarget,
   inlineMarksFormat,
   markActiveState,
   onToggleMark,
 }: FloatingToolbarProps) {
+  // Which dropdown is open, owned here rather than by each popover: both listen for bare digit keys
+  // while open, so two open at once would let one keypress apply two different things.
+  const [openPopover, setOpenPopover] = useState<'mode' | 'question' | null>(null);
+
   if (selectedCount === 0 && !isEditing) return null;
 
   const showInlineMarks =
@@ -247,6 +296,18 @@ export function FloatingToolbar({
         <Asterisk size={18} />
       </button>
 
+      {(canWrapInQuestion || questionFlavour !== undefined) && !isEditing && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <MakeQuestionPopover
+            questionFlavour={questionFlavour}
+            onSelectQuestionFlavour={onSelectQuestionFlavour}
+            open={openPopover === 'question'}
+            setOpen={(v) => setOpenPopover(v ? 'question' : null)}
+          />
+        </>
+      )}
+
       {showFormatSelector && (
         <>
           <div className="w-px h-6 bg-gray-700 mx-1" />
@@ -270,6 +331,8 @@ export function FloatingToolbar({
         <>
           <div className="w-px h-6 bg-gray-700 mx-1" />
           <ContributionModePopover
+            open={openPopover === 'mode'}
+            setOpen={(v) => setOpenPopover(v ? 'mode' : null)}
             selectedNodeMode={selectedNodeMode}
             selectionHasProposable={selectionHasProposable}
             onChangeContributionMode={onChangeContributionMode}
@@ -376,7 +439,162 @@ export function FloatingToolbar({
   );
 }
 
+/**
+ * The question control. Questions can't be derived from an imported file, so this is how they're
+ * authored: write the prompt as an ordinary content node, then promote it here — the node becomes
+ * the question's prompt and the picked flavour decides the answer section. Once the selection sits
+ * in a question (`questionFlavour` is set) the same control switches that question's flavour, so
+ * making and re-shaping a question are one affordance instead of two. Closes on pick, outside click
+ * or Escape.
+ */
+function MakeQuestionPopover({
+  questionFlavour,
+  onSelectQuestionFlavour,
+  open,
+  setOpen,
+}: {
+  questionFlavour?: QuestionFlavour;
+  onSelectQuestionFlavour?: (flavour: QuestionFlavour) => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard: `QUESTION_SHORTCUT` opens the panel from selection mode; while open, 1–3 pick a flavour
+  // and Escape closes. Plus outside-click-to-close. Mirrors ContributionModePopover's `i`-then-1–4 —
+  // the digits are only consumed while *this* panel is open, so the two never compete for them.
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (open && rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        !!target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT');
+
+      if (!open) {
+        // Don't hijack the key while the user is typing somewhere.
+        if (!inEditable && e.key.toLowerCase() === QUESTION_SHORTCUT) {
+          e.preventDefault();
+          setOpen(true);
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      const idx = QUESTION_DIGITS.indexOf(e.key as (typeof QUESTION_DIGITS)[number]);
+      if (idx !== -1) {
+        e.preventDefault();
+        onSelectQuestionFlavour?.(QUESTION_FLAVOURS[idx].flavour);
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, setOpen, onSelectQuestionFlavour]);
+
+  // Defined exactly when the selection is inside a question — the popover's two modes.
+  const current = QUESTION_FLAVOURS.find((f) => f.flavour === questionFlavour);
+
+  return (
+    <div ref={rootRef} className="relative inline-flex items-center">
+      <button
+        type="button"
+        data-testid="make-question-toggle"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Icon-only, like the type buttons — the meaning lives in the accessible name and tooltip.
+        aria-label={current ? `Question type: ${current.label}` : 'Make a question'}
+        onClick={() => setOpen(!open)}
+        title={
+          current
+            ? `Question type: ${current.label} — switch between single choice, multiple choice and free text. Shortcut: Q, then 1–3`
+            : 'Make a question — wrap this content node as a question prompt. Shortcut: Q, then 1–3'
+        }
+        className={`inline-flex items-center gap-0.5 rounded-lg p-2 transition-colors ${
+          open
+            ? 'bg-gray-700 text-white'
+            : current
+              ? // Already a question: mirror the active state of the type buttons, since the label
+                // that used to say so is gone.
+                'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-700'
+        }`}
+      >
+        <MessageCircleQuestionMark size={18} />
+        <ChevronDown size={14} className={current && !open ? 'text-blue-200' : 'text-gray-500'} />
+      </button>
+
+      {open && (
+        <div
+          data-testid="make-question-panel"
+          role="dialog"
+          aria-label={current ? 'Question type' : 'Make a question'}
+          className="absolute bottom-full left-0 z-50 mb-2 w-60 rounded-lg border border-gray-700 bg-gray-900 p-1 text-left shadow-2xl"
+        >
+          <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            {current ? 'Question type' : 'Make this a question'}{' '}
+            <span className="normal-case text-gray-600">(press 1–3)</span>
+          </p>
+          {QUESTION_FLAVOURS.map(({ flavour, Icon, label, hint }, i) => {
+            const active = questionFlavour === flavour;
+            return (
+              <button
+                key={flavour}
+                type="button"
+                data-testid={`make-question-${flavour}`}
+                aria-pressed={active}
+                aria-keyshortcuts={QUESTION_DIGITS[i]}
+                title={`${hint} (${QUESTION_DIGITS[i]})`}
+                onClick={() => {
+                  onSelectQuestionFlavour?.(flavour);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors ${
+                  active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <Icon
+                  size={14}
+                  className={`mt-0.5 shrink-0 ${active ? 'text-white' : 'text-gray-400'}`}
+                />
+                <span className="flex-1">
+                  <span className="block text-xs font-medium text-white">{label}</span>
+                  <span
+                    className={`block text-[11px] ${active ? 'text-blue-100' : 'text-gray-500'}`}
+                  >
+                    {hint}
+                  </span>
+                </span>
+                <kbd className="mt-0.5 rounded bg-black/30 px-1 text-[10px] leading-4 text-gray-300">
+                  {QUESTION_DIGITS[i]}
+                </kbd>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ContributionModePopoverProps {
+  /** Open state is owned by FloatingToolbar so only one popover can be open at a time. */
+  open: boolean;
+  setOpen: (open: boolean) => void;
   selectedNodeMode?: ContributionMode | 'mixed';
   selectionHasProposable: boolean;
   onChangeContributionMode?: (mode: ContributionMode | undefined) => void;
@@ -400,8 +618,9 @@ function ContributionModePopover({
   onChangeContributionScope,
   contributionTypeFilter,
   onChangeContributionTypeFilter,
+  open,
+  setOpen,
 }: ContributionModePopoverProps) {
-  const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const filterId = useId();
 
@@ -453,7 +672,7 @@ function ContributionModePopover({
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open, selectionHasProposable, onChangeContributionMode]);
+  }, [open, setOpen, selectionHasProposable, onChangeContributionMode]);
 
   return (
     <div ref={rootRef} className="relative inline-flex items-center">
@@ -468,7 +687,7 @@ function ContributionModePopover({
         // control is about what participants may write, and the trigger is never styled per-mode,
         // so there is no state for it to be confused with.
         aria-label="Contribution mode"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         title="Contribution mode — how participants may interact with the selected element(s). Shortcut: I, then 1–4"
         className={`inline-flex items-center gap-0.5 rounded-lg p-2 transition-colors ${
           open ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'

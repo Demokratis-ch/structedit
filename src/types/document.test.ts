@@ -3,6 +3,7 @@ import {
   ALLOWED_FORMATS,
   ALLOWED_MODES,
   type BlockDocumentNode,
+  type CheckboxDocumentNode,
   type ContentDocumentNode,
   type ContributionMode,
   canBeChildOf,
@@ -15,6 +16,7 @@ import {
   type DocumentRootNode,
   exampleDocument,
   type FootnoteDocumentNode,
+  getQuestionFlavour,
   type HeadingDocumentNode,
   type ImageDocumentNode,
   isValidDocTreeEnvelope,
@@ -26,6 +28,10 @@ import {
   type NumberedDocumentNode,
   type ParentDocumentNode,
   PROPOSABLE_TYPES,
+  type QuestionChildNode,
+  type QuestionDocumentNode,
+  type RadiobuttonDocumentNode,
+  type TextareaDocumentNode,
 } from './document';
 
 /**
@@ -53,7 +59,7 @@ type _TypeAssertions = [
   Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
-  // `DocumentNode` is the union of all seven per-type interfaces.
+  // `DocumentNode` is the union of all per-type interfaces (structural + questionnaire).
   Expect<
     Equal<
       DocumentNode,
@@ -64,6 +70,10 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | QuestionDocumentNode
+      | RadiobuttonDocumentNode
+      | CheckboxDocumentNode
+      | TextareaDocumentNode
     >
   >,
   // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
@@ -86,11 +96,22 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | QuestionDocumentNode
     >
   >,
+  // The leaves are exactly the nodes without a `children` array.
   Expect<
-    Equal<Exclude<DocumentNode, ParentDocumentNode>, FootnoteDocumentNode | ImageDocumentNode>
+    Equal<
+      Exclude<DocumentNode, ParentDocumentNode>,
+      | FootnoteDocumentNode
+      | ImageDocumentNode
+      | RadiobuttonDocumentNode
+      | CheckboxDocumentNode
+      | TextareaDocumentNode
+    >
   >,
+  // A QUESTION's children are exactly the question child union.
+  Expect<Equal<QuestionDocumentNode['children'], QuestionChildNode[]>>,
 ];
 
 describe('Document validation', () => {
@@ -1209,10 +1230,18 @@ describe('ContributionMode — tables and helpers', () => {
     expect([...PROPOSABLE_TYPES]).toEqual(['HEADING', 'CONTENT', 'FOOTNOTE']);
   });
 
-  it('ALLOWED_MODES lists NONE/REMARK for every node type', () => {
+  it('ALLOWED_MODES lists NONE for every node type', () => {
     for (const type of Object.keys(ALLOWED_MODES) as (keyof typeof ALLOWED_MODES)[]) {
       expect(ALLOWED_MODES[type]).toContain('NONE');
-      expect(ALLOWED_MODES[type]).toContain('REMARK');
+    }
+  });
+
+  it('allows REMARK on every type except question options and the free-text field', () => {
+    const noRemark = new Set<DocumentNode['type']>(['RADIOBUTTON', 'CHECKBOX', 'TEXTAREA']);
+    for (const type of Object.keys(ALLOWED_MODES) as (keyof typeof ALLOWED_MODES)[]) {
+      expect((ALLOWED_MODES[type] as readonly string[]).includes('REMARK')).toBe(
+        !noRemark.has(type)
+      );
     }
   });
 
@@ -1235,6 +1264,10 @@ describe('ContributionMode — tables and helpers', () => {
       'CONTENT',
       'FOOTNOTE',
       'IMAGE',
+      'QUESTION',
+      'RADIOBUTTON',
+      'CHECKBOX',
+      'TEXTAREA',
     ];
     for (const t of types) {
       expect(ALLOWED_MODES[t]).toBeDefined();
@@ -1425,5 +1458,142 @@ describe('DocTreeEnvelope — contribution modes', () => {
         },
       })
     ).toBe(false);
+  });
+});
+
+describe('Questionnaire question nodes', () => {
+  const prompt = () => ({
+    id: 'qc',
+    number: null,
+    type: 'CONTENT',
+    contents: { en: 'Your question?' },
+    format: 'TEXT',
+    children: [],
+  });
+  const radio = (id: string) => ({
+    id,
+    number: null,
+    type: 'RADIOBUTTON',
+    contents: { en: 'Option' },
+    format: 'TEXT',
+  });
+  const checkbox = (id: string) => ({
+    id,
+    number: null,
+    type: 'CHECKBOX',
+    contents: { en: 'Option' },
+    format: 'TEXT',
+  });
+  const textarea = (id: string) => ({ id, number: null, type: 'TEXTAREA' });
+  const question = (children: unknown[]) => ({ id: 'q', number: null, type: 'QUESTION', children });
+
+  it('accepts a valid single-choice question', () => {
+    expect(isValidNode(question([prompt(), radio('o1'), radio('o2')]))).toBe(true);
+  });
+
+  it('accepts a valid multiple-choice question', () => {
+    expect(isValidNode(question([prompt(), checkbox('o1'), checkbox('o2')]))).toBe(true);
+  });
+
+  it('accepts a valid text question', () => {
+    expect(isValidNode(question([prompt(), textarea('t1')]))).toBe(true);
+  });
+
+  it('rejects a question carrying contents or format', () => {
+    expect(isValidNode({ ...question([prompt(), radio('o1')]), contents: { en: 'x' } })).toBe(
+      false
+    );
+    expect(isValidNode({ ...question([prompt(), radio('o1')]), format: 'TEXT' })).toBe(false);
+  });
+
+  it('rejects a question mixing radiobutton and checkbox options', () => {
+    expect(isValidNode(question([prompt(), radio('o1'), checkbox('o2')]))).toBe(false);
+  });
+
+  it('rejects a question with both options and a textarea', () => {
+    expect(isValidNode(question([prompt(), radio('o1'), textarea('t1')]))).toBe(false);
+  });
+
+  it('rejects a question without exactly one CONTENT prompt', () => {
+    expect(isValidNode(question([radio('o1'), radio('o2')]))).toBe(false); // zero prompts
+    expect(isValidNode(question([prompt(), { ...prompt(), id: 'qc2' }, radio('o1')]))).toBe(false); // two
+  });
+
+  it('rejects a question with no answer section (prompt only)', () => {
+    expect(isValidNode(question([prompt()]))).toBe(false);
+  });
+
+  it('rejects an option node with children', () => {
+    expect(isValidNode(question([prompt(), { ...radio('o1'), children: [] }]))).toBe(false);
+  });
+
+  it('rejects a textarea carrying contents / format / children', () => {
+    expect(isValidNode(question([prompt(), { ...textarea('t1'), contents: { en: 'x' } }]))).toBe(
+      false
+    );
+    expect(isValidNode(question([prompt(), { ...textarea('t1'), format: 'TEXT' }]))).toBe(false);
+    expect(isValidNode(question([prompt(), { ...textarea('t1'), children: [] }]))).toBe(false);
+  });
+
+  it('rejects an option with a disallowed format', () => {
+    expect(isValidNode(question([prompt(), { ...radio('o1'), format: 'MARKDOWN' }]))).toBe(false);
+  });
+
+  it('accepts a question under a HEADING but rejects one under a LIST', () => {
+    const heading = (child: unknown) => ({
+      id: 'h',
+      number: '1',
+      type: 'HEADING',
+      contents: { en: 'H' },
+      format: 'TEXT',
+      children: [child],
+    });
+    expect(isValidNode(heading(question([prompt(), radio('o1')])))).toBe(true);
+    const list = {
+      id: 'l',
+      number: null,
+      type: 'LIST',
+      children: [question([prompt(), radio('o1')])],
+    };
+    expect(isValidNode(list)).toBe(false);
+  });
+
+  it('exposes the allowed parents/children via canBeChildOf', () => {
+    for (const p of ['DOCUMENT', 'HEADING', 'LIST_ITEM'] as const) {
+      expect(canBeChildOf('QUESTION', p)).toBe(true);
+    }
+    expect(canBeChildOf('QUESTION', 'LIST')).toBe(false);
+    expect(canBeChildOf('QUESTION', 'CONTENT')).toBe(false);
+    for (const c of ['CONTENT', 'RADIOBUTTON', 'CHECKBOX', 'TEXTAREA'] as const) {
+      expect(canBeChildOf(c, 'QUESTION')).toBe(true);
+    }
+    expect(canBeChildOf('HEADING', 'QUESTION')).toBe(false);
+  });
+
+  it('derives the flavour from the answer children', () => {
+    const flavour = (children: unknown[]) =>
+      getQuestionFlavour(question(children) as unknown as QuestionDocumentNode);
+    expect(flavour([prompt(), radio('o1'), radio('o2')])).toBe('single');
+    expect(flavour([prompt(), checkbox('o1')])).toBe('multiple');
+    expect(flavour([prompt(), textarea('t1')])).toBe('text');
+  });
+
+  it('exposes option formats and question contribution modes', () => {
+    expect(canHaveFormat('RADIOBUTTON', 'MARKDOWN_MINIMAL')).toBe(true);
+    expect(canHaveFormat('RADIOBUTTON', 'MARKDOWN')).toBe(false);
+    expect(canHaveMode('QUESTION', 'REMARK')).toBe(true);
+    expect(canHaveMode('QUESTION', 'PROPOSAL')).toBe(false);
+    expect(canHaveMode('RADIOBUTTON', 'REMARK')).toBe(false);
+    expect(canHaveMode('RADIOBUTTON', 'NONE')).toBe(true);
+  });
+
+  it('accepts an envelope whose document contains a question', () => {
+    expect(
+      isValidDocTreeEnvelope({
+        DocTreeVersion: DOC_TREE_VERSION,
+        metadata: { title: { de: 'Doc' } },
+        document: { id: 'root', type: 'DOCUMENT', children: [question([prompt(), radio('o1')])] },
+      })
+    ).toBe(true);
   });
 });

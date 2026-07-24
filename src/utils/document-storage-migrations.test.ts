@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StoredEntrySource } from './document-storage';
 import { migrateEntry, SCHEMA_VERSION } from './document-storage-migrations';
+import { createQuestionNode } from './tree-mutations';
 
 const SOURCE: StoredEntrySource = {
   kind: 'pasted-text',
@@ -192,6 +193,21 @@ describe('document-storage-migrations', () => {
       delete v0.schemaVersion;
       const out = migrateEntry(v0);
       expect('status' in out && out.status).toBe('incompatible');
+    });
+  });
+
+  describe('questionnaire questions (additive, no migration)', () => {
+    it('keeps a v2 entry whose tree contains a question', () => {
+      const tree = {
+        id: 'root',
+        type: 'DOCUMENT',
+        children: [createQuestionNode('single', 'de')],
+      };
+      const out = migrateEntry({ ...makeV1Entry(tree), schemaVersion: 2 });
+      expect('status' in out).toBe(false);
+      const entry = out as Extract<typeof out, { tree: unknown }>;
+      expect(entry.schemaVersion).toBe(2);
+      expect((entry.tree as { children: { type: string }[] }).children[0].type).toBe('QUESTION');
     });
   });
 });

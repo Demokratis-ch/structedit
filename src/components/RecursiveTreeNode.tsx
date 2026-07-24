@@ -1,9 +1,24 @@
-import { Ban, GripVertical, MessageSquare, PenLine, Plus } from 'lucide-react';
+import {
+  Ban,
+  Circle,
+  GripVertical,
+  MessageSquare,
+  PenLine,
+  Plus,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import type React from 'react';
 import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
-import type { ContributionMode, DocumentNode, NodeFormat } from '../types/document';
+import {
+  type ContributionMode,
+  type DocumentNode,
+  getQuestionFlavour,
+  type NodeFormat,
+  type QuestionFlavour,
+} from '../types/document';
 import { ContentBlock } from './ContentBlock';
 import { NumberBadge } from './NumberBadge';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
@@ -11,6 +26,8 @@ import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 interface RecursiveTreeNodeProps {
   node: DocumentNode;
   depth: number;
+  /** The parent node's type, when known — used to suppress generic add buttons inside a question. */
+  parentType?: DocumentNode['type'];
 }
 
 const AddNodeButton: React.FC<{
@@ -40,6 +57,13 @@ const AddNodeButton: React.FC<{
   </button>
 );
 
+/** How each question flavour is named on the question card. */
+const QUESTION_FLAVOUR_LABELS: Record<QuestionFlavour, string> = {
+  single: 'Single choice',
+  multiple: 'Multiple choice',
+  text: 'Free text',
+};
+
 // Per-mode presentation for the always-visible contribution-mode pill. Icons mirror the Demokratis
 // editor (ban / comment / pen-line); an absent mode renders no pill.
 const MODE_INDICATOR: Record<ContributionMode, { Icon: typeof Ban; cls: string; label: string }> = {
@@ -66,7 +90,7 @@ const MODE_INDICATOR: Record<ContributionMode, { Icon: typeof Ban; cls: string; 
  * state actually changes will re-render.
  */
 export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
-  ({ node, depth }) => {
+  ({ node, depth, parentType }) => {
     const store = useTreeUIStore();
     const wrapperRef = useRef<HTMLDivElement>(null);
     // Selection is mirrored to the wrapper's `data-selected` imperatively
@@ -115,7 +139,11 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       onNumberSubmit,
       onAddNodeBefore,
       onAddNodeAfter,
+      onAddOption,
+      onRemoveOption,
     } = useTreeCallbacks();
+
+    const isInsideQuestion = parentType === 'QUESTION';
 
     // Determine if node has children
     const hasChildren = 'children' in node && node.children.length > 0;
@@ -228,6 +256,90 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         );
       }
 
+      // Question wrapper: a labelled card naming its flavour, plus (for choice questions) an
+      // add-option button. Its prompt + options render as nested children. The flavour itself is
+      // changed from the selection toolbar, not here — see MakeQuestionPopover.
+      if (node.type === 'QUESTION') {
+        const flavour = getQuestionFlavour(node);
+        const isChoice = flavour !== 'text';
+        return (
+          <div className="flex items-center gap-2 flex-1" data-testid="question-node">
+            <span className="select-none rounded border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-purple-700">
+              Question
+            </span>
+            <span data-testid="question-flavour" className="select-none text-xs text-gray-400">
+              {QUESTION_FLAVOUR_LABELS[flavour]}
+            </span>
+            {isChoice && (
+              <button
+                type="button"
+                data-testid="question-add-option"
+                title="Add option"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddOption(node.id);
+                }}
+                className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+              >
+                <Plus size={14} />
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      // A choice option: a radio/checkbox glyph, the inline-editable label, and a remove button.
+      if (node.type === 'RADIOBUTTON' || node.type === 'CHECKBOX') {
+        const Glyph = node.type === 'RADIOBUTTON' ? Circle : Square;
+        return (
+          // Centred, not baseline-aligned: an empty label has no text baseline, so the browser falls
+          // back to the bottom edge of the (min-h) box and the glyph visibly drops until you type.
+          <div className="flex items-center gap-2 flex-1">
+            <Glyph size={14} className="shrink-0 text-gray-400" />
+            <ContentBlock
+              blockRefs={blockRefs}
+              blockId={node.id}
+              raw={content}
+              format={(node as { format: NodeFormat }).format}
+              disabled={!isEditing}
+              tagName="div"
+              onChange={(val) => onUpdateContent(node.id, val)}
+              onKeyDown={(e) => onKeyDown(e, node.id)}
+              onFocus={() => onFocus(node.id)}
+              className={`
+                flex-1 outline-none break-words relative z-10 min-h-[24px] text-base text-gray-600
+                ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}
+              `}
+            />
+            <button
+              type="button"
+              data-testid="option-remove"
+              title="Remove option"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveOption(node.id);
+              }}
+              className="p-0.5 text-gray-300 hover:text-red-500"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        );
+      }
+
+      // Free-text answer field: a disabled placeholder.
+      if (node.type === 'TEXTAREA') {
+        return (
+          <div className="flex-1" data-testid="textarea-placeholder">
+            <div className="select-none rounded border border-dashed border-gray-300 px-2 py-3 text-xs text-gray-400">
+              Free-text answer
+            </div>
+          </div>
+        );
+      }
+
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
@@ -273,7 +385,12 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         <div className="space-y-1">
           {hasChildren &&
             node.children.map((child) => (
-              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                parentType={node.type}
+              />
             ))}
         </div>
       );
@@ -340,9 +457,13 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
           </div>
         </div>
 
-        {/* Add node buttons */}
-        {!isEditing && <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />}
-        {!isEditing && <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />}
+        {/* Add node buttons — suppressed inside a question (options are managed by its own controls) */}
+        {!isEditing && !isInsideQuestion && (
+          <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />
+        )}
+        {!isEditing && !isInsideQuestion && (
+          <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />
+        )}
 
         {/* Contribution mode indicator (always visible when a mode is set) */}
         {node.contributionMode &&
@@ -380,12 +501,18 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             }}
           >
             {node.children.map((child) => (
-              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                parentType={node.type}
+              />
             ))}
           </div>
         )}
       </div>
     );
   },
-  (prev, next) => prev.node === next.node && prev.depth === next.depth
+  (prev, next) =>
+    prev.node === next.node && prev.depth === next.depth && prev.parentType === next.parentType
 );

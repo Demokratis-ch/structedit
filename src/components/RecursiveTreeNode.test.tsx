@@ -10,6 +10,7 @@ import type {
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
+import { createQuestionNode } from '../utils/tree-mutations';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import {
   TreeCallbacksContext,
@@ -44,6 +45,8 @@ const defaultCallbacks: TreeCallbacksContextValue = {
   onNumberSubmit: vi.fn(),
   onAddNodeBefore: vi.fn(),
   onAddNodeAfter: vi.fn(),
+  onAddOption: vi.fn(),
+  onRemoveOption: vi.fn(),
 };
 
 function renderWithContext(
@@ -670,5 +673,61 @@ describe('contribution mode indicator', () => {
     // The list itself carries the pill (children carry none).
     expect(getAllByTestId('contribution-mode-indicator')).toHaveLength(1);
     expect(container.querySelector('[data-contribution-mode="NONE"]')).toBeTruthy();
+  });
+});
+
+describe('questionnaire question rendering', () => {
+  test('a choice question renders the card with its flavour label and add-option', () => {
+    const q = createQuestionNode('single', 'de');
+    const { getByTestId } = renderWithContext(<RecursiveTreeNode node={q} depth={1} />);
+    expect(getByTestId('question-node')).toBeTruthy();
+    expect(getByTestId('question-flavour').textContent).toBe('Single choice');
+    expect(getByTestId('question-add-option')).toBeTruthy();
+  });
+
+  test('a multiple-choice question is labelled as such', () => {
+    const q = createQuestionNode('multiple', 'de');
+    const { getByTestId } = renderWithContext(<RecursiveTreeNode node={q} depth={1} />);
+    expect(getByTestId('question-flavour').textContent).toBe('Multiple choice');
+  });
+
+  test('a text question shows no add-option and renders a textarea placeholder', () => {
+    const q = createQuestionNode('text', 'de');
+    const { getByTestId, queryByTestId } = renderWithContext(
+      <RecursiveTreeNode node={q} depth={1} />
+    );
+    expect(getByTestId('question-node')).toBeTruthy();
+    expect(getByTestId('question-flavour').textContent).toBe('Free text');
+    expect(queryByTestId('question-add-option')).toBeNull();
+    expect(getByTestId('textarea-placeholder')).toBeTruthy();
+  });
+
+  test('add-option calls onAddOption with the question id', () => {
+    const q = createQuestionNode('single', 'de');
+    const onAddOption = vi.fn();
+    const { getByTestId } = renderWithContext(<RecursiveTreeNode node={q} depth={1} />, {
+      callbacks: { onAddOption },
+    });
+    fireEvent.click(getByTestId('question-add-option'));
+    expect(onAddOption).toHaveBeenCalledWith(q.id);
+  });
+
+  test('an option renders a remove control that calls onRemoveOption', () => {
+    const option = createQuestionNode('single', 'de').children[1]; // a RADIOBUTTON
+    const onRemoveOption = vi.fn();
+    const { getByTestId } = renderWithContext(
+      <RecursiveTreeNode node={option} depth={2} parentType="QUESTION" />,
+      { callbacks: { onRemoveOption } }
+    );
+    fireEvent.click(getByTestId('option-remove'));
+    expect(onRemoveOption).toHaveBeenCalledWith(option.id);
+  });
+
+  test('suppresses the generic add buttons for nodes inside a question', () => {
+    const option = createQuestionNode('single', 'de').children[1];
+    const { container } = renderWithContext(
+      <RecursiveTreeNode node={option} depth={2} parentType="QUESTION" />
+    );
+    expect(container.querySelector('.tree-node-add-btn')).toBeNull();
   });
 });

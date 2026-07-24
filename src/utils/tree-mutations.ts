@@ -1,4 +1,5 @@
 import type {
+  CheckboxDocumentNode,
   ContentBearingNodeType,
   ContentDocumentNode,
   DocumentNode,
@@ -11,6 +12,11 @@ import type {
   ListItemDocumentNode,
   NodeFormat,
   ParentType,
+  QuestionChildNode,
+  QuestionDocumentNode,
+  QuestionFlavour,
+  RadiobuttonDocumentNode,
+  TextareaDocumentNode,
 } from '../types/document';
 import {
   type ContributionMode,
@@ -18,6 +24,7 @@ import {
   canHaveFormat,
   carryModeOrClamp,
   DEFAULT_FORMAT,
+  getQuestionFlavour,
 } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { generateId } from './document-utils';
@@ -368,6 +375,21 @@ export function liftNodeOutOfListItem(
 
 /** Create a new empty sibling node appropriate for the given parent. */
 export function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
+  // Inside a question, a new sibling is another option matching the question's existing option type.
+  // (Reached via the per-question "add option" affordance; text questions don't expose it.)
+  if (parent.type === 'QUESTION') {
+    const optionType = parent.children.some((c) => c.type === 'CHECKBOX')
+      ? 'CHECKBOX'
+      : 'RADIOBUTTON';
+    return {
+      id: generateId(),
+      number: null,
+      type: optionType,
+      format: 'TEXT',
+      contents: { [language]: '' },
+    } as RadiobuttonDocumentNode | CheckboxDocumentNode;
+  }
+
   if (parent.type === 'LIST') {
     return {
       id: generateId(),
@@ -394,6 +416,116 @@ export function createNewSiblingNode(parent: DocumentNode, language: Language): 
     contents: { [language]: '' },
     children: [],
   } as ContentDocumentNode;
+}
+
+/**
+ * Build the answer section of a question: two `RADIOBUTTON` options (single choice), two `CHECKBOX`
+ * options (multiple choice), or a single `TEXTAREA` (free text). All ids are freshly generated.
+ */
+function createAnswerChildren(flavour: QuestionFlavour, language: Language): QuestionChildNode[] {
+  const option = (type: 'RADIOBUTTON' | 'CHECKBOX') =>
+    ({
+      id: generateId(),
+      number: null,
+      type,
+      format: 'TEXT' as NodeFormat,
+      contents: { [language]: '' },
+    }) as RadiobuttonDocumentNode | CheckboxDocumentNode;
+  if (flavour === 'text') {
+    return [{ id: generateId(), number: null, type: 'TEXTAREA' } as TextareaDocumentNode];
+  }
+  const type = flavour === 'single' ? 'RADIOBUTTON' : 'CHECKBOX';
+  return [option(type), option(type)];
+}
+
+/**
+ * Build a fresh questionnaire question subtree: a `QUESTION` wrapping an empty `CONTENT` prompt plus
+ * the answer section for the flavour. All ids are freshly generated.
+ */
+export function createQuestionNode(
+  flavour: QuestionFlavour,
+  language: Language
+): QuestionDocumentNode {
+  const prompt: ContentDocumentNode = {
+    id: generateId(),
+    number: null,
+    type: 'CONTENT',
+    format: 'TEXT',
+    contents: { [language]: '' },
+    children: [],
+  };
+  return {
+    id: generateId(),
+    number: null,
+    type: 'QUESTION',
+    children: [prompt, ...createAnswerChildren(flavour, language)],
+  };
+}
+
+/**
+ * Turn an existing `CONTENT` node into a question by wrapping it in a `QUESTION` in place: the node
+ * itself (id, contents, format, footnotes and all) becomes the question's prompt, and the answer
+ * section for the flavour is appended after it. This is how questions are authored — write the
+ * prompt as an ordinary content node, then promote it. No-op (same root reference) when the path
+ * doesn't resolve, doesn't point at a `CONTENT` node, or points at the prompt of an existing
+ * question (a question holds exactly one prompt, and never another question).
+ */
+export function wrapContentInQuestion(
+  root: DocumentRootNode,
+  path: NodePath,
+  flavour: QuestionFlavour,
+  language: Language
+): DocumentRootNode {
+  const node = getNodeAtPath(root, path);
+  if (!node || node.type !== 'CONTENT') return root;
+  const parent = path.length > 1 ? getNodeAtPath(root, path.slice(0, -1)) : root;
+  if (!parent || !canBeChildOf('QUESTION', parent.type as ParentType)) return root;
+
+  const question: QuestionDocumentNode = {
+    id: generateId(),
+    number: null,
+    type: 'QUESTION',
+    children: [node, ...createAnswerChildren(flavour, language)],
+  };
+  const index = path[path.length - 1];
+  return updateChildrenAtPath(root, path.slice(0, -1), (children) =>
+    children.map((c, i) => (i === index ? question : c))
+  );
+}
+
+/**
+ * Change a question's flavour, keeping its prompt untouched. Between the two choice flavours every
+ * option is converted in place (radio ↔ checkbox), preserving each option's
+ * id/number/contents/format/contributionMode — so labels survive and the option count doesn't change.
+ * Across the choice/text boundary the answer section can't be carried over, so it is rebuilt: going
+ * to `text` drops the options for a fresh `TEXTAREA`, and leaving `text` drops the field for two
+ * fresh options. No-op (same root reference) when the node isn't a question or is already in the
+ * requested flavour.
+ */
+export function setQuestionFlavour(
+  root: DocumentRootNode,
+  questionPath: NodePath,
+  flavour: QuestionFlavour,
+  language: Language
+): DocumentRootNode {
+  const node = getNodeAtPath(root, questionPath);
+  if (!node || node.type !== 'QUESTION') return root;
+  const current = getQuestionFlavour(node);
+  if (current === flavour) return root;
+
+  // Choice → choice: retype the options so their labels survive.
+  if (current !== 'text' && flavour !== 'text') {
+    const fromType = flavour === 'single' ? 'CHECKBOX' : 'RADIOBUTTON';
+    const toType = flavour === 'single' ? 'RADIOBUTTON' : 'CHECKBOX';
+    return updateChildrenAtPath(root, questionPath, (children) =>
+      children.map((c) => (c.type === fromType ? { ...c, type: toType } : c))
+    );
+  }
+
+  return updateChildrenAtPath(root, questionPath, (children) => [
+    ...children.filter((c) => c.type === 'CONTENT'),
+    ...createAnswerChildren(flavour, language),
+  ]);
 }
 
 /**
@@ -740,6 +872,12 @@ export const changeNodeTypeInDoc = (
 
   // Can only convert nodes with contents
   if (!hasContents(node)) return null;
+
+  // A question owns its children (the prompt and options); the generic type buttons never apply to
+  // them — converting an option to CONTENT, say, would give the question two prompts. This is
+  // narrower than the parent-validity guard below it: CONTENT *is* an allowed QUESTION child, so
+  // only this check stops an option becoming a second prompt.
+  if (parent.type === 'QUESTION') return null;
 
   // Handle conversion to footnote
   if (targetType === 'FOOTNOTE') {

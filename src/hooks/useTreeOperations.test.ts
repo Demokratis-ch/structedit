@@ -9,6 +9,7 @@ import type {
   ListDocumentNode,
   ListItemDocumentNode,
   NumberedDocumentNode,
+  QuestionDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -6098,6 +6099,142 @@ describe('useTreeOperations', () => {
       });
 
       expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('wrapInQuestion', () => {
+    test('wraps a content node in a valid question, keeping it as the prompt', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('p1', 'single');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.type).toBe('QUESTION');
+      expect(q.id).toBe(id);
+      expect(q.children[0].id).toBe('p1');
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('builds a free-text question', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.wrapInQuestion('p1', 'text');
+      });
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('returns null and does not commit for a non-content node', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('h1', 'single');
+      });
+      expect(id).toBeNull();
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('returns null and does not commit for an unknown id', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('ghost', 'single');
+      });
+      expect(id).toBeNull();
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changeQuestionFlavour', () => {
+    test('flips a single-choice question to multiple in one commit', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'multiple');
+      });
+
+      const flipped = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const h1 = flipped.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.filter((c) => c.type === 'CHECKBOX')).toHaveLength(2);
+      expect(isValidDocument(flipped)).toBe(true);
+    });
+
+    test('converts a choice question to free text, keeping the prompt', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'text');
+      });
+
+      const converted = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const h1 = converted.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+      expect(q.children[0].id).toBe('p1');
+      expect(isValidDocument(converted)).toBe(true);
+    });
+
+    test('does not commit when the question is already in that flavour', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'single');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
     });
   });
 });

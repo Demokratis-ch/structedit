@@ -8,9 +8,11 @@ import type { TreeEditorHandle } from '../hooks/useTreeEditor';
 import {
   type ContributionMode,
   type DocumentNode,
+  getQuestionFlavour,
   type Language,
   type NodeFormat,
   PROPOSABLE_TYPES,
+  type QuestionFlavour,
 } from '../types/document';
 import { MOD } from '../utils/platform';
 import {
@@ -57,6 +59,9 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     changeNodeFormat,
     changeNodeContributionMode,
     changeSubtreeContributionMode,
+    changeQuestionFlavour,
+    wrapInQuestion,
+    removeNodes,
     moveNodeById,
     deleteSelected,
     moveSelectedToTop,
@@ -176,6 +181,37 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     }
     return false;
   }, [selectedIds, typeById]);
+
+  // What the toolbar's question control acts on for the current selection: the question the
+  // selection already belongs to (its own node or its parent — selecting the prompt is the common
+  // case, since promoting keeps the prompt selected), or otherwise a plain CONTENT node that can be
+  // promoted into one. Anything else (a heading, a multi-selection) gets no control at all.
+  const questionTarget = useMemo<
+    { kind: 'wrap'; id: string } | { kind: 'question'; id: string; flavour: QuestionFlavour } | null
+  >(() => {
+    if (selectedCount !== 1) return null;
+    const selectedId = Array.from(selectedIds)[0];
+    const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
+    if (!flatNode) return null;
+
+    const { node, parentId } = flatNode;
+    if (node.type === 'QUESTION') {
+      return { kind: 'question', id: node.id, flavour: getQuestionFlavour(node) };
+    }
+    if (parentId && typeById.get(parentId) === 'QUESTION') {
+      const parent = flattenedNodes.find((fn) => fn.node.id === parentId)?.node;
+      if (parent?.type === 'QUESTION') {
+        return { kind: 'question', id: parent.id, flavour: getQuestionFlavour(parent) };
+      }
+    }
+    return node.type === 'CONTENT' ? { kind: 'wrap', id: node.id } : null;
+  }, [selectedCount, selectedIds, flattenedNodes, typeById]);
+
+  const handleSelectQuestionFlavour = (flavour: QuestionFlavour) => {
+    if (!questionTarget) return;
+    if (questionTarget.kind === 'wrap') wrapInQuestion(questionTarget.id, flavour);
+    else changeQuestionFlavour(questionTarget.id, flavour);
+  };
 
   // Bulk-apply controls: scope (this node / + descendants) and an optional node-type filter.
   const [contributionScope, setContributionScope] = useState<ContributionScope>('node');
@@ -302,6 +338,16 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
   cbRef.current.handleNumberSubmit = handleNumberSubmit;
   cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
   cbRef.current.handleAddNodeAfter = handleAddNodeAfter;
+  cbRef.current.onAddOption = (questionId: string) => {
+    const q = flattenedNodes.find((fn) => fn.node.id === questionId)?.node;
+    const options =
+      q && 'children' in q
+        ? q.children.filter((c) => c.type === 'RADIOBUTTON' || c.type === 'CHECKBOX')
+        : [];
+    const last = options[options.length - 1];
+    if (last) addNodeAfter(last.id);
+  };
+  cbRef.current.onRemoveOption = (optionId: string) => removeNodes([optionId]);
 
   const callbacksCtx = useMemo(
     () => ({
@@ -323,6 +369,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       onNumberSubmit: (id: string) => cbRef.current.handleNumberSubmit(id),
       onAddNodeBefore: (id: string) => cbRef.current.handleAddNodeBefore(id),
       onAddNodeAfter: (id: string) => cbRef.current.handleAddNodeAfter(id),
+      onAddOption: (id: string) => cbRef.current.onAddOption(id),
+      onRemoveOption: (id: string) => cbRef.current.onRemoveOption(id),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [language]
@@ -390,6 +438,9 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         onMoveSelectedToBottom={moveSelectedToBottom}
         canMerge={canMergeSelected}
         onMerge={mergeSelected}
+        canWrapInQuestion={questionTarget?.kind === 'wrap'}
+        questionFlavour={questionTarget?.kind === 'question' ? questionTarget.flavour : undefined}
+        onSelectQuestionFlavour={handleSelectQuestionFlavour}
         inlineMarksTarget={inlineMarks.target}
         inlineMarksFormat={inlineMarks.format}
         markActiveState={inlineMarks.active}

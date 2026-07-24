@@ -1680,3 +1680,129 @@ describe('bulk contribution mode via the toolbar', () => {
     expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
   });
 });
+
+describe('TreeEditor — making a question from a content node', () => {
+  const doc = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'Section' },
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'Are you in favour?' },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  const renderWith = (d: DocumentRootNode) =>
+    render(
+      <EditorInterface
+        initialDocument={d}
+        documentUrl={null}
+        documentName="t.docx"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+  const select = (text: string) =>
+    fireEvent.click(within(screen.getByTestId('tree-editor-pane')).getByText(text));
+
+  test('the trigger appears for a content node but not for a heading', () => {
+    renderWith(doc());
+    select('Section');
+    expect(screen.queryByTestId('make-question-toggle')).toBeNull();
+    select('Are you in favour?');
+    expect(screen.getByTestId('make-question-toggle')).toBeTruthy();
+  });
+
+  test('picking a flavour wraps the node, keeping its text as the prompt', () => {
+    renderWith(doc());
+    select('Are you in favour?');
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+
+    const pane = within(screen.getByTestId('tree-editor-pane'));
+    expect(pane.getByTestId('question-node')).toBeTruthy();
+    // The prompt survives as the question's content child.
+    expect(pane.getByText('Are you in favour?')).toBeTruthy();
+    // Single choice → labelled as such, with two options.
+    expect(pane.getByTestId('question-flavour').textContent).toBe('Single choice');
+    expect(pane.getAllByTestId('option-remove')).toHaveLength(2);
+  });
+
+  test('a free-text question gets the answer field instead of options', () => {
+    renderWith(doc());
+    select('Are you in favour?');
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-text'));
+
+    const pane = within(screen.getByTestId('tree-editor-pane'));
+    expect(pane.getByTestId('textarea-placeholder')).toBeTruthy();
+    expect(pane.queryByTestId('option-remove')).toBeNull();
+  });
+
+  test('the promoted prompt stays selected and the trigger switches to its flavour', () => {
+    renderWith(doc());
+    select('Are you in favour?');
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+    // The prompt keeps its id and stays selected, so the control stays available — now naming the
+    // question's flavour rather than offering to make one.
+    expect(screen.getByTestId('make-question-toggle')).toHaveAttribute(
+      'aria-label',
+      'Question type: Single choice'
+    );
+  });
+
+  test('the flavour can be switched from the prompt, preserving option labels', () => {
+    renderWith(doc());
+    select('Are you in favour?');
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+
+    const pane = () => within(screen.getByTestId('tree-editor-pane'));
+    // Label the first option, then switch single → multiple from the still-selected prompt.
+    const option = pane().getAllByTestId('option-remove')[0].previousElementSibling as HTMLElement;
+    fireEvent.input(option, { target: { textContent: 'Yes' } });
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-multiple'));
+
+    expect(pane().getByTestId('question-flavour').textContent).toBe('Multiple choice');
+    expect(pane().getByText('Yes')).toBeTruthy();
+  });
+
+  test('switching to free text from a selected question replaces the options', () => {
+    renderWith(doc());
+    select('Are you in favour?');
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-single'));
+
+    // Select the QUESTION card itself this time, not the prompt.
+    fireEvent.click(within(screen.getByTestId('tree-editor-pane')).getByText('Question'));
+    fireEvent.click(screen.getByTestId('make-question-toggle'));
+    fireEvent.click(screen.getByTestId('make-question-text'));
+
+    const pane = within(screen.getByTestId('tree-editor-pane'));
+    expect(pane.getByTestId('textarea-placeholder')).toBeTruthy();
+    expect(pane.queryByTestId('option-remove')).toBeNull();
+  });
+
+  test('the trigger is absent for a heading inside no question', () => {
+    renderWith(doc());
+    select('Section');
+    expect(screen.queryByTestId('make-question-toggle')).toBeNull();
+  });
+});

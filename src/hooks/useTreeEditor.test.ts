@@ -612,4 +612,44 @@ describe('useTreeEditor', () => {
       expect(result.current.document.contributionMode).toBeUndefined();
     });
   });
+
+  describe('questions', () => {
+    test('exposes wrapInQuestion + changeQuestionFlavour with undo/redo', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+      expect(typeof result.current.wrapInQuestion).toBe('function');
+      expect(typeof result.current.changeQuestionFlavour).toBe('function');
+
+      // p1 is the first child of h1; wrapping replaces it with a QUESTION in place.
+      const wrapped = () =>
+        (
+          result.current.document.children[0] as {
+            children: { id: string; type: string; children?: { id: string; type: string }[] }[];
+          }
+        ).children[0];
+
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      expect(wrapped().type).toBe('QUESTION');
+      expect(wrapped().children?.[0].id).toBe('p1');
+
+      act(() => {
+        result.current.changeQuestionFlavour(qid!, 'multiple');
+      });
+      expect(wrapped().children?.some((c) => c.type === 'CHECKBOX')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(wrapped().children?.some((c) => c.type === 'RADIOBUTTON')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(wrapped().id).toBe('p1');
+      expect(wrapped().type).toBe('CONTENT');
+    });
+  });
 });

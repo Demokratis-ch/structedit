@@ -67,7 +67,13 @@ export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_IN
 export type ContributionMode = 'NONE' | 'REMARK' | 'PROPOSAL';
 
 /** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
-export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
+export type ContentBearingNodeType =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'FOOTNOTE'
+  | 'IMAGE'
+  | 'RADIOBUTTON'
+  | 'CHECKBOX';
 
 /**
  * The tree root. There is exactly one per document, and — unlike every other node type — it
@@ -143,6 +149,61 @@ export interface ImageDocumentNode {
   format: NodeFormat;
 }
 
+/**
+ * The three shapes a question can take. Not stored on the node — see {@link getQuestionFlavour}.
+ */
+export type QuestionFlavour = 'text' | 'single' | 'multiple';
+
+/**
+ * A questionnaire question — a wrapper (ported from Demokratis). It carries no text of its own;
+ * its children are exactly one `CONTENT` (the question prompt) plus either option children
+ * (all `RADIOBUTTON` → single choice, or all `CHECKBOX` → multiple choice) or a single `TEXTAREA`
+ * (a free-text question). The single-vs-multiple distinction is encoded by the option node type,
+ * not a flag. See {@link QuestionChildNode} and the `QUESTION` branch of the validator.
+ */
+export interface QuestionDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'QUESTION';
+  contributionMode?: ContributionMode;
+  children: QuestionChildNode[];
+}
+
+/** A single single-choice option within a `QUESTION`. Its label lives in `contents`. A leaf. */
+export interface RadiobuttonDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'RADIOBUTTON';
+  contributionMode?: ContributionMode;
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
+/** A single multiple-choice option within a `QUESTION`. Its label lives in `contents`. A leaf. */
+export interface CheckboxDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'CHECKBOX';
+  contributionMode?: ContributionMode;
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
+/** A free-text answer field within a `QUESTION`. A content-less leaf (no `contents`/`format`). */
+export interface TextareaDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'TEXTAREA';
+  contributionMode?: ContributionMode;
+}
+
+/** The children a `QUESTION` may hold: its prompt (`CONTENT`) plus its options or free-text field. */
+export type QuestionChildNode =
+  | ContentDocumentNode
+  | RadiobuttonDocumentNode
+  | CheckboxDocumentNode
+  | TextareaDocumentNode;
+
 /** Any node in a DocTree, including the tree root. */
 export type DocumentNode =
   | DocumentRootNode
@@ -151,7 +212,11 @@ export type DocumentNode =
   | HeadingDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | QuestionDocumentNode
+  | RadiobuttonDocumentNode
+  | CheckboxDocumentNode
+  | TextareaDocumentNode;
 
 /**
  * The block-level nodes allowed directly under `DOCUMENT`, `HEADING`, and `LIST_ITEM` (the
@@ -163,7 +228,8 @@ export type BlockDocumentNode =
   | ListDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | QuestionDocumentNode;
 
 /**
  * Every node that carries a `children` array — i.e. the nodes a tree path can descend through.
@@ -174,7 +240,8 @@ export type ParentDocumentNode =
   | ListDocumentNode
   | ListItemDocumentNode
   | HeadingDocumentNode
-  | ContentDocumentNode;
+  | ContentDocumentNode
+  | QuestionDocumentNode;
 
 /**
  * Any node that carries a `number` — i.e. every node type except the tree root. The root is the
@@ -183,7 +250,14 @@ export type ParentDocumentNode =
 export type NumberedDocumentNode = Exclude<DocumentNode, DocumentRootNode>;
 
 /** A node type that may legally contain children, plus `null` for the document's root level. */
-export type ParentType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM' | 'HEADING' | 'CONTENT' | null;
+export type ParentType =
+  | 'DOCUMENT'
+  | 'LIST'
+  | 'LIST_ITEM'
+  | 'HEADING'
+  | 'CONTENT'
+  | 'QUESTION'
+  | null;
 
 /**
  * Versioned wrapper around an exported document tree. Lets the export format evolve (and later
@@ -213,6 +287,9 @@ export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
   CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   IMAGE: ['TEXT', 'NEWLINES'],
+  // Question option labels are single-line, like headings.
+  RADIOBUTTON: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
+  CHECKBOX: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
 };
 
 /** Default format assigned to each content-bearing node type at creation/import. */
@@ -221,6 +298,8 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
   CONTENT: 'TEXT',
   FOOTNOTE: 'TEXT',
   IMAGE: 'TEXT',
+  RADIOBUTTON: 'TEXT',
+  CHECKBOX: 'TEXT',
 };
 
 /**
@@ -244,12 +323,25 @@ export const ALLOWED_MODES = {
   HEADING: ['NONE', 'REMARK', 'PROPOSAL'],
   CONTENT: ['NONE', 'REMARK', 'PROPOSAL'],
   FOOTNOTE: ['NONE', 'REMARK', 'PROPOSAL'],
+  // A whole question can be locked or annotated; its options/free-text field can only be locked
+  // (a remark/proposal belongs on the question or its prompt CONTENT, not an individual option).
+  QUESTION: ['NONE', 'REMARK'],
+  RADIOBUTTON: ['NONE'],
+  CHECKBOX: ['NONE'],
+  TEXTAREA: ['NONE'],
 } as const satisfies Record<DocumentNode['type'], ContributionMode[]>;
 
 export const DOC_TREE_VERSION = 1 as const;
 
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
-const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE')[] = ['IMAGE', 'FOOTNOTE'];
+// Content-bearing leaves. RADIOBUTTON/CHECKBOX hold an option label; QUESTION is handled by its own
+// (strict) branch and TEXTAREA by a content-less-leaf branch — neither is listed here.
+const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE' | 'RADIOBUTTON' | 'CHECKBOX')[] = [
+  'IMAGE',
+  'FOOTNOTE',
+  'RADIOBUTTON',
+  'CHECKBOX',
+];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
   'NEWLINES',
@@ -264,11 +356,12 @@ const VALID_MODES: ContributionMode[] = ['NONE', 'REMARK', 'PROPOSAL'];
  * element types so the drift guard below can compare them against the typed `children` unions.
  */
 const ALLOWED_CHILDREN = {
-  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'QUESTION'],
+  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'QUESTION'],
+  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'QUESTION'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
+  QUESTION: ['CONTENT', 'RADIOBUTTON', 'CHECKBOX', 'TEXTAREA'],
 } as const satisfies Record<NonNullable<ParentType>, DocumentNode['type'][]>;
 
 /**
@@ -288,7 +381,8 @@ export type _AllowedChildrenMatchesTypes = AssertTrue<
   AssertTrue<SameSet<AllowedChildType<'HEADING'>, TypedChildType<HeadingDocumentNode>>> &
   AssertTrue<SameSet<AllowedChildType<'LIST_ITEM'>, TypedChildType<ListItemDocumentNode>>> &
   AssertTrue<SameSet<AllowedChildType<'LIST'>, TypedChildType<ListDocumentNode>>> &
-  AssertTrue<SameSet<AllowedChildType<'CONTENT'>, TypedChildType<ContentDocumentNode>>>;
+  AssertTrue<SameSet<AllowedChildType<'CONTENT'>, TypedChildType<ContentDocumentNode>>> &
+  AssertTrue<SameSet<AllowedChildType<'QUESTION'>, TypedChildType<QuestionDocumentNode>>>;
 
 /**
  * ================================ 3. Functions ================================
@@ -314,6 +408,17 @@ export const carryModeOrClamp = (
   nextType: DocumentNode['type']
 ): ContributionMode | undefined =>
   previousMode !== undefined && canHaveMode(nextType, previousMode) ? previousMode : undefined;
+
+/**
+ * The flavour of a question, derived from its answer children: `single` (all `RADIOBUTTON`),
+ * `multiple` (all `CHECKBOX`), or `text` (a lone `TEXTAREA`). The distinction lives in the option
+ * node type, not a flag — see {@link QuestionDocumentNode}.
+ */
+export const getQuestionFlavour = (node: QuestionDocumentNode): QuestionFlavour => {
+  if (node.children.some((c) => c.type === 'CHECKBOX')) return 'multiple';
+  if (node.children.some((c) => c.type === 'RADIOBUTTON')) return 'single';
+  return 'text';
+};
 
 /** Check if a node type can be a valid child of a parent type. */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
@@ -410,6 +515,30 @@ const isValidNodeInternal = (
     if (!Array.isArray(node.children)) return false;
     if (!isValidFormatForType('CONTENT')) return false;
     return node.children.every((child) => isValidNodeInternal(child, 'CONTENT', seenIds));
+  }
+
+  // Free-text answer field: a content-less leaf (no contents/format/children).
+  if (type === 'TEXTAREA') {
+    if ('contents' in node || 'format' in node || 'children' in node) return false;
+    return true;
+  }
+
+  // Question wrapper: no own contents/format; exactly one CONTENT prompt plus EITHER one or more
+  // options of a single type (all RADIOBUTTON or all CHECKBOX) and no TEXTAREA, OR exactly one
+  // TEXTAREA and no options. This keeps single-vs-multiple choice unambiguous.
+  if (type === 'QUESTION') {
+    if ('contents' in node || 'format' in node) return false;
+    if (!Array.isArray(node.children)) return false;
+    const kids = node.children as Array<{ type?: unknown }>;
+    const count = (t: string) => kids.filter((c) => c?.type === t).length;
+    const options = count('RADIOBUTTON') + count('CHECKBOX');
+    const isChoice =
+      options > 0 &&
+      count('TEXTAREA') === 0 &&
+      (count('RADIOBUTTON') === 0 || count('CHECKBOX') === 0);
+    const isText = count('TEXTAREA') === 1 && options === 0;
+    if (count('CONTENT') !== 1 || (!isChoice && !isText)) return false;
+    return node.children.every((child) => isValidNodeInternal(child, 'QUESTION', seenIds));
   }
 
   return false;
