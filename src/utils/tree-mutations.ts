@@ -1,4 +1,5 @@
 import type {
+  CheckboxDocumentNode,
   ContentBearingNodeType,
   ContentDocumentNode,
   DocumentNode,
@@ -11,6 +12,10 @@ import type {
   ListItemDocumentNode,
   NodeFormat,
   ParentType,
+  QuestionChildNode,
+  QuestionDocumentNode,
+  RadiobuttonDocumentNode,
+  TextareaDocumentNode,
 } from '../types/document';
 import {
   type ContributionMode,
@@ -368,6 +373,21 @@ export function liftNodeOutOfListItem(
 
 /** Create a new empty sibling node appropriate for the given parent. */
 export function createNewSiblingNode(parent: DocumentNode, language: Language): DocumentNode {
+  // Inside a question, a new sibling is another option matching the question's existing option type.
+  // (Reached via the per-question "add option" affordance; text questions don't expose it.)
+  if (parent.type === 'QUESTION') {
+    const optionType = parent.children.some((c) => c.type === 'CHECKBOX')
+      ? 'CHECKBOX'
+      : 'RADIOBUTTON';
+    return {
+      id: generateId(),
+      number: null,
+      type: optionType,
+      format: 'TEXT',
+      contents: { [language]: '' },
+    } as RadiobuttonDocumentNode | CheckboxDocumentNode;
+  }
+
   if (parent.type === 'LIST') {
     return {
       id: generateId(),
@@ -394,6 +414,66 @@ export function createNewSiblingNode(parent: DocumentNode, language: Language): 
     contents: { [language]: '' },
     children: [],
   } as ContentDocumentNode;
+}
+
+/**
+ * Build a fresh questionnaire question subtree: a `QUESTION` wrapping an empty `CONTENT` prompt plus
+ * the answer section for the flavour — two `RADIOBUTTON` options (single choice), two `CHECKBOX`
+ * options (multiple choice), or a single `TEXTAREA` (free text). All ids are freshly generated.
+ */
+export function createQuestionNode(
+  flavour: 'text' | 'single' | 'multiple',
+  language: Language
+): QuestionDocumentNode {
+  const prompt: ContentDocumentNode = {
+    id: generateId(),
+    number: null,
+    type: 'CONTENT',
+    format: 'TEXT',
+    contents: { [language]: '' },
+    children: [],
+  };
+  const option = (type: 'RADIOBUTTON' | 'CHECKBOX') =>
+    ({
+      id: generateId(),
+      number: null,
+      type,
+      format: 'TEXT' as NodeFormat,
+      contents: { [language]: '' },
+    }) as RadiobuttonDocumentNode | CheckboxDocumentNode;
+  const answer: QuestionChildNode[] =
+    flavour === 'text'
+      ? [{ id: generateId(), number: null, type: 'TEXTAREA' } as TextareaDocumentNode]
+      : flavour === 'single'
+        ? [option('RADIOBUTTON'), option('RADIOBUTTON')]
+        : [option('CHECKBOX'), option('CHECKBOX')];
+  return {
+    id: generateId(),
+    number: null,
+    type: 'QUESTION',
+    children: [prompt, ...answer],
+  };
+}
+
+/**
+ * Switch a choice question between single (`RADIOBUTTON`) and multiple (`CHECKBOX`) by converting
+ * every option child to the target type, preserving each option's
+ * id/number/contents/format/contributionMode. No-op (same root reference) when the node isn't a
+ * question, is a text question, or is already in the requested mode.
+ */
+export function setQuestionChoiceMode(
+  root: DocumentRootNode,
+  questionPath: NodePath,
+  mode: 'single' | 'multiple'
+): DocumentRootNode {
+  const node = getNodeAtPath(root, questionPath);
+  if (!node || node.type !== 'QUESTION') return root;
+  const fromType = mode === 'single' ? 'CHECKBOX' : 'RADIOBUTTON';
+  const toType = mode === 'single' ? 'RADIOBUTTON' : 'CHECKBOX';
+  if (!node.children.some((c) => c.type === fromType)) return root;
+  return updateChildrenAtPath(root, questionPath, (children) =>
+    children.map((c) => (c.type === fromType ? { ...c, type: toType } : c))
+  );
 }
 
 /**
@@ -740,6 +820,15 @@ export const changeNodeTypeInDoc = (
 
   // Can only convert nodes with contents
   if (!hasContents(node)) return null;
+
+  // A question owns its children (the prompt and options); the generic type buttons never apply to
+  // them — converting an option to CONTENT, say, would give the question two prompts.
+  if (parent.type === 'QUESTION') return null;
+
+  // Safety: the conversions below replace the node in place, so never produce a child its current
+  // parent can't hold. Placed after the LIST/LIST_ITEM cases, which deliberately re-parent into a
+  // different container.
+  if (!canBeChildOf(targetType, parent.type as ParentType)) return null;
 
   // Handle conversion to footnote
   if (targetType === 'FOOTNOTE') {

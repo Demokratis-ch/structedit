@@ -1,14 +1,16 @@
 import { describe, expect, test } from 'vitest';
-import type {
-  BlockDocumentNode,
-  ContentDocumentNode,
-  DocumentRootNode,
-  FootnoteDocumentNode,
-  HeadingDocumentNode,
-  ListDocumentNode,
-  ListItemDocumentNode,
-  NodeFormat,
-  NumberedDocumentNode,
+import {
+  type BlockDocumentNode,
+  type ContentDocumentNode,
+  type DocumentRootNode,
+  type FootnoteDocumentNode,
+  type HeadingDocumentNode,
+  isValidNode,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
+  type NodeFormat,
+  type NumberedDocumentNode,
+  type QuestionDocumentNode,
 } from '../types/document';
 import type { NodePath } from '../types/editor';
 import {
@@ -16,6 +18,7 @@ import {
   carryFormatOrDefault,
   changeNodeTypeInDoc,
   createNewSiblingNode,
+  createQuestionNode,
   extractAndConvertListItemInDoc,
   findPreviousSiblingTarget,
   flattenListToContents,
@@ -26,6 +29,7 @@ import {
   mergeNodesInDoc,
   outdentNodeInDoc,
   resolveMergeTargets,
+  setQuestionChoiceMode,
 } from './tree-mutations';
 import { buildIndices, getNodeAtPath } from './tree-utils';
 
@@ -698,5 +702,74 @@ describe('contribution mode threading through mutations', () => {
     const lifted = getNodeAtPath(result!, [1])!;
     expect(lifted.id).toBe('h1');
     expect(lifted.contributionMode).toBe('PROPOSAL');
+  });
+});
+
+describe('createQuestionNode', () => {
+  test('single-choice: prompt + two radiobuttons, fresh ids, valid', () => {
+    const q = createQuestionNode('single', 'de');
+    expect(q.type).toBe('QUESTION');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+    expect(new Set([q.id, ...q.children.map((c) => c.id)]).size).toBe(4);
+    expect(isValidNode(q)).toBe(true);
+  });
+
+  test('multiple-choice: prompt + two checkboxes', () => {
+    const q = createQuestionNode('multiple', 'de');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(isValidNode(q)).toBe(true);
+  });
+
+  test('text: prompt + one textarea', () => {
+    const q = createQuestionNode('text', 'de');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+    expect(isValidNode(q)).toBe(true);
+  });
+});
+
+describe('setQuestionChoiceMode', () => {
+  test('single → multiple converts options, preserving id and contents', () => {
+    const q = createQuestionNode('single', 'de');
+    (q.children[1] as { contents: Record<string, string> }).contents = { de: 'A' };
+    (q.children[2] as { contents: Record<string, string> }).contents = { de: 'B' };
+    const d = doc([q]);
+    const next = setQuestionChoiceMode(d, [0], 'multiple');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.map((c) => c.type)).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(nq.children[1].id).toBe(q.children[1].id);
+    expect((nq.children[1] as { contents: Record<string, string> }).contents).toEqual({ de: 'A' });
+    expect(isValidNode(nq)).toBe(true);
+  });
+
+  test('is a same-ref no-op when already in the requested mode', () => {
+    const d = doc([createQuestionNode('single', 'de')]);
+    expect(setQuestionChoiceMode(d, [0], 'single')).toBe(d);
+  });
+
+  test('is a same-ref no-op for a text question', () => {
+    const d = doc([createQuestionNode('text', 'de')]);
+    expect(setQuestionChoiceMode(d, [0], 'multiple')).toBe(d);
+  });
+});
+
+describe('changeNodeTypeInDoc — question guard', () => {
+  test('refuses to convert a question prompt or option', () => {
+    const q = createQuestionNode('single', 'de');
+    const d = doc([q]);
+    const i = idx(d);
+    expect(changeNodeTypeInDoc(d, i, q.children[0].id, 'HEADING')).toBeNull(); // the prompt
+    expect(changeNodeTypeInDoc(d, i, q.children[1].id, 'CONTENT')).toBeNull(); // an option
+  });
+
+  test('still converts a normal content node under DOCUMENT', () => {
+    const d = doc([content('c1', 'x')]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'c1', 'HEADING')).not.toBeNull();
+  });
+});
+
+describe('createNewSiblingNode — question option', () => {
+  test('returns an option matching the question’s existing option type', () => {
+    expect(createNewSiblingNode(createQuestionNode('single', 'de'), 'de').type).toBe('RADIOBUTTON');
+    expect(createNewSiblingNode(createQuestionNode('multiple', 'de'), 'de').type).toBe('CHECKBOX');
   });
 });

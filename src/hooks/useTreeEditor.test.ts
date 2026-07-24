@@ -612,4 +612,40 @@ describe('useTreeEditor', () => {
       expect(result.current.document.contributionMode).toBeUndefined();
     });
   });
+
+  describe('questions', () => {
+    test('exposes insertQuestion + changeQuestionChoiceMode with undo/redo', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+      expect(typeof result.current.insertQuestion).toBe('function');
+      expect(typeof result.current.changeQuestionChoiceMode).toBe('function');
+
+      const last = () =>
+        result.current.document.children[result.current.document.children.length - 1] as {
+          type: string;
+          children?: { type: string }[];
+        };
+
+      let qid: string | undefined;
+      act(() => {
+        qid = result.current.insertQuestion(null, 'single');
+      });
+      expect(last().type).toBe('QUESTION');
+
+      act(() => {
+        result.current.changeQuestionChoiceMode(qid!, 'multiple');
+      });
+      expect(last().children?.some((c) => c.type === 'CHECKBOX')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(last().children?.some((c) => c.type === 'RADIOBUTTON')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(result.current.document.children.some((c) => c.type === 'QUESTION')).toBe(false);
+    });
+  });
 });

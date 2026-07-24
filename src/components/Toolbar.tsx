@@ -1,5 +1,6 @@
 import { Download, Redo, Undo, X } from 'lucide-react';
 import type { ContributionMode, DocumentNode } from '../types/document';
+import { AddQuestionMenu } from './AddQuestionMenu';
 import { DocumentContributionModeMenu } from './DocumentContributionModeMenu';
 import { Button } from './ui/button';
 
@@ -17,6 +18,8 @@ interface ToolbarProps {
     mode: ContributionMode | undefined,
     typeFilter?: DocumentNode['type']
   ) => void;
+  /** Insert a new questionnaire question of the chosen flavour. */
+  onInsertQuestion: (flavour: 'text' | 'single' | 'multiple') => void;
 }
 
 export function Toolbar({
@@ -29,6 +32,7 @@ export function Toolbar({
   historyLength,
   onDownload,
   onSetDocumentContributionMode,
+  onInsertQuestion,
 }: ToolbarProps) {
   return (
     <div className="h-16 border-b border-gray-200 bg-white px-6 flex items-center justify-between shrink-0 z-10">
@@ -52,6 +56,7 @@ export function Toolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        <AddQuestionMenu onInsert={onInsertQuestion} />
         <DocumentContributionModeMenu onApply={onSetDocumentContributionMode} />
         <Button variant="outline" onClick={onDownload}>
           <Download className="w-4 h-4 mr-2" />

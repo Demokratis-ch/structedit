@@ -4,6 +4,7 @@ import type {
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
+  QuestionDocumentNode,
 } from '../types/document';
 import { renderContent } from '../utils/format-render';
 import { NumberBadgeDisplay } from './NumberBadge';
@@ -53,13 +54,50 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <ListNode node={node} language={language} headingDepth={headingDepth} />;
     case 'LIST_ITEM':
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
+    case 'QUESTION':
+      return <QuestionNode node={node} language={language} />;
     case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
     case 'IMAGE':
       return null;
     default:
+      // RADIOBUTTON / CHECKBOX / TEXTAREA are rendered by their parent QUESTION.
       return null;
   }
+}
+
+/** Read-only render of a questionnaire question: the prompt plus disabled answer controls. */
+function QuestionNode({ node, language }: { node: QuestionDocumentNode; language: Language }) {
+  const prompt = node.children.find((c) => c.type === 'CONTENT');
+  const options = node.children.filter((c) => c.type === 'RADIOBUTTON' || c.type === 'CHECKBOX');
+  const textarea = node.children.find((c) => c.type === 'TEXTAREA');
+  return (
+    <fieldset className="my-3 rounded border border-gray-200 p-3">
+      {prompt && (
+        <legend className="px-1 font-medium">
+          <MarkupSpan source={prompt.contents[language] ?? ''} format={prompt.format} />
+        </legend>
+      )}
+      {options.map((option) => (
+        <label key={option.id} className="flex items-center gap-2 py-0.5 text-gray-700">
+          <input
+            type={option.type === 'RADIOBUTTON' ? 'radio' : 'checkbox'}
+            name={node.id}
+            disabled
+          />
+          <MarkupSpan source={option.contents[language] ?? ''} format={option.format} />
+        </label>
+      ))}
+      {textarea && (
+        <textarea
+          disabled
+          rows={3}
+          placeholder="Free-text answer"
+          className="mt-1 w-full rounded border border-gray-200 p-2 text-gray-400"
+        />
+      )}
+    </fieldset>
+  );
 }
 
 const HEADING_STYLES: Record<number, string> = {

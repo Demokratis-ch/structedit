@@ -21,6 +21,7 @@ import {
   parseHtmlToTree,
   preserveListStyleType,
 } from './document-utils';
+import { createQuestionNode } from './tree-mutations';
 
 describe('deriveJsonFilename', () => {
   it('replaces the file extension with .json', () => {
@@ -1221,5 +1222,23 @@ describe('isEmptyDocument', () => {
     const doc = parseHtmlLegalToTree(html);
     expect(doc.children.length).toBe(0);
     expect(isEmptyDocument(doc)).toBe(true);
+  });
+});
+
+describe('DocTree envelope — questionnaire questions', () => {
+  it('round-trips a document containing all three question flavours', () => {
+    const tree: DocumentRootNode = {
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        createQuestionNode('single', 'de'),
+        createQuestionNode('multiple', 'de'),
+        createQuestionNode('text', 'de'),
+      ],
+    };
+    const envelope = buildDocTreeEnvelope(tree, { language: 'de', filename: 'questions.json' });
+    const parsed = JSON.parse(JSON.stringify(envelope));
+    expect(isValidDocTreeEnvelope(parsed)).toBe(true);
+    expect(parsed.document).toEqual(tree);
   });
 });

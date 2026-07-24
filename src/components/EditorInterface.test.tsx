@@ -195,3 +195,20 @@ describe('whole-document contribution mode', () => {
     expect(container.querySelectorAll('[data-contribution-mode="REMARK"]')).toHaveLength(0);
   });
 });
+
+describe('add question', () => {
+  test('inserting a single-choice question renders a question card in the tree', () => {
+    renderEditorInterface();
+    fireEvent.click(screen.getByTestId('add-question-toggle'));
+    fireEvent.click(screen.getByTestId('add-question-single'));
+    expect(screen.getByTestId('question-node')).toBeTruthy();
+    expect(screen.getByTestId('question-mode-single')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('inserting a text question renders a textarea placeholder', () => {
+    renderEditorInterface();
+    fireEvent.click(screen.getByTestId('add-question-toggle'));
+    fireEvent.click(screen.getByTestId('add-question-text'));
+    expect(screen.getByTestId('textarea-placeholder')).toBeTruthy();
+  });
+});

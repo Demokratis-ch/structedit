@@ -83,6 +83,9 @@ export function EditorInterface({
         historyLength={editor.historyLength}
         onDownload={handleDownload}
         onSetDocumentContributionMode={editor.changeDocumentContributionMode}
+        onInsertQuestion={(flavour) =>
+          editor.insertQuestion(editor.lastSelectedId.current ?? null, flavour)
+        }
       />
       <div className="flex-1 flex overflow-hidden" ref={resizable.containerRef}>
         <div style={{ width: resizable.size, flexShrink: 0 }} className="min-w-0">

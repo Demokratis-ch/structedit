@@ -18,11 +18,13 @@ import {
   canMergeIdsInDoc,
   changeNodeTypeInDoc,
   createNewSiblingNode,
+  createQuestionNode,
   indentNodeInDoc,
   keepOutermostIds,
   type ListStyle,
   mergeNodesInDoc,
   outdentNodeInDoc,
+  setQuestionChoiceMode,
 } from '../utils/tree-mutations';
 import {
   buildIndices,
@@ -320,6 +322,53 @@ export const useTreeOperations = ({
   );
 
   /**
+   * Insert a new questionnaire question. When `afterId` is given and its parent may hold a QUESTION,
+   * the question is inserted right after it in that parent; otherwise it is appended to the document
+   * root. Returns the new question's id.
+   */
+  const insertQuestion = useCallback(
+    (afterId: string | null, flavour: 'text' | 'single' | 'multiple') => {
+      const question = createQuestionNode(flavour, language);
+
+      let parentPath: NodePath = [];
+      let index = document.children.length;
+
+      if (afterId) {
+        const path = nodeIndex.get(afterId);
+        if (path && path.length > 0) {
+          const candidateParentPath = path.slice(0, -1);
+          const parent =
+            candidateParentPath.length === 0
+              ? document
+              : getNodeAtPath(document, candidateParentPath);
+          if (parent && canBeChildOf('QUESTION', parent.type as ParentType)) {
+            parentPath = candidateParentPath;
+            index = path[path.length - 1] + 1;
+          }
+        }
+      }
+
+      commit(insertNodeAtPath(document, parentPath, index, question));
+      return question.id;
+    },
+    [document, nodeIndex, language, commit]
+  );
+
+  /**
+   * Switch a choice question between single- and multiple-choice (radio ↔ checkbox). No-op when the
+   * node isn't a question, is already in that mode, or is a text question.
+   */
+  const changeQuestionChoiceMode = useCallback(
+    (questionId: string, mode: 'single' | 'multiple') => {
+      const path = nodeIndex.get(questionId);
+      if (!path) return;
+      const next = setQuestionChoiceMode(document, path, mode);
+      if (next !== document) commit(next);
+    },
+    [document, nodeIndex, commit]
+  );
+
+  /**
    * Update node number/label.
    */
   const updateNodeNumber = useCallback(
@@ -565,6 +614,8 @@ export const useTreeOperations = ({
     changeNodeContributionMode,
     changeSubtreeContributionMode,
     changeDocumentContributionMode,
+    insertQuestion,
+    changeQuestionChoiceMode,
     mergeNodes,
     canMergeIds,
     moveNodeById,

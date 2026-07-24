@@ -1,4 +1,13 @@
-import { Ban, GripVertical, MessageSquare, PenLine, Plus } from 'lucide-react';
+import {
+  Ban,
+  Circle,
+  GripVertical,
+  MessageSquare,
+  PenLine,
+  Plus,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import type React from 'react';
 import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
@@ -11,6 +20,8 @@ import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 interface RecursiveTreeNodeProps {
   node: DocumentNode;
   depth: number;
+  /** The parent node's type, when known — used to suppress generic add buttons inside a question. */
+  parentType?: DocumentNode['type'];
 }
 
 const AddNodeButton: React.FC<{
@@ -66,7 +77,7 @@ const MODE_INDICATOR: Record<ContributionMode, { Icon: typeof Ban; cls: string; 
  * state actually changes will re-render.
  */
 export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
-  ({ node, depth }) => {
+  ({ node, depth, parentType }) => {
     const store = useTreeUIStore();
     const wrapperRef = useRef<HTMLDivElement>(null);
     // Selection is mirrored to the wrapper's `data-selected` imperatively
@@ -115,7 +126,12 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       onNumberSubmit,
       onAddNodeBefore,
       onAddNodeAfter,
+      onChangeQuestionChoiceMode,
+      onAddOption,
+      onRemoveOption,
     } = useTreeCallbacks();
+
+    const isInsideQuestion = parentType === 'QUESTION';
 
     // Determine if node has children
     const hasChildren = 'children' in node && node.children.length > 0;
@@ -228,6 +244,110 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         );
       }
 
+      // Question wrapper: a labelled card with (for choice questions) a single↔multiple toggle and an
+      // add-option button. Its prompt + options render as nested children.
+      if (node.type === 'QUESTION') {
+        const isChoice = node.children.some(
+          (c) => c.type === 'RADIOBUTTON' || c.type === 'CHECKBOX'
+        );
+        const isMultiple = node.children.some((c) => c.type === 'CHECKBOX');
+        return (
+          <div className="flex items-center gap-2 flex-1" data-testid="question-node">
+            <span className="select-none rounded border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-purple-700">
+              Question
+            </span>
+            {isChoice && (
+              <div className="inline-flex items-center rounded-md border border-gray-200 p-0.5">
+                {(['single', 'multiple'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    data-testid={`question-mode-${m}`}
+                    aria-pressed={isMultiple === (m === 'multiple')}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChangeQuestionChoiceMode(node.id, m);
+                    }}
+                    className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
+                      isMultiple === (m === 'multiple')
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {m === 'single' ? 'Single' : 'Multiple'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {isChoice && (
+              <button
+                type="button"
+                data-testid="question-add-option"
+                title="Add option"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddOption(node.id);
+                }}
+                className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+              >
+                <Plus size={14} />
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      // A choice option: a radio/checkbox glyph, the inline-editable label, and a remove button.
+      if (node.type === 'RADIOBUTTON' || node.type === 'CHECKBOX') {
+        const Glyph = node.type === 'RADIOBUTTON' ? Circle : Square;
+        return (
+          <div className="flex items-baseline gap-2 flex-1">
+            <Glyph size={14} className="shrink-0 translate-y-0.5 text-gray-400" />
+            <ContentBlock
+              blockRefs={blockRefs}
+              blockId={node.id}
+              raw={content}
+              format={(node as { format: NodeFormat }).format}
+              disabled={!isEditing}
+              tagName="div"
+              onChange={(val) => onUpdateContent(node.id, val)}
+              onKeyDown={(e) => onKeyDown(e, node.id)}
+              onFocus={() => onFocus(node.id)}
+              className={`
+                flex-1 outline-none break-words relative z-10 min-h-[24px] text-base text-gray-600
+                ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}
+              `}
+            />
+            <button
+              type="button"
+              data-testid="option-remove"
+              title="Remove option"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveOption(node.id);
+              }}
+              className="p-0.5 text-gray-300 hover:text-red-500"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        );
+      }
+
+      // Free-text answer field: a disabled placeholder.
+      if (node.type === 'TEXTAREA') {
+        return (
+          <div className="flex-1" data-testid="textarea-placeholder">
+            <div className="select-none rounded border border-dashed border-gray-300 px-2 py-3 text-xs text-gray-400">
+              Free-text answer
+            </div>
+          </div>
+        );
+      }
+
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
@@ -273,7 +393,12 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         <div className="space-y-1">
           {hasChildren &&
             node.children.map((child) => (
-              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                parentType={node.type}
+              />
             ))}
         </div>
       );
@@ -340,9 +465,13 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
           </div>
         </div>
 
-        {/* Add node buttons */}
-        {!isEditing && <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />}
-        {!isEditing && <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />}
+        {/* Add node buttons — suppressed inside a question (options are managed by its own controls) */}
+        {!isEditing && !isInsideQuestion && (
+          <AddNodeButton position="top" onClick={() => onAddNodeBefore(node.id)} />
+        )}
+        {!isEditing && !isInsideQuestion && (
+          <AddNodeButton position="bottom" onClick={() => onAddNodeAfter(node.id)} />
+        )}
 
         {/* Contribution mode indicator (always visible when a mode is set) */}
         {node.contributionMode &&
@@ -380,12 +509,18 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             }}
           >
             {node.children.map((child) => (
-              <RecursiveTreeNode key={child.id} node={child} depth={depth + 1} />
+              <RecursiveTreeNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                parentType={node.type}
+              />
             ))}
           </div>
         )}
       </div>
     );
   },
-  (prev, next) => prev.node === next.node && prev.depth === next.depth
+  (prev, next) =>
+    prev.node === next.node && prev.depth === next.depth && prev.parentType === next.parentType
 );

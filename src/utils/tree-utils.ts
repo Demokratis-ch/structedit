@@ -10,6 +10,7 @@ import {
   type ListItemDocumentNode,
   type NodeFormat,
   type ParentDocumentNode,
+  type QuestionChildNode,
 } from '../types/document';
 import type { FlattenedNode, NodePath } from '../types/editor';
 
@@ -32,6 +33,8 @@ export function withMappedChildren<T extends ParentDocumentNode>(
       return { ...node, children: map(node.children) as ListItemDocumentNode[] };
     case 'CONTENT':
       return { ...node, children: map(node.children) as FootnoteDocumentNode[] };
+    case 'QUESTION':
+      return { ...node, children: map(node.children) as QuestionChildNode[] };
     default:
       // DOCUMENT | HEADING | LIST_ITEM all carry block-level children.
       return { ...node, children: map(node.children) as BlockDocumentNode[] };

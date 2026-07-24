@@ -57,6 +57,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     changeNodeFormat,
     changeNodeContributionMode,
     changeSubtreeContributionMode,
+    changeQuestionChoiceMode,
+    removeNodes,
     moveNodeById,
     deleteSelected,
     moveSelectedToTop,
@@ -302,6 +304,17 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
   cbRef.current.handleNumberSubmit = handleNumberSubmit;
   cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
   cbRef.current.handleAddNodeAfter = handleAddNodeAfter;
+  cbRef.current.onChangeQuestionChoiceMode = changeQuestionChoiceMode;
+  cbRef.current.onAddOption = (questionId: string) => {
+    const q = flattenedNodes.find((fn) => fn.node.id === questionId)?.node;
+    const options =
+      q && 'children' in q
+        ? q.children.filter((c) => c.type === 'RADIOBUTTON' || c.type === 'CHECKBOX')
+        : [];
+    const last = options[options.length - 1];
+    if (last) addNodeAfter(last.id);
+  };
+  cbRef.current.onRemoveOption = (optionId: string) => removeNodes([optionId]);
 
   const callbacksCtx = useMemo(
     () => ({
@@ -323,6 +336,10 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       onNumberSubmit: (id: string) => cbRef.current.handleNumberSubmit(id),
       onAddNodeBefore: (id: string) => cbRef.current.handleAddNodeBefore(id),
       onAddNodeAfter: (id: string) => cbRef.current.handleAddNodeAfter(id),
+      onChangeQuestionChoiceMode: (id: string, mode: 'single' | 'multiple') =>
+        cbRef.current.onChangeQuestionChoiceMode(id, mode),
+      onAddOption: (id: string) => cbRef.current.onAddOption(id),
+      onRemoveOption: (id: string) => cbRef.current.onRemoveOption(id),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [language]

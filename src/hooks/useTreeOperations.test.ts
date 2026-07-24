@@ -6100,4 +6100,75 @@ describe('useTreeOperations', () => {
       expect(mockCommit).not.toHaveBeenCalled();
     });
   });
+
+  describe('insertQuestion', () => {
+    test('appends a valid question to the root when afterId is null', () => {
+      const { result } = renderTreeOperations();
+      let id: string | undefined;
+      act(() => {
+        id = result.current.insertQuestion(null, 'single');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const q = doc.children[doc.children.length - 1];
+      expect(q.type).toBe('QUESTION');
+      expect(q.id).toBe(id);
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('inserts after the selected node in its parent', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.insertQuestion('h1', 'text');
+      });
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      // h1 is at root index 0; the question lands at index 1
+      expect(doc.children[1].type).toBe('QUESTION');
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('falls back to a root append when the parent cannot hold a question', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+      // li1's parent is a LIST, which cannot hold a QUESTION → append to root
+      act(() => {
+        result.current.insertQuestion('li1', 'multiple');
+      });
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(doc.children[doc.children.length - 1].type).toBe('QUESTION');
+      expect(isValidDocument(doc)).toBe(true);
+    });
+  });
+
+  describe('changeQuestionChoiceMode', () => {
+    test('flips a single-choice question to multiple in one commit', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | undefined;
+      act(() => {
+        qid = result.current.insertQuestion(null, 'single');
+      });
+      const afterInsert = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterInsert);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterInsert,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionChoiceMode(qid!, 'multiple');
+      });
+
+      const flipped = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const q = flipped.children[flipped.children.length - 1] as {
+        children: { type: string }[];
+      };
+      expect(q.children.filter((c) => c.type === 'CHECKBOX')).toHaveLength(2);
+      expect(isValidDocument(flipped)).toBe(true);
+    });
+  });
 });
