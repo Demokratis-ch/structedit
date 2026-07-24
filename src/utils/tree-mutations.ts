@@ -719,6 +719,11 @@ export const changeNodeTypeInDoc = (
   // Can only convert nodes with contents
   if (!hasContents(node)) return null;
 
+  // Safety: the conversions below replace the node in place, so never produce a child its current
+  // parent can't hold. Placed after the LIST/LIST_ITEM cases, which deliberately re-parent into a
+  // different container.
+  if (!canBeChildOf(targetType, parent.type as ParentType)) return null;
+
   // Handle conversion to footnote
   if (targetType === 'FOOTNOTE') {
     if (node.type === 'FOOTNOTE') return null; // Already a footnote

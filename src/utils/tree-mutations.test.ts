@@ -10,6 +10,7 @@ import type {
   NodeFormat,
   NumberedDocumentNode,
 } from '../types/document';
+import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
 import {
   canMergeIdsInDoc,
@@ -604,5 +605,48 @@ describe('mergeNodesInDoc', () => {
   test('returns null when the selection cannot be merged', () => {
     const d = doc([heading('h1', 'A'), heading('h2', 'B'), heading('h3', 'C')]);
     expect(mergeNodesInDoc(['h1', 'h3'], d, idx(d))).toBeNull();
+  });
+});
+
+describe('changeNodeTypeInDoc — parent-validity guard', () => {
+  // A footnote may live under a CONTENT node, but ALLOWED_CHILDREN.CONTENT is ['FOOTNOTE'] only.
+  // The in-place conversions replace the node where it stands, so without a parent check they can
+  // leave a node its parent may not hold — reachable from the UI by selecting such a footnote and
+  // pressing H.
+  const footnoteUnderContent = (): DocumentRootNode => {
+    const c: ContentDocumentNode = { ...content('c1', 'body'), children: [footnote('f1', 'note')] };
+    return doc([c]);
+  };
+
+  test('refuses to convert a footnote under a content node to a heading', () => {
+    const d = footnoteUnderContent();
+    expect(changeNodeTypeInDoc(d, idx(d), 'f1', 'HEADING')).toBeNull();
+  });
+
+  test('refuses to convert it to content, which the parent may not hold either', () => {
+    const d = footnoteUnderContent();
+    expect(changeNodeTypeInDoc(d, idx(d), 'f1', 'CONTENT')).toBeNull();
+  });
+
+  test('still allows the same conversion where the parent permits it', () => {
+    // Under a HEADING, both HEADING and CONTENT are allowed children.
+    const h: HeadingDocumentNode = { ...heading('h1', 'H'), children: [footnote('f1', 'note')] };
+    const d = doc([h]);
+    const asHeading = changeNodeTypeInDoc(d, idx(d), 'f1', 'HEADING');
+    expect(asHeading).not.toBeNull();
+    expect(isValidDocument(asHeading as DocumentRootNode)).toBe(true);
+    expect(changeNodeTypeInDoc(d, idx(d), 'f1', 'CONTENT')).not.toBeNull();
+  });
+
+  test('leaves the document valid wherever a conversion is allowed to proceed', () => {
+    const d = doc([content('c1', 'x'), heading('h1', 'H')]);
+    for (const [id, target] of [
+      ['c1', 'HEADING'],
+      ['h1', 'CONTENT'],
+      ['c1', 'FOOTNOTE'],
+    ] as const) {
+      const out = changeNodeTypeInDoc(d, idx(d), id, target);
+      if (out) expect(isValidDocument(out)).toBe(true);
+    }
   });
 });
