@@ -426,14 +426,31 @@ describe('FloatingToolbar — contribution mode picker', () => {
     expect(screen.getByTestId('contribution-mode-toggle')).toBeTruthy();
   });
 
-  test('the trigger summarises the current mode', () => {
-    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode="REMARK" />);
-    expect(screen.getByTestId('contribution-mode-toggle').textContent).toContain('Remark');
+  test('the trigger is icon-only and does not restate the current mode', () => {
+    // The mode a node carries is already visible on the node itself (the pill in the tree) and as
+    // the active row in the dropdown, so the trigger stays static — no label, no per-mode styling.
+    const { rerender } = render(
+      <FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode="REMARK" />
+    );
+    const toggle = () => screen.getByTestId('contribution-mode-toggle');
+    const remarkClass = toggle().className;
+    expect(toggle().textContent).toBe('');
+
+    rerender(<FloatingToolbar {...modeProps} selectedCount={2} selectedNodeMode="mixed" />);
+    expect(toggle().textContent).toBe('');
+    expect(toggle().className).toBe(remarkClass);
+
+    rerender(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode={undefined} />);
+    expect(toggle().textContent).toBe('');
+    expect(toggle().className).toBe(remarkClass);
   });
 
-  test('the trigger reads "Mixed" for a mixed selection', () => {
-    render(<FloatingToolbar {...modeProps} selectedCount={2} selectedNodeMode="mixed" />);
-    expect(screen.getByTestId('contribution-mode-toggle').textContent).toContain('Mixed');
+  test('the trigger names the control accessibly, since it carries no text', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode="REMARK" />);
+    expect(screen.getByTestId('contribution-mode-toggle')).toHaveAttribute(
+      'aria-label',
+      'Contribution mode'
+    );
   });
 
   test('disables PROPOSAL when the selection has no proposable node', () => {

@@ -12,7 +12,6 @@ import {
   Merge,
   MessageSquare,
   PenLine,
-  SlidersHorizontal,
   SortAsc,
   Strikethrough,
   Subscript,
@@ -101,7 +100,7 @@ const MODE_BUTTONS: ReadonlyArray<{
   Icon: typeof Ban | null;
   /** Full description, used for tooltips and aria-labels. */
   label: string;
-  /** Compact label shown on the button and in the trigger summary. */
+  /** Compact label shown on the mode buttons inside the dropdown. */
   short: string;
 }> = [
   { mode: undefined, Icon: null, label: 'Default (element-type default)', short: 'Default' },
@@ -456,12 +455,6 @@ function ContributionModePopover({
     };
   }, [open, selectionHasProposable, onChangeContributionMode]);
 
-  // Summarise the selection's current mode on the trigger.
-  const summary =
-    selectedNodeMode === 'mixed'
-      ? 'Mixed'
-      : (MODE_BUTTONS.find((b) => b.mode === selectedNodeMode)?.short ?? 'Default');
-
   return (
     <div ref={rootRef} className="relative inline-flex items-center">
       <button
@@ -469,15 +462,19 @@ function ContributionModePopover({
         data-testid="contribution-mode-toggle"
         aria-haspopup="dialog"
         aria-expanded={open}
+        // Icon-only and static: the mode a node carries is already shown on the node itself (the
+        // pill in the tree) and as the active row in the dropdown, so restating it here would be a
+        // third copy to keep in sync. The pen is deliberately the same glyph PROPOSAL uses: this
+        // control is about what participants may write, and the trigger is never styled per-mode,
+        // so there is no state for it to be confused with.
+        aria-label="Contribution mode"
         onClick={() => setOpen((o) => !o)}
         title="Contribution mode — how participants may interact with the selected element(s). Shortcut: I, then 1–4"
-        className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs transition-colors ${
+        className={`inline-flex items-center gap-0.5 rounded-lg p-2 transition-colors ${
           open ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'
         }`}
       >
-        <SlidersHorizontal size={16} />
-        <span className="text-gray-400">Mode:</span>
-        <span className="font-medium text-white">{summary}</span>
+        <PenLine size={18} />
         <ChevronDown size={14} className="text-gray-500" />
       </button>
 
