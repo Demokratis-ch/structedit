@@ -535,4 +535,121 @@ describe('useTreeEditor', () => {
       expect(result.current.document).toBe(originalDoc);
     });
   });
+
+  describe('changeNodeContributionMode', () => {
+    test('is exposed on the handle and sets a mode with undo/redo', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      expect(typeof result.current.changeNodeContributionMode).toBe('function');
+
+      const findP1 = () =>
+        (result.current.document.children[0] as HeadingDocumentNode)
+          .children[0] as ContentDocumentNode;
+
+      act(() => {
+        result.current.changeNodeContributionMode(['p1'], 'REMARK');
+      });
+      expect(findP1().contributionMode).toBe('REMARK');
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(findP1().contributionMode).toBeUndefined();
+
+      act(() => {
+        result.current.redo();
+      });
+      expect(findP1().contributionMode).toBe('REMARK');
+    });
+  });
+
+  describe('bulk contribution mode', () => {
+    test('exposes changeSubtreeContributionMode with undo/redo over the subtree', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      expect(typeof result.current.changeSubtreeContributionMode).toBe('function');
+      expect(typeof result.current.changeDocumentContributionMode).toBe('function');
+
+      const h1 = () => result.current.document.children[0] as HeadingDocumentNode;
+      const p1 = () => h1().children[0] as ContentDocumentNode;
+
+      act(() => {
+        result.current.changeSubtreeContributionMode(['h1'], 'NONE');
+      });
+      expect(h1().contributionMode).toBe('NONE');
+      expect(p1().contributionMode).toBe('NONE');
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(h1().contributionMode).toBeUndefined();
+      expect(p1().contributionMode).toBeUndefined();
+
+      act(() => {
+        result.current.redo();
+      });
+      expect(h1().contributionMode).toBe('NONE');
+      expect(p1().contributionMode).toBe('NONE');
+    });
+
+    test('changeDocumentContributionMode applies across the whole document in one undo step', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+
+      act(() => {
+        result.current.changeDocumentContributionMode('REMARK');
+      });
+      expect(result.current.document.contributionMode).toBe('REMARK');
+      expect((result.current.document.children[0] as HeadingDocumentNode).contributionMode).toBe(
+        'REMARK'
+      );
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(result.current.document.contributionMode).toBeUndefined();
+    });
+  });
+
+  describe('questions', () => {
+    test('exposes wrapInQuestion + changeQuestionFlavour with undo/redo', () => {
+      const doc = createTestDocument();
+      const { result } = renderHook(() => useTreeEditor(doc));
+      expect(typeof result.current.wrapInQuestion).toBe('function');
+      expect(typeof result.current.changeQuestionFlavour).toBe('function');
+
+      // p1 is the first child of h1; wrapping replaces it with a QUESTION in place.
+      const wrapped = () =>
+        (
+          result.current.document.children[0] as {
+            children: { id: string; type: string; children?: { id: string; type: string }[] }[];
+          }
+        ).children[0];
+
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      expect(wrapped().type).toBe('QUESTION');
+      expect(wrapped().children?.[0].id).toBe('p1');
+
+      act(() => {
+        result.current.changeQuestionFlavour(qid!, 'multiple');
+      });
+      expect(wrapped().children?.some((c) => c.type === 'CHECKBOX')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(wrapped().children?.some((c) => c.type === 'RADIOBUTTON')).toBe(true);
+
+      act(() => {
+        result.current.undo();
+      });
+      expect(wrapped().id).toBe('p1');
+      expect(wrapped().type).toBe('CONTENT');
+    });
+  });
 });

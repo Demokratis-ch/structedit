@@ -1,14 +1,16 @@
 import { describe, expect, test } from 'vitest';
-import type {
-  BlockDocumentNode,
-  ContentDocumentNode,
-  DocumentRootNode,
-  FootnoteDocumentNode,
-  HeadingDocumentNode,
-  ListDocumentNode,
-  ListItemDocumentNode,
-  NodeFormat,
-  NumberedDocumentNode,
+import {
+  type BlockDocumentNode,
+  type ContentDocumentNode,
+  type DocumentRootNode,
+  type FootnoteDocumentNode,
+  type HeadingDocumentNode,
+  isValidNode,
+  type ListDocumentNode,
+  type ListItemDocumentNode,
+  type NodeFormat,
+  type NumberedDocumentNode,
+  type QuestionDocumentNode,
 } from '../types/document';
 import type { NodePath } from '../types/editor';
 import {
@@ -16,6 +18,7 @@ import {
   carryFormatOrDefault,
   changeNodeTypeInDoc,
   createNewSiblingNode,
+  createQuestionNode,
   extractAndConvertListItemInDoc,
   findPreviousSiblingTarget,
   flattenListToContents,
@@ -26,6 +29,8 @@ import {
   mergeNodesInDoc,
   outdentNodeInDoc,
   resolveMergeTargets,
+  setQuestionFlavour,
+  wrapContentInQuestion,
 } from './tree-mutations';
 import { buildIndices, getNodeAtPath } from './tree-utils';
 
@@ -604,5 +609,275 @@ describe('mergeNodesInDoc', () => {
   test('returns null when the selection cannot be merged', () => {
     const d = doc([heading('h1', 'A'), heading('h2', 'B'), heading('h3', 'C')]);
     expect(mergeNodesInDoc(['h1', 'h3'], d, idx(d))).toBeNull();
+  });
+});
+
+describe('contribution mode threading through mutations', () => {
+  test('type change heading → content preserves the mode', () => {
+    const d = doc([{ ...heading('h1', 'X'), contributionMode: 'REMARK' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'h1', 'CONTENT');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('CONTENT');
+    expect(node.contributionMode).toBe('REMARK');
+  });
+
+  test('type change content → footnote preserves PROPOSAL', () => {
+    const d = doc([{ ...content('c1', 'X'), contributionMode: 'PROPOSAL' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'c1', 'FOOTNOTE');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('FOOTNOTE');
+    expect(node.contributionMode).toBe('PROPOSAL');
+  });
+
+  test('type change content → heading preserves NONE', () => {
+    const d = doc([{ ...content('c1', 'X'), contributionMode: 'NONE' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'c1', 'HEADING');
+    expect(getNodeAtPath(result!, [0])?.contributionMode).toBe('NONE');
+  });
+
+  test('type change heading(PROPOSAL) → list carries the mode onto the inner content, format reset to TEXT', () => {
+    const d = doc([{ ...heading('h1', 'X'), contributionMode: 'PROPOSAL' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'h1', 'LIST', 'unordered');
+    const listNode = getNodeAtPath(result!, [0]) as ListDocumentNode;
+    expect(listNode.type).toBe('LIST');
+    const inner = listNode.children[0].children[0] as ContentDocumentNode;
+    expect(inner.type).toBe('CONTENT');
+    expect(inner.contributionMode).toBe('PROPOSAL');
+    expect(inner.format).toBe('TEXT');
+  });
+
+  test('merge is first-node-wins for the contribution mode', () => {
+    const d = doc([
+      { ...content('a', 'A'), contributionMode: 'NONE' as const },
+      { ...content('b', 'B'), contributionMode: 'REMARK' as const },
+    ]);
+    const result = mergeNodesInDoc(['a', 'b'], d, idx(d));
+    const merged = getNodeAtPath(result!, [0])!;
+    expect(merged.id).toBe('a');
+    expect(merged.contributionMode).toBe('NONE');
+  });
+
+  test('flatten list → contents carries the list_item mode onto the synthesized content', () => {
+    const li = { ...listItem('li1', 'X', '1.'), contributionMode: 'NONE' as const };
+    const flattened = flattenListToContents(list('l1', [li]));
+    expect(flattened[0].type).toBe('CONTENT');
+    expect(flattened[0].contributionMode).toBe('NONE');
+  });
+
+  test('flatten prefers the content child mode over the list_item mode', () => {
+    const inner = { ...content('li2-c', 'Y'), contributionMode: 'PROPOSAL' as const };
+    const li: ListItemDocumentNode = {
+      id: 'li2',
+      number: '2.',
+      type: 'LIST_ITEM',
+      children: [inner],
+    };
+    const flattened = flattenListToContents(list('l2', [li]));
+    expect(flattened[0].contributionMode).toBe('PROPOSAL');
+  });
+
+  test('extract-and-convert (single list_item → content) carries the item mode', () => {
+    const li = { ...listItem('li1', 'X', '1.'), contributionMode: 'REMARK' as const };
+    const d = doc([list('l1', [li])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'li1', 'CONTENT');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('CONTENT');
+    expect(node.contributionMode).toBe('REMARK');
+  });
+
+  test('a freshly created sibling has no contribution mode', () => {
+    const parent = doc([content('c1', 'X')]);
+    expect(createNewSiblingNode(parent, 'de').contributionMode).toBeUndefined();
+  });
+
+  test('outdent (lifting a heading out of a list_item) preserves its mode', () => {
+    const h = { ...heading('h1', 'X'), contributionMode: 'PROPOSAL' as const };
+    const li: ListItemDocumentNode = {
+      id: 'li1',
+      number: '1.',
+      type: 'LIST_ITEM',
+      children: [content('c1', 'before'), h],
+    };
+    const d = doc([list('l1', [li])]);
+    const result = outdentNodeInDoc(d, idx(d), 'h1');
+    const lifted = getNodeAtPath(result!, [1])!;
+    expect(lifted.id).toBe('h1');
+    expect(lifted.contributionMode).toBe('PROPOSAL');
+  });
+});
+
+describe('createQuestionNode', () => {
+  test('single-choice: prompt + two radiobuttons, fresh ids, valid', () => {
+    const q = createQuestionNode('single', 'de');
+    expect(q.type).toBe('QUESTION');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+    expect(new Set([q.id, ...q.children.map((c) => c.id)]).size).toBe(4);
+    expect(isValidNode(q)).toBe(true);
+  });
+
+  test('multiple-choice: prompt + two checkboxes', () => {
+    const q = createQuestionNode('multiple', 'de');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(isValidNode(q)).toBe(true);
+  });
+
+  test('text: prompt + one textarea', () => {
+    const q = createQuestionNode('text', 'de');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+    expect(isValidNode(q)).toBe(true);
+  });
+});
+
+describe('setQuestionFlavour', () => {
+  const labelled = (flavour: 'single' | 'multiple') => {
+    const q = createQuestionNode(flavour, 'de');
+    (q.children[1] as { contents: Record<string, string> }).contents = { de: 'A' };
+    (q.children[2] as { contents: Record<string, string> }).contents = { de: 'B' };
+    return q;
+  };
+
+  test('single → multiple converts options, preserving id and contents', () => {
+    const q = labelled('single');
+    const next = setQuestionFlavour(doc([q]), [0], 'multiple', 'de');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.map((c) => c.type)).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(nq.children[1].id).toBe(q.children[1].id);
+    expect((nq.children[1] as { contents: Record<string, string> }).contents).toEqual({ de: 'A' });
+    expect(isValidNode(nq)).toBe(true);
+  });
+
+  test('multiple → single converts back', () => {
+    const next = setQuestionFlavour(doc([labelled('multiple')]), [0], 'single', 'de');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+    expect(isValidNode(nq)).toBe(true);
+  });
+
+  test('choice → text replaces the options with a textarea, keeping the prompt', () => {
+    const q = labelled('single');
+    const next = setQuestionFlavour(doc([q]), [0], 'text', 'de');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+    expect(nq.children[0].id).toBe(q.children[0].id);
+    expect(isValidNode(nq)).toBe(true);
+  });
+
+  test('text → choice replaces the textarea with two fresh options', () => {
+    const q = createQuestionNode('text', 'de');
+    const next = setQuestionFlavour(doc([q]), [0], 'multiple', 'de');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.map((c) => c.type)).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(nq.children[0].id).toBe(q.children[0].id);
+    expect(isValidNode(nq)).toBe(true);
+  });
+
+  test('keeps every option when a choice question has more than two', () => {
+    const q = createQuestionNode('single', 'de');
+    q.children.push({
+      id: 'o3',
+      number: null,
+      type: 'RADIOBUTTON',
+      format: 'TEXT',
+      contents: { de: 'C' },
+    });
+    const next = setQuestionFlavour(doc([q]), [0], 'multiple', 'de');
+    const nq = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect(nq.children.filter((c) => c.type === 'CHECKBOX')).toHaveLength(3);
+  });
+
+  test('is a same-ref no-op when already in the requested flavour', () => {
+    for (const flavour of ['single', 'multiple', 'text'] as const) {
+      const d = doc([createQuestionNode(flavour, 'de')]);
+      expect(setQuestionFlavour(d, [0], flavour, 'de')).toBe(d);
+    }
+  });
+
+  test('is a same-ref no-op for a node that is not a question', () => {
+    const d = doc([content('c1', 'x')]);
+    expect(setQuestionFlavour(d, [0], 'single', 'de')).toBe(d);
+  });
+});
+
+describe('changeNodeTypeInDoc — question guard', () => {
+  test('refuses to convert a question prompt or option', () => {
+    const q = createQuestionNode('single', 'de');
+    const d = doc([q]);
+    const i = idx(d);
+    expect(changeNodeTypeInDoc(d, i, q.children[0].id, 'HEADING')).toBeNull(); // the prompt
+    expect(changeNodeTypeInDoc(d, i, q.children[1].id, 'CONTENT')).toBeNull(); // an option
+  });
+
+  test('still converts a normal content node under DOCUMENT', () => {
+    const d = doc([content('c1', 'x')]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'c1', 'HEADING')).not.toBeNull();
+  });
+});
+
+describe('createNewSiblingNode — question option', () => {
+  test('returns an option matching the question’s existing option type', () => {
+    expect(createNewSiblingNode(createQuestionNode('single', 'de'), 'de').type).toBe('RADIOBUTTON');
+    expect(createNewSiblingNode(createQuestionNode('multiple', 'de'), 'de').type).toBe('CHECKBOX');
+  });
+});
+
+describe('wrapContentInQuestion', () => {
+  test('wraps the content node in place, keeping it as the prompt', () => {
+    const d = doc([
+      heading('h1', 'H'),
+      content('c1', 'Are you in favour?'),
+      content('c2', 'other'),
+    ]);
+    const next = wrapContentInQuestion(d, [1], 'single', 'de');
+    const q = getNodeAtPath(next, [1]) as QuestionDocumentNode;
+    expect(q.type).toBe('QUESTION');
+    expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+    // The prompt is the original node — same id, same contents.
+    expect(q.children[0].id).toBe('c1');
+    expect((q.children[0] as ContentDocumentNode).contents).toEqual({ de: 'Are you in favour?' });
+    // Siblings are untouched and the question sits where the content node was.
+    expect(next.children.map((c) => c.id)).toEqual(['h1', q.id, 'c2']);
+    expect(isValidNode(next)).toBe(true);
+  });
+
+  test('builds the answer section for each flavour', () => {
+    const d = doc([content('c1', 'Q')]);
+    const types = (flavour: 'text' | 'single' | 'multiple') =>
+      (
+        getNodeAtPath(wrapContentInQuestion(d, [0], flavour, 'de'), [0]) as QuestionDocumentNode
+      ).children.map((c) => c.type);
+    expect(types('single')).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+    expect(types('multiple')).toEqual(['CONTENT', 'CHECKBOX', 'CHECKBOX']);
+    expect(types('text')).toEqual(['CONTENT', 'TEXTAREA']);
+  });
+
+  test('keeps the prompt’s footnote children', () => {
+    const c: ContentDocumentNode = { ...content('c1', 'Q'), children: [footnote('f1', 'note')] };
+    const next = wrapContentInQuestion(doc([c]), [0], 'text', 'de');
+    const q = getNodeAtPath(next, [0]) as QuestionDocumentNode;
+    expect((q.children[0] as ContentDocumentNode).children.map((n) => n.id)).toEqual(['f1']);
+    expect(isValidNode(next)).toBe(true);
+  });
+
+  test('wraps a content node nested inside a heading', () => {
+    const h: HeadingDocumentNode = { ...heading('h1', 'H'), children: [content('c1', 'Q')] };
+    const next = wrapContentInQuestion(doc([h]), [0, 0], 'single', 'de');
+    const q = getNodeAtPath(next, [0, 0]) as QuestionDocumentNode;
+    expect(q.type).toBe('QUESTION');
+    expect(isValidNode(next)).toBe(true);
+  });
+
+  test('is a same-ref no-op for a non-content node', () => {
+    const d = doc([heading('h1', 'H')]);
+    expect(wrapContentInQuestion(d, [0], 'single', 'de')).toBe(d);
+  });
+
+  test('is a same-ref no-op for the prompt of an existing question', () => {
+    const d = doc([createQuestionNode('single', 'de')]);
+    expect(wrapContentInQuestion(d, [0, 0], 'single', 'de')).toBe(d);
+  });
+
+  test('is a same-ref no-op for an unknown path', () => {
+    const d = doc([content('c1', 'Q')]);
+    expect(wrapContentInQuestion(d, [5], 'single', 'de')).toBe(d);
   });
 });

@@ -21,6 +21,7 @@ import {
   parseHtmlToTree,
   preserveListStyleType,
 } from './document-utils';
+import { createQuestionNode } from './tree-mutations';
 
 describe('deriveJsonFilename', () => {
   it('replaces the file extension with .json', () => {
@@ -91,6 +92,47 @@ describe('buildDocTreeEnvelope', () => {
   it('produces an envelope that passes isValidDocTreeEnvelope', () => {
     const envelope = buildDocTreeEnvelope(tree, { language: 'de', filename: 'entwurf.docx' });
     expect(isValidDocTreeEnvelope(envelope)).toBe(true);
+  });
+});
+
+describe('DocTree envelope — contribution mode round-trip', () => {
+  const treeWithModes: DocumentRootNode = {
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contributionMode: 'PROPOSAL',
+        contents: { de: 'Titel' },
+        children: [],
+      },
+      {
+        id: 'c1',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Ohne Modus' },
+        children: [],
+      },
+    ],
+  };
+
+  it('serializes set modes and omits absent ones, and re-parses to an equal tree', () => {
+    const envelope = buildDocTreeEnvelope(treeWithModes, { language: 'de', filename: 'x.json' });
+    const json = JSON.stringify(envelope);
+
+    // Set mode present in the wire form; absent mode not serialized at all.
+    expect(json).toContain('"contributionMode":"PROPOSAL"');
+    expect(json.match(/contributionMode/g)).toHaveLength(1);
+
+    const parsed = JSON.parse(json);
+    expect(isValidDocTreeEnvelope(parsed)).toBe(true);
+    const [h1, c1] = parsed.document.children as DocumentNode[];
+    expect(h1.contributionMode).toBe('PROPOSAL');
+    expect('contributionMode' in c1).toBe(false);
   });
 });
 
@@ -1180,5 +1222,23 @@ describe('isEmptyDocument', () => {
     const doc = parseHtmlLegalToTree(html);
     expect(doc.children.length).toBe(0);
     expect(isEmptyDocument(doc)).toBe(true);
+  });
+});
+
+describe('DocTree envelope — questionnaire questions', () => {
+  it('round-trips a document containing all three question flavours', () => {
+    const tree: DocumentRootNode = {
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        createQuestionNode('single', 'de'),
+        createQuestionNode('multiple', 'de'),
+        createQuestionNode('text', 'de'),
+      ],
+    };
+    const envelope = buildDocTreeEnvelope(tree, { language: 'de', filename: 'questions.json' });
+    const parsed = JSON.parse(JSON.stringify(envelope));
+    expect(isValidDocTreeEnvelope(parsed)).toBe(true);
+    expect(parsed.document).toEqual(tree);
   });
 });

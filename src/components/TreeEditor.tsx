@@ -1,13 +1,25 @@
 import { Plus } from 'lucide-react';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useInlineMarks } from '../hooks/useInlineMarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
-import type { Language, NodeFormat } from '../types/document';
+import {
+  type ContributionMode,
+  type DocumentNode,
+  getQuestionFlavour,
+  type Language,
+  type NodeFormat,
+  PROPOSABLE_TYPES,
+  type QuestionFlavour,
+} from '../types/document';
 import { MOD } from '../utils/platform';
-import { FloatingToolbar } from './FloatingToolbar';
+import {
+  type ContributionScope,
+  type ContributionTypeFilter,
+  FloatingToolbar,
+} from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 import { Kbd } from './ui/Kbd';
@@ -45,6 +57,11 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     updateNodeContents,
     updateNodeNumber,
     changeNodeFormat,
+    changeNodeContributionMode,
+    changeSubtreeContributionMode,
+    changeQuestionFlavour,
+    wrapInQuestion,
+    removeNodes,
     moveNodeById,
     deleteSelected,
     moveSelectedToTop,
@@ -123,6 +140,95 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     if (selectedCount !== 1) return;
     const selectedId = Array.from(selectedIds)[0];
     if (selectedId) changeNodeFormat(selectedId, format);
+  };
+
+  // The contribution mode shared by the whole selection: a single mode when all selected nodes
+  // agree, `'mixed'` when they differ, or `undefined` when none carry a mode. Drives the active
+  // state of the mode picker.
+  const selectedNodeMode = useMemo<ContributionMode | 'mixed' | undefined>(() => {
+    if (selectedIds.size === 0) return undefined;
+    const byId = new Map<string, DocumentNode>();
+    for (const fn of flattenedNodes) byId.set(fn.node.id, fn.node);
+    let seen: ContributionMode | undefined;
+    let first = true;
+    for (const id of selectedIds) {
+      const node = byId.get(id);
+      if (!node) continue;
+      const mode = node.contributionMode;
+      if (first) {
+        seen = mode;
+        first = false;
+      } else if (mode !== seen) {
+        return 'mixed';
+      }
+    }
+    return seen;
+  }, [selectedIds, flattenedNodes]);
+
+  // id → node type, for resolving the selection's types (proposable gate + type-filtered apply).
+  const typeById = useMemo(() => {
+    const m = new Map<string, DocumentNode['type']>();
+    for (const fn of flattenedNodes) m.set(fn.node.id, fn.node.type);
+    return m;
+  }, [flattenedNodes]);
+
+  // Whether the selection includes at least one proposable node — gates the PROPOSAL option.
+  const selectionHasProposable = useMemo<boolean>(() => {
+    if (selectedIds.size === 0) return false;
+    for (const id of selectedIds) {
+      const t = typeById.get(id);
+      if (t && (PROPOSABLE_TYPES as readonly string[]).includes(t)) return true;
+    }
+    return false;
+  }, [selectedIds, typeById]);
+
+  // What the toolbar's question control acts on for the current selection: the question the
+  // selection already belongs to (its own node or its parent — selecting the prompt is the common
+  // case, since promoting keeps the prompt selected), or otherwise a plain CONTENT node that can be
+  // promoted into one. Anything else (a heading, a multi-selection) gets no control at all.
+  const questionTarget = useMemo<
+    { kind: 'wrap'; id: string } | { kind: 'question'; id: string; flavour: QuestionFlavour } | null
+  >(() => {
+    if (selectedCount !== 1) return null;
+    const selectedId = Array.from(selectedIds)[0];
+    const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
+    if (!flatNode) return null;
+
+    const { node, parentId } = flatNode;
+    if (node.type === 'QUESTION') {
+      return { kind: 'question', id: node.id, flavour: getQuestionFlavour(node) };
+    }
+    if (parentId && typeById.get(parentId) === 'QUESTION') {
+      const parent = flattenedNodes.find((fn) => fn.node.id === parentId)?.node;
+      if (parent?.type === 'QUESTION') {
+        return { kind: 'question', id: parent.id, flavour: getQuestionFlavour(parent) };
+      }
+    }
+    return node.type === 'CONTENT' ? { kind: 'wrap', id: node.id } : null;
+  }, [selectedCount, selectedIds, flattenedNodes, typeById]);
+
+  const handleSelectQuestionFlavour = (flavour: QuestionFlavour) => {
+    if (!questionTarget) return;
+    if (questionTarget.kind === 'wrap') wrapInQuestion(questionTarget.id, flavour);
+    else changeQuestionFlavour(questionTarget.id, flavour);
+  };
+
+  // Bulk-apply controls: scope (this node / + descendants) and an optional node-type filter.
+  const [contributionScope, setContributionScope] = useState<ContributionScope>('node');
+  const [contributionTypeFilter, setContributionTypeFilter] =
+    useState<ContributionTypeFilter>('all');
+
+  const handleChangeContributionMode = (mode: ContributionMode | undefined) => {
+    if (selectedIds.size === 0) return;
+    const ids = [...selectedIds];
+    const filter = contributionTypeFilter === 'all' ? undefined : contributionTypeFilter;
+    if (contributionScope === 'subtree') {
+      changeSubtreeContributionMode(ids, mode, filter);
+    } else {
+      // Node-only scope: when a type filter is set, only affect selected nodes of that type.
+      const scoped = filter ? ids.filter((id) => typeById.get(id) === filter) : ids;
+      changeNodeContributionMode(scoped, mode);
+    }
   };
 
   const { inlineMarks, handleToggleMark } = useInlineMarks({ updateNodeNumber });
@@ -232,6 +338,16 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
   cbRef.current.handleNumberSubmit = handleNumberSubmit;
   cbRef.current.handleAddNodeBefore = handleAddNodeBefore;
   cbRef.current.handleAddNodeAfter = handleAddNodeAfter;
+  cbRef.current.onAddOption = (questionId: string) => {
+    const q = flattenedNodes.find((fn) => fn.node.id === questionId)?.node;
+    const options =
+      q && 'children' in q
+        ? q.children.filter((c) => c.type === 'RADIOBUTTON' || c.type === 'CHECKBOX')
+        : [];
+    const last = options[options.length - 1];
+    if (last) addNodeAfter(last.id);
+  };
+  cbRef.current.onRemoveOption = (optionId: string) => removeNodes([optionId]);
 
   const callbacksCtx = useMemo(
     () => ({
@@ -253,6 +369,8 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
       onNumberSubmit: (id: string) => cbRef.current.handleNumberSubmit(id),
       onAddNodeBefore: (id: string) => cbRef.current.handleAddNodeBefore(id),
       onAddNodeAfter: (id: string) => cbRef.current.handleAddNodeAfter(id),
+      onAddOption: (id: string) => cbRef.current.onAddOption(id),
+      onRemoveOption: (id: string) => cbRef.current.onRemoveOption(id),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [language]
@@ -305,14 +423,24 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
         isEditing={!!editingId || !!editingNumberId}
         selectedNodeType={selectedNodeType}
         selectedNodeFormat={selectedNodeFormat}
+        selectedNodeMode={selectedNodeMode}
+        selectionHasProposable={selectionHasProposable}
         onUpdateType={handleBulkUpdateType}
         onChangeFormat={handleChangeFormat}
+        onChangeContributionMode={handleChangeContributionMode}
+        contributionScope={contributionScope}
+        onChangeContributionScope={setContributionScope}
+        contributionTypeFilter={contributionTypeFilter}
+        onChangeContributionTypeFilter={setContributionTypeFilter}
         onDelete={deleteSelected}
         onClearSelection={clearSelection}
         onMoveSelectedToTop={moveSelectedToTop}
         onMoveSelectedToBottom={moveSelectedToBottom}
         canMerge={canMergeSelected}
         onMerge={mergeSelected}
+        canWrapInQuestion={questionTarget?.kind === 'wrap'}
+        questionFlavour={questionTarget?.kind === 'question' ? questionTarget.flavour : undefined}
+        onSelectQuestionFlavour={handleSelectQuestionFlavour}
         inlineMarksTarget={inlineMarks.target}
         inlineMarksFormat={inlineMarks.format}
         markActiveState={inlineMarks.active}

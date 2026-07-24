@@ -9,6 +9,7 @@ import type {
   ListDocumentNode,
   ListItemDocumentNode,
   NumberedDocumentNode,
+  QuestionDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -5927,6 +5928,313 @@ describe('useTreeOperations', () => {
       };
       const { result } = renderTreeOperations(doc);
       expect(result.current.canMergeIds(['li1', 'li1-content'])).toBe(false);
+    });
+  });
+
+  describe('changeNodeContributionMode', () => {
+    test('sets a mode across a multi-node selection in a single commit', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeNodeContributionMode(['p1', 'h1b'], 'REMARK');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const nIdx = buildIndices(newDoc).nodeIndex;
+      expect(getNodeAtPath(newDoc, nIdx.get('p1')!)?.contributionMode).toBe('REMARK');
+      expect(getNodeAtPath(newDoc, nIdx.get('h1b')!)?.contributionMode).toBe('REMARK');
+    });
+
+    test('skips nodes whose type cannot hold the mode', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      // PROPOSAL is valid on the heading but not on the list container.
+      act(() => {
+        result.current.changeNodeContributionMode(['h1', 'list1'], 'PROPOSAL');
+      });
+
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const nIdx = buildIndices(newDoc).nodeIndex;
+      expect(getNodeAtPath(newDoc, nIdx.get('h1')!)?.contributionMode).toBe('PROPOSAL');
+      expect(getNodeAtPath(newDoc, nIdx.get('list1')!)?.contributionMode).toBeUndefined();
+    });
+
+    test('clears the mode when passed undefined', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.changeNodeContributionMode(['p1'], 'NONE');
+      });
+      const setDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      // Re-render the hook over the updated document, then clear.
+      const idx2 = buildIndices(setDoc);
+      const { result: result2 } = renderHook(() =>
+        useTreeOperations({
+          document: setDoc,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        result2.current.changeNodeContributionMode(['p1'], undefined);
+      });
+
+      const clearedDoc = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const node = getNodeAtPath(clearedDoc, buildIndices(clearedDoc).nodeIndex.get('p1')!)!;
+      expect(node.contributionMode).toBeUndefined();
+    });
+
+    test('does not commit when nothing changes (mode rejected by every node)', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        // PROPOSAL on a list container only → no valid change.
+        result.current.changeNodeContributionMode(['list1'], 'PROPOSAL');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changeSubtreeContributionMode', () => {
+    const modeOf = (doc: DocumentRootNode, id: string) => {
+      const idx = buildIndices(doc).nodeIndex;
+      return getNodeAtPath(doc, idx.get(id)!)?.contributionMode;
+    };
+
+    test('applies recursively to a node and all its descendants in one commit', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeSubtreeContributionMode(['h1'], 'REMARK');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      for (const id of ['h1', 'p1', 'h2', 'p2']) {
+        expect(modeOf(doc, id)).toBe('REMARK');
+      }
+    });
+
+    test('dedupes ancestor+descendant selections (keepOutermostIds) into a single subtree apply', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        // p1 is inside h1; the h1 subtree already covers it.
+        result.current.changeSubtreeContributionMode(['h1', 'p1'], 'NONE');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(modeOf(doc, 'h1')).toBe('NONE');
+      expect(modeOf(doc, 'p1')).toBe('NONE');
+      expect(modeOf(doc, 'p2')).toBe('NONE');
+    });
+
+    test('restricts to the given node type', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeSubtreeContributionMode(['h1'], 'REMARK', 'CONTENT');
+      });
+
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(modeOf(doc, 'p1')).toBe('REMARK'); // content
+      expect(modeOf(doc, 'p2')).toBe('REMARK'); // content
+      expect(modeOf(doc, 'h1')).toBeUndefined(); // heading — filtered out
+      expect(modeOf(doc, 'h2')).toBeUndefined();
+    });
+  });
+
+  describe('changeDocumentContributionMode', () => {
+    const modeOf = (doc: DocumentRootNode, id: string) => {
+      const idx = buildIndices(doc).nodeIndex;
+      return getNodeAtPath(doc, idx.get(id)!)?.contributionMode;
+    };
+
+    test('applies across the whole document (root included) in one commit', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeDocumentContributionMode('REMARK');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(doc.contributionMode).toBe('REMARK'); // root
+      for (const id of ['h1', 'p1', 'h2', 'p2', 'h1b']) {
+        expect(modeOf(doc, id)).toBe('REMARK');
+      }
+    });
+
+    test('clamps per node — PROPOSAL skips lists and the document root', () => {
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.changeDocumentContributionMode('PROPOSAL');
+      });
+
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(doc.contributionMode).toBeUndefined(); // DOCUMENT root
+      expect(modeOf(doc, 'h1')).toBe('PROPOSAL'); // heading
+      expect(modeOf(doc, 'li1-content')).toBe('PROPOSAL'); // content
+      expect(modeOf(doc, 'list1')).toBeUndefined(); // list
+      expect(modeOf(doc, 'li1')).toBeUndefined(); // list_item
+    });
+
+    test('does not commit when the mode applies to nothing', () => {
+      // A document whose only nodes are a list + list_items + content; PROPOSAL filtered to LIST
+      // matches the list but a list can't hold PROPOSAL → no change.
+      const listDoc = createDocumentWithList();
+      const { result } = renderTreeOperations(listDoc);
+
+      act(() => {
+        result.current.changeDocumentContributionMode('PROPOSAL', 'LIST');
+      });
+
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('wrapInQuestion', () => {
+    test('wraps a content node in a valid question, keeping it as the prompt', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('p1', 'single');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.type).toBe('QUESTION');
+      expect(q.id).toBe(id);
+      expect(q.children[0].id).toBe('p1');
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'RADIOBUTTON', 'RADIOBUTTON']);
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('builds a free-text question', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.wrapInQuestion('p1', 'text');
+      });
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = doc.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+      expect(isValidDocument(doc)).toBe(true);
+    });
+
+    test('returns null and does not commit for a non-content node', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('h1', 'single');
+      });
+      expect(id).toBeNull();
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('returns null and does not commit for an unknown id', () => {
+      const { result } = renderTreeOperations();
+      let id: string | null | undefined;
+      act(() => {
+        id = result.current.wrapInQuestion('ghost', 'single');
+      });
+      expect(id).toBeNull();
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('changeQuestionFlavour', () => {
+    test('flips a single-choice question to multiple in one commit', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'multiple');
+      });
+
+      const flipped = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const h1 = flipped.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.filter((c) => c.type === 'CHECKBOX')).toHaveLength(2);
+      expect(isValidDocument(flipped)).toBe(true);
+    });
+
+    test('converts a choice question to free text, keeping the prompt', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'text');
+      });
+
+      const converted = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      const h1 = converted.children[0] as HeadingDocumentNode;
+      const q = h1.children[0] as QuestionDocumentNode;
+      expect(q.children.map((c) => c.type)).toEqual(['CONTENT', 'TEXTAREA']);
+      expect(q.children[0].id).toBe('p1');
+      expect(isValidDocument(converted)).toBe(true);
+    });
+
+    test('does not commit when the question is already in that flavour', () => {
+      const { result } = renderTreeOperations();
+      let qid: string | null | undefined;
+      act(() => {
+        qid = result.current.wrapInQuestion('p1', 'single');
+      });
+      const afterWrap = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      const idx2 = buildIndices(afterWrap);
+      const { result: r2 } = renderHook(() =>
+        useTreeOperations({
+          document: afterWrap,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        r2.current.changeQuestionFlavour(qid!, 'single');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
     });
   });
 });

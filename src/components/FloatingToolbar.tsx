@@ -2,21 +2,37 @@ import {
   ArrowDownToLine,
   ArrowUpToLine,
   Asterisk,
+  Ban,
   Bold,
+  ChevronDown,
+  Circle,
   Heading,
   Italic,
   List,
   ListOrdered,
   Merge,
+  MessageCircleQuestionMark,
+  MessageSquare,
+  PenLine,
   SortAsc,
+  SquareCheck,
   Strikethrough,
   Subscript,
   Superscript,
+  TextCursorInput,
   Trash2,
   Type,
   X,
 } from 'lucide-react';
-import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
+import { useEffect, useId, useRef, useState } from 'react';
+import {
+  ALLOWED_FORMATS,
+  type ContentBearingNodeType,
+  type ContributionMode,
+  type DocumentNode,
+  type NodeFormat,
+  type QuestionFlavour,
+} from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
 
@@ -32,14 +48,32 @@ interface FloatingToolbarProps {
   isEditing: boolean;
   selectedNodeType?: SelectorNodeType | null;
   selectedNodeFormat?: NodeFormat;
+  /** Common contribution mode of the selection: a mode, `undefined` (all default), or `'mixed'`. */
+  selectedNodeMode?: ContributionMode | 'mixed';
+  /** Whether at least one selected node is proposable (heading/content/footnote). */
+  selectionHasProposable?: boolean;
   onUpdateType: (type: ToolbarBlockType) => void;
   onChangeFormat?: (format: NodeFormat) => void;
+  /** Set (or clear, with `undefined`) the contribution mode on the whole selection. */
+  onChangeContributionMode?: (mode: ContributionMode | undefined) => void;
+  /** Bulk scope: apply to the selected node(s) only, or also to their descendants. */
+  contributionScope?: ContributionScope;
+  onChangeContributionScope?: (scope: ContributionScope) => void;
+  /** Bulk type filter: restrict the apply to one node type (`'all'` = every type in scope). */
+  contributionTypeFilter?: ContributionTypeFilter;
+  onChangeContributionTypeFilter?: (filter: ContributionTypeFilter) => void;
   onDelete: () => void;
   onClearSelection: () => void;
   onMoveSelectedToTop?: () => void;
   onMoveSelectedToBottom?: () => void;
   canMerge?: boolean;
   onMerge?: () => void;
+  /** Whether the selection is a single content node that may be promoted to a question. */
+  canWrapInQuestion?: boolean;
+  /** Flavour of the question the selection belongs to, when it is inside one. */
+  questionFlavour?: QuestionFlavour;
+  /** Promote the selected content node to a question, or re-shape the question it belongs to. */
+  onSelectQuestionFlavour?: (flavour: QuestionFlavour) => void;
   inlineMarksTarget?: InlineMarksTarget | null;
   inlineMarksFormat?: NodeFormat;
   markActiveState?: Partial<Record<InlineMark, boolean>>;
@@ -69,24 +103,112 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
 
 const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
 
+// The contribution-mode picker: how consultation participants may interact with the selected
+// element(s). `undefined` is the element-type default; `PROPOSAL` is offered only when the
+// selection includes a proposable node (heading/content/footnote).
+const MODE_BUTTONS: ReadonlyArray<{
+  mode: ContributionMode | undefined;
+  Icon: typeof Ban | null;
+  /** Full description, used for tooltips and aria-labels. */
+  label: string;
+  /** Compact label shown on the mode buttons inside the dropdown. */
+  short: string;
+}> = [
+  { mode: undefined, Icon: null, label: 'Default (element-type default)', short: 'Default' },
+  { mode: 'NONE', Icon: Ban, label: 'None — locked, no interaction', short: 'None' },
+  { mode: 'REMARK', Icon: MessageSquare, label: 'Remark — annotations only', short: 'Remark' },
+  {
+    mode: 'PROPOSAL',
+    Icon: PenLine,
+    label: 'Proposal — annotations and amendment proposals',
+    short: 'Proposal',
+  },
+];
+
+/** Bare-key shortcut (in selection mode) that opens the contribution-mode dropdown. */
+const MODE_SHORTCUT = 'i';
+/** Digit keys selecting the four modes (in MODE_BUTTONS order) while the dropdown is open. */
+const MODE_DIGITS = ['1', '2', '3', '4'] as const;
+
+/** Scope of a bulk mode apply: the selected node(s) only, or each selected node plus descendants. */
+export type ContributionScope = 'node' | 'subtree';
+
+/** Node-type filter for a bulk mode apply. `'all'` means every type in scope. */
+export type ContributionTypeFilter = DocumentNode['type'] | 'all';
+
+/** Bare-key shortcut (in selection mode) that opens the question dropdown. */
+const QUESTION_SHORTCUT = 'q';
+/** Digit keys selecting the three flavours (in QUESTION_FLAVOURS order) while the dropdown is open. */
+const QUESTION_DIGITS = ['1', '2', '3'] as const;
+
+const QUESTION_FLAVOURS: ReadonlyArray<{
+  flavour: QuestionFlavour;
+  Icon: typeof Circle;
+  label: string;
+  hint: string;
+}> = [
+  {
+    flavour: 'single',
+    Icon: Circle,
+    label: 'Single choice',
+    hint: 'Participants pick exactly one option',
+  },
+  {
+    flavour: 'multiple',
+    Icon: SquareCheck,
+    label: 'Multiple choice',
+    hint: 'Participants pick any number of options',
+  },
+  {
+    flavour: 'text',
+    Icon: TextCursorInput,
+    label: 'Free text',
+    hint: 'Participants write their own answer',
+  },
+];
+
+export const MODE_TYPE_FILTERS: ReadonlyArray<{ value: ContributionTypeFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'HEADING', label: 'Headings' },
+  { value: 'CONTENT', label: 'Content' },
+  { value: 'FOOTNOTE', label: 'Footnotes' },
+  { value: 'LIST', label: 'Lists' },
+  { value: 'LIST_ITEM', label: 'List items' },
+  { value: 'IMAGE', label: 'Images' },
+];
+
 export function FloatingToolbar({
   selectedCount,
   isEditing,
   selectedNodeType,
   selectedNodeFormat,
+  selectedNodeMode,
+  selectionHasProposable = false,
   onUpdateType,
   onChangeFormat,
+  onChangeContributionMode,
+  contributionScope = 'node',
+  onChangeContributionScope,
+  contributionTypeFilter = 'all',
+  onChangeContributionTypeFilter,
   onDelete,
   onClearSelection,
   onMoveSelectedToTop,
   onMoveSelectedToBottom,
   canMerge = false,
   onMerge,
+  canWrapInQuestion = false,
+  questionFlavour,
+  onSelectQuestionFlavour,
   inlineMarksTarget,
   inlineMarksFormat,
   markActiveState,
   onToggleMark,
 }: FloatingToolbarProps) {
+  // Which dropdown is open, owned here rather than by each popover: both listen for bare digit keys
+  // while open, so two open at once would let one keypress apply two different things.
+  const [openPopover, setOpenPopover] = useState<'mode' | 'question' | null>(null);
+
   if (selectedCount === 0 && !isEditing) return null;
 
   const showInlineMarks =
@@ -174,6 +296,18 @@ export function FloatingToolbar({
         <Asterisk size={18} />
       </button>
 
+      {(canWrapInQuestion || questionFlavour !== undefined) && !isEditing && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <MakeQuestionPopover
+            questionFlavour={questionFlavour}
+            onSelectQuestionFlavour={onSelectQuestionFlavour}
+            open={openPopover === 'question'}
+            setOpen={(v) => setOpenPopover(v ? 'question' : null)}
+          />
+        </>
+      )}
+
       {showFormatSelector && (
         <>
           <div className="w-px h-6 bg-gray-700 mx-1" />
@@ -190,6 +324,23 @@ export function FloatingToolbar({
               </option>
             ))}
           </select>
+        </>
+      )}
+
+      {selectedCount > 0 && !isEditing && (
+        <>
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <ContributionModePopover
+            open={openPopover === 'mode'}
+            setOpen={(v) => setOpenPopover(v ? 'mode' : null)}
+            selectedNodeMode={selectedNodeMode}
+            selectionHasProposable={selectionHasProposable}
+            onChangeContributionMode={onChangeContributionMode}
+            contributionScope={contributionScope}
+            onChangeContributionScope={onChangeContributionScope}
+            contributionTypeFilter={contributionTypeFilter}
+            onChangeContributionTypeFilter={onChangeContributionTypeFilter}
+          />
         </>
       )}
 
@@ -284,6 +435,367 @@ export function FloatingToolbar({
       >
         <X size={16} />
       </button>
+    </div>
+  );
+}
+
+/**
+ * The question control. Questions can't be derived from an imported file, so this is how they're
+ * authored: write the prompt as an ordinary content node, then promote it here — the node becomes
+ * the question's prompt and the picked flavour decides the answer section. Once the selection sits
+ * in a question (`questionFlavour` is set) the same control switches that question's flavour, so
+ * making and re-shaping a question are one affordance instead of two. Closes on pick, outside click
+ * or Escape.
+ */
+function MakeQuestionPopover({
+  questionFlavour,
+  onSelectQuestionFlavour,
+  open,
+  setOpen,
+}: {
+  questionFlavour?: QuestionFlavour;
+  onSelectQuestionFlavour?: (flavour: QuestionFlavour) => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard: `QUESTION_SHORTCUT` opens the panel from selection mode; while open, 1–3 pick a flavour
+  // and Escape closes. Plus outside-click-to-close. Mirrors ContributionModePopover's `i`-then-1–4 —
+  // the digits are only consumed while *this* panel is open, so the two never compete for them.
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (open && rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        !!target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT');
+
+      if (!open) {
+        // Don't hijack the key while the user is typing somewhere.
+        if (!inEditable && e.key.toLowerCase() === QUESTION_SHORTCUT) {
+          e.preventDefault();
+          setOpen(true);
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      const idx = QUESTION_DIGITS.indexOf(e.key as (typeof QUESTION_DIGITS)[number]);
+      if (idx !== -1) {
+        e.preventDefault();
+        onSelectQuestionFlavour?.(QUESTION_FLAVOURS[idx].flavour);
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, setOpen, onSelectQuestionFlavour]);
+
+  // Defined exactly when the selection is inside a question — the popover's two modes.
+  const current = QUESTION_FLAVOURS.find((f) => f.flavour === questionFlavour);
+
+  return (
+    <div ref={rootRef} className="relative inline-flex items-center">
+      <button
+        type="button"
+        data-testid="make-question-toggle"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Icon-only, like the type buttons — the meaning lives in the accessible name and tooltip.
+        aria-label={current ? `Question type: ${current.label}` : 'Make a question'}
+        onClick={() => setOpen(!open)}
+        title={
+          current
+            ? `Question type: ${current.label} — switch between single choice, multiple choice and free text. Shortcut: Q, then 1–3`
+            : 'Make a question — wrap this content node as a question prompt. Shortcut: Q, then 1–3'
+        }
+        className={`inline-flex items-center gap-0.5 rounded-lg p-2 transition-colors ${
+          open
+            ? 'bg-gray-700 text-white'
+            : current
+              ? // Already a question: mirror the active state of the type buttons, since the label
+                // that used to say so is gone.
+                'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-700'
+        }`}
+      >
+        <MessageCircleQuestionMark size={18} />
+        <ChevronDown size={14} className={current && !open ? 'text-blue-200' : 'text-gray-500'} />
+      </button>
+
+      {open && (
+        <div
+          data-testid="make-question-panel"
+          role="dialog"
+          aria-label={current ? 'Question type' : 'Make a question'}
+          className="absolute bottom-full left-0 z-50 mb-2 w-60 rounded-lg border border-gray-700 bg-gray-900 p-1 text-left shadow-2xl"
+        >
+          <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            {current ? 'Question type' : 'Make this a question'}{' '}
+            <span className="normal-case text-gray-600">(press 1–3)</span>
+          </p>
+          {QUESTION_FLAVOURS.map(({ flavour, Icon, label, hint }, i) => {
+            const active = questionFlavour === flavour;
+            return (
+              <button
+                key={flavour}
+                type="button"
+                data-testid={`make-question-${flavour}`}
+                aria-pressed={active}
+                aria-keyshortcuts={QUESTION_DIGITS[i]}
+                title={`${hint} (${QUESTION_DIGITS[i]})`}
+                onClick={() => {
+                  onSelectQuestionFlavour?.(flavour);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors ${
+                  active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <Icon
+                  size={14}
+                  className={`mt-0.5 shrink-0 ${active ? 'text-white' : 'text-gray-400'}`}
+                />
+                <span className="flex-1">
+                  <span className="block text-xs font-medium text-white">{label}</span>
+                  <span
+                    className={`block text-[11px] ${active ? 'text-blue-100' : 'text-gray-500'}`}
+                  >
+                    {hint}
+                  </span>
+                </span>
+                <kbd className="mt-0.5 rounded bg-black/30 px-1 text-[10px] leading-4 text-gray-300">
+                  {QUESTION_DIGITS[i]}
+                </kbd>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ContributionModePopoverProps {
+  /** Open state is owned by FloatingToolbar so only one popover can be open at a time. */
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  selectedNodeMode?: ContributionMode | 'mixed';
+  selectionHasProposable: boolean;
+  onChangeContributionMode?: (mode: ContributionMode | undefined) => void;
+  contributionScope: ContributionScope;
+  onChangeContributionScope?: (scope: ContributionScope) => void;
+  contributionTypeFilter: ContributionTypeFilter;
+  onChangeContributionTypeFilter?: (filter: ContributionTypeFilter) => void;
+}
+
+/**
+ * The contribution-mode controls collapsed behind a single "Mode" button in the floating toolbar.
+ * Opening reveals a compact panel (mode buttons + apply scope + type filter) above the toolbar; it
+ * closes on outside click or Escape. Applying a mode keeps the panel open so scope/filter tweaks
+ * and repeated applies stay one click apart.
+ */
+function ContributionModePopover({
+  selectedNodeMode,
+  selectionHasProposable,
+  onChangeContributionMode,
+  contributionScope,
+  onChangeContributionScope,
+  contributionTypeFilter,
+  onChangeContributionTypeFilter,
+  open,
+  setOpen,
+}: ContributionModePopoverProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const filterId = useId();
+
+  // Keyboard: `MODE_SHORTCUT` opens the dropdown from selection mode; while open, 1–4 pick a mode
+  // and Escape closes. Plus outside-click-to-close. The listener is document-wide because the
+  // toolbar never holds focus — the shortcut has to fire while focus sits on the tree container.
+  // This component only mounts in selection mode, so no extra "are we editing?" guard is needed.
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (open && rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        !!target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT');
+
+      if (!open) {
+        // Don't hijack the key while the user is typing somewhere.
+        if (!inEditable && e.key.toLowerCase() === MODE_SHORTCUT) {
+          e.preventDefault();
+          setOpen(true);
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      const idx = MODE_DIGITS.indexOf(e.key as (typeof MODE_DIGITS)[number]);
+      if (idx !== -1) {
+        const { mode } = MODE_BUTTONS[idx];
+        // Mirror the disabled state of the on-screen buttons.
+        if (mode === 'PROPOSAL' && !selectionHasProposable) return;
+        e.preventDefault();
+        onChangeContributionMode?.(mode);
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, setOpen, selectionHasProposable, onChangeContributionMode]);
+
+  return (
+    <div ref={rootRef} className="relative inline-flex items-center">
+      <button
+        type="button"
+        data-testid="contribution-mode-toggle"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Icon-only and static: the mode a node carries is already shown on the node itself (the
+        // pill in the tree) and as the active row in the dropdown, so restating it here would be a
+        // third copy to keep in sync. The pen is deliberately the same glyph PROPOSAL uses: this
+        // control is about what participants may write, and the trigger is never styled per-mode,
+        // so there is no state for it to be confused with.
+        aria-label="Contribution mode"
+        onClick={() => setOpen(!open)}
+        title="Contribution mode — how participants may interact with the selected element(s). Shortcut: I, then 1–4"
+        className={`inline-flex items-center gap-0.5 rounded-lg p-2 transition-colors ${
+          open ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'
+        }`}
+      >
+        <PenLine size={18} />
+        <ChevronDown size={14} className="text-gray-500" />
+      </button>
+
+      {open && (
+        <div
+          data-testid="contribution-mode-group"
+          role="dialog"
+          aria-label="Contribution mode"
+          className="absolute bottom-full right-0 z-50 mb-2 w-60 rounded-lg border border-gray-700 bg-gray-900 p-3 text-left shadow-2xl"
+        >
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            Contribution mode <span className="normal-case text-gray-600">(press 1–4)</span>
+          </p>
+          <div className="grid grid-cols-2 gap-1">
+            {MODE_BUTTONS.map(({ mode, Icon, label, short }, i) => {
+              const active = selectedNodeMode === mode;
+              const disabled = mode === 'PROPOSAL' && !selectionHasProposable;
+              return (
+                <button
+                  key={mode ?? 'default'}
+                  type="button"
+                  data-testid={`mode-${mode ? mode.toLowerCase() : 'default'}`}
+                  aria-pressed={active}
+                  aria-label={label}
+                  aria-keyshortcuts={MODE_DIGITS[i]}
+                  title={
+                    disabled
+                      ? 'Proposal is only available on headings, content and footnotes'
+                      : `${label} (${MODE_DIGITS[i]})`
+                  }
+                  disabled={disabled}
+                  onClick={() => onChangeContributionMode?.(mode)}
+                  className={`inline-flex items-center gap-1.5 rounded border px-2 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    active
+                      ? 'border-blue-500 bg-blue-600 text-white'
+                      : 'border-gray-700 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {Icon ? <Icon size={14} /> : null}
+                  <span>{short}</span>
+                  <kbd className="ml-auto rounded bg-black/30 px-1 text-[10px] leading-4 text-gray-300">
+                    {MODE_DIGITS[i]}
+                  </kbd>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scope: apply to the selected node(s) only, or also their descendants. */}
+          <p className="mt-3 mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+            Apply to
+          </p>
+          <div className="inline-flex w-full items-center rounded-md border border-gray-700 bg-gray-800/60 p-0.5">
+            {(['node', 'subtree'] as const).map((scope) => {
+              const scopeLabel =
+                scope === 'node'
+                  ? 'Apply to the selected element(s) only'
+                  : 'Also apply to everything inside (descendants)';
+              return (
+                <button
+                  key={scope}
+                  type="button"
+                  data-testid={`mode-scope-${scope}`}
+                  aria-pressed={contributionScope === scope}
+                  aria-label={scopeLabel}
+                  title={scopeLabel}
+                  onClick={() => onChangeContributionScope?.(scope)}
+                  className={`flex-1 rounded px-1.5 py-1 text-xs transition-colors ${
+                    contributionScope === scope
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {scope === 'node' ? 'This' : '+ Inside'}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Optional node-type filter for the apply. */}
+          <label htmlFor={filterId} className="mt-3 flex items-center gap-2 text-xs text-gray-400">
+            only:
+            <select
+              id={filterId}
+              data-testid="mode-type-filter"
+              aria-label="Only apply to node type"
+              title="Restrict the mode to a node type"
+              value={contributionTypeFilter}
+              onChange={(e) =>
+                onChangeContributionTypeFilter?.(e.target.value as ContributionTypeFilter)
+              }
+              className="flex-1 rounded-md bg-gray-800 px-1.5 py-1 text-xs text-white hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {MODE_TYPE_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
     </div>
   );
 }

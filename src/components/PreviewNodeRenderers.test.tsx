@@ -6,7 +6,14 @@ import type {
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
-import { ContentNode, HeadingNode, ListItemNode, ListNode } from './PreviewNodeRenderers';
+import { createQuestionNode } from '../utils/tree-mutations';
+import {
+  ContentNode,
+  HeadingNode,
+  ListItemNode,
+  ListNode,
+  PreviewNode,
+} from './PreviewNodeRenderers';
 
 describe('HeadingNode', () => {
   test('maps depth to the matching heading level', () => {
@@ -252,5 +259,40 @@ describe('ListItemNode', () => {
     render(<ListItemNode node={node} language="de" headingDepth={1} />);
     expect(screen.getByText('Item body.')).toBeInTheDocument();
     expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
+  });
+});
+
+describe('QuestionNode (via PreviewNode)', () => {
+  test('a single-choice question renders the prompt and disabled radios', () => {
+    const q = createQuestionNode('single', 'de');
+    (q.children[0] as ContentDocumentNode).contents = { de: 'Pick one' };
+    (q.children[1] as { contents: Record<string, string> }).contents = { de: 'Alpha' };
+    (q.children[2] as { contents: Record<string, string> }).contents = { de: 'Beta' };
+    const { container } = render(<PreviewNode node={q} language="de" headingDepth={1} />);
+    expect(screen.getByText('Pick one')).toBeInTheDocument();
+    const radios = container.querySelectorAll('input[type="radio"]');
+    expect(radios).toHaveLength(2);
+    for (const r of radios) expect(r).toBeDisabled();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+  });
+
+  test('a multiple-choice question renders disabled checkboxes', () => {
+    const q = createQuestionNode('multiple', 'de');
+    const { container } = render(<PreviewNode node={q} language="de" headingDepth={1} />);
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+  });
+
+  test('a text question renders a disabled textarea', () => {
+    const q = createQuestionNode('text', 'de');
+    const { container } = render(<PreviewNode node={q} language="de" headingDepth={1} />);
+    const textarea = container.querySelector('textarea');
+    expect(textarea).not.toBeNull();
+    expect(textarea).toBeDisabled();
+  });
+
+  test('an option node renders nothing at top level (its question renders it)', () => {
+    const option = createQuestionNode('single', 'de').children[1];
+    const { container } = render(<PreviewNode node={option} language="de" headingDepth={1} />);
+    expect(container.firstChild).toBeNull();
   });
 });
