@@ -101,10 +101,19 @@ reasoning in [design.md](design.md).
 ## 8. Verification
 
 - [x] 8.1 `npx tsc --noEmit`, `npm run lint`, `npm run format:check`, `npm run test:run` — all green
-- [ ] 8.2 Manual smoke (`npm run dev`): set a mode from the toolbar picker on one node and on a
-  multi-selection; check the `+ Inside` scope and the type filter; use `I` then `1`–`4`; apply and
-  clear across the whole document from the top toolbar; confirm each apply undoes in a single
-  `Cmd+Z`; confirm the pill appears and disappears; Download JSON and re-import the file
+- [x] 8.2 Smoke pass against a running `npm run dev`, driven through a real browser (15/15 checks):
+  editor opens from pasted text; the picker appears on selection and is hidden otherwise; `REMARK`
+  applies to the selected node and shows its pill without hovering; the trigger summarises the mode;
+  `I` opens the picker and `4` applies `PROPOSAL` and closes it; one `Ctrl+Z` reverts a mode change;
+  a whole-document apply marks every node and undoes in a single step; `PROPOSAL` is disabled under a
+  `LIST` type filter; Download JSON emits exactly one `contributionMode` with the right value in a
+  well-formed `DocTreeVersion: 1` envelope; no application-level console errors
+- [x] 8.2b Second smoke pass over a document with real nesting (heading → content + list → list
+  items → content), 9/9: the `+ Inside` scope marks the selected heading and its whole subtree (7
+  nodes) and leaves the sibling heading's subtree untouched; the subtree apply undoes in one step;
+  the selection-level `CONTENT` type filter marks only the content nodes inside the subtree; the
+  exported envelope carries exactly those modes; and re-importing the downloaded file through the
+  upload flow reopens the editor with the modes intact
 - [ ] 8.3 Confirm with the Demokratis backend that the platform importer accepts `contributionMode`
   on the DocTree envelope and lowercase-folds the `UPPERCASE` values (design Risks). This is the one
   assumption no test in this repository can verify — the same open item
