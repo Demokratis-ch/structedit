@@ -94,6 +94,47 @@ describe('buildDocTreeEnvelope', () => {
   });
 });
 
+describe('DocTree envelope — contribution mode round-trip', () => {
+  const treeWithModes: DocumentRootNode = {
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: '1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contributionMode: 'PROPOSAL',
+        contents: { de: 'Titel' },
+        children: [],
+      },
+      {
+        id: 'c1',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Ohne Modus' },
+        children: [],
+      },
+    ],
+  };
+
+  it('serializes set modes and omits absent ones, and re-parses to an equal tree', () => {
+    const envelope = buildDocTreeEnvelope(treeWithModes, { language: 'de', filename: 'x.json' });
+    const json = JSON.stringify(envelope);
+
+    // Set mode present in the wire form; absent mode not serialized at all.
+    expect(json).toContain('"contributionMode":"PROPOSAL"');
+    expect(json.match(/contributionMode/g)).toHaveLength(1);
+
+    const parsed = JSON.parse(json);
+    expect(isValidDocTreeEnvelope(parsed)).toBe(true);
+    const [h1, c1] = parsed.document.children as DocumentNode[];
+    expect(h1.contributionMode).toBe('PROPOSAL');
+    expect('contributionMode' in c1).toBe(false);
+  });
+});
+
 describe('Document Utils', () => {
   describe('generateId', () => {
     it('generates unique IDs', () => {

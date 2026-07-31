@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALLOWED_FORMATS,
+  ALLOWED_MODES,
   type BlockDocumentNode,
   type ContentDocumentNode,
+  type ContributionMode,
   canBeChildOf,
   canHaveFormat,
+  canHaveMode,
+  carryModeOrClamp,
   DEFAULT_FORMAT,
   DOC_TREE_VERSION,
   type DocumentNode,
@@ -21,6 +25,7 @@ import {
   type NodeFormat,
   type NumberedDocumentNode,
   type ParentDocumentNode,
+  PROPOSABLE_TYPES,
 } from './document';
 
 /**
@@ -1181,6 +1186,243 @@ describe('isValidNode — format field rules', () => {
             ],
           },
         ],
+      })
+    ).toBe(false);
+  });
+});
+
+// Type-level: every node interface (incl. the root and containers) carries the optional
+// `contributionMode` key. Erased at runtime; checked by tsc.
+type _ContributionModeTypeAssertions = [
+  Expect<Equal<HasKey<DocumentRootNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<ListDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<ListItemDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<HeadingDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<ContentDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<FootnoteDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<HasKey<ImageDocumentNode, 'contributionMode'>, true>>,
+  Expect<Equal<ContributionMode, 'NONE' | 'REMARK' | 'PROPOSAL'>>,
+];
+
+describe('ContributionMode — tables and helpers', () => {
+  it('PROPOSABLE_TYPES are heading/content/footnote', () => {
+    expect([...PROPOSABLE_TYPES]).toEqual(['HEADING', 'CONTENT', 'FOOTNOTE']);
+  });
+
+  it('ALLOWED_MODES lists NONE/REMARK for every node type', () => {
+    for (const type of Object.keys(ALLOWED_MODES) as (keyof typeof ALLOWED_MODES)[]) {
+      expect(ALLOWED_MODES[type]).toContain('NONE');
+      expect(ALLOWED_MODES[type]).toContain('REMARK');
+    }
+  });
+
+  it('ALLOWED_MODES adds PROPOSAL only to proposable types', () => {
+    expect(ALLOWED_MODES.HEADING).toContain('PROPOSAL');
+    expect(ALLOWED_MODES.CONTENT).toContain('PROPOSAL');
+    expect(ALLOWED_MODES.FOOTNOTE).toContain('PROPOSAL');
+    expect(ALLOWED_MODES.DOCUMENT).not.toContain('PROPOSAL');
+    expect(ALLOWED_MODES.LIST).not.toContain('PROPOSAL');
+    expect(ALLOWED_MODES.LIST_ITEM).not.toContain('PROPOSAL');
+    expect(ALLOWED_MODES.IMAGE).not.toContain('PROPOSAL');
+  });
+
+  it('has an ALLOWED_MODES row for every node type (drift guard)', () => {
+    const types: DocumentNode['type'][] = [
+      'DOCUMENT',
+      'LIST',
+      'LIST_ITEM',
+      'HEADING',
+      'CONTENT',
+      'FOOTNOTE',
+      'IMAGE',
+    ];
+    for (const t of types) {
+      expect(ALLOWED_MODES[t]).toBeDefined();
+    }
+  });
+});
+
+describe('canHaveMode', () => {
+  it('allows NONE and REMARK on every node type', () => {
+    const types: DocumentNode['type'][] = [
+      'DOCUMENT',
+      'LIST',
+      'LIST_ITEM',
+      'HEADING',
+      'CONTENT',
+      'FOOTNOTE',
+      'IMAGE',
+    ];
+    for (const t of types) {
+      expect(canHaveMode(t, 'NONE')).toBe(true);
+      expect(canHaveMode(t, 'REMARK')).toBe(true);
+    }
+  });
+
+  it('allows PROPOSAL only on proposable types', () => {
+    expect(canHaveMode('HEADING', 'PROPOSAL')).toBe(true);
+    expect(canHaveMode('CONTENT', 'PROPOSAL')).toBe(true);
+    expect(canHaveMode('FOOTNOTE', 'PROPOSAL')).toBe(true);
+    expect(canHaveMode('DOCUMENT', 'PROPOSAL')).toBe(false);
+    expect(canHaveMode('LIST', 'PROPOSAL')).toBe(false);
+    expect(canHaveMode('LIST_ITEM', 'PROPOSAL')).toBe(false);
+    expect(canHaveMode('IMAGE', 'PROPOSAL')).toBe(false);
+  });
+});
+
+describe('carryModeOrClamp', () => {
+  it('keeps a mode the target type may hold', () => {
+    expect(carryModeOrClamp('REMARK', 'HEADING')).toBe('REMARK');
+    expect(carryModeOrClamp('PROPOSAL', 'CONTENT')).toBe('PROPOSAL');
+    expect(carryModeOrClamp('NONE', 'LIST')).toBe('NONE');
+  });
+
+  it('drops PROPOSAL to undefined when moving to a non-proposable type', () => {
+    expect(carryModeOrClamp('PROPOSAL', 'IMAGE')).toBeUndefined();
+    expect(carryModeOrClamp('PROPOSAL', 'LIST')).toBeUndefined();
+  });
+
+  it('leaves an absent mode absent', () => {
+    expect(carryModeOrClamp(undefined, 'HEADING')).toBeUndefined();
+  });
+});
+
+describe('isValidNode — contribution mode rules', () => {
+  const contentWith = (mode: unknown) => ({
+    id: '1',
+    number: null,
+    type: 'CONTENT',
+    contents: { en: 'x' },
+    children: [],
+    format: 'TEXT',
+    ...(mode === undefined ? {} : { contributionMode: mode }),
+  });
+
+  it('accepts a content node with no contributionMode (default)', () => {
+    expect(isValidNode(contentWith(undefined))).toBe(true);
+  });
+
+  it('accepts NONE / REMARK / PROPOSAL on a content node', () => {
+    for (const mode of ['NONE', 'REMARK', 'PROPOSAL'] as ContributionMode[]) {
+      expect(isValidNode(contentWith(mode))).toBe(true);
+    }
+  });
+
+  it('rejects a PROPOSAL mode on an IMAGE (non-proposable) node', () => {
+    expect(
+      isValidNode({
+        id: '1',
+        number: null,
+        type: 'IMAGE',
+        contents: { en: 'i.png' },
+        format: 'TEXT',
+        contributionMode: 'PROPOSAL',
+      })
+    ).toBe(false);
+  });
+
+  it('rejects an unknown contributionMode value', () => {
+    expect(isValidNode(contentWith('WHATEVER'))).toBe(false);
+    expect(isValidNode(contentWith('none'))).toBe(false); // lowercase is not the StructEdit form
+  });
+
+  it('accepts a contribution mode on the DOCUMENT root', () => {
+    expect(
+      isValidDocument({ id: '1', type: 'DOCUMENT', children: [], contributionMode: 'REMARK' })
+    ).toBe(true);
+  });
+
+  it('rejects PROPOSAL on the DOCUMENT root (not proposable)', () => {
+    expect(
+      isValidDocument({ id: '1', type: 'DOCUMENT', children: [], contributionMode: 'PROPOSAL' })
+    ).toBe(false);
+  });
+
+  it('accepts a contribution mode on container nodes (list / list_item)', () => {
+    expect(
+      isValidDocument({
+        id: '1',
+        type: 'DOCUMENT',
+        children: [
+          {
+            id: '2',
+            number: null,
+            type: 'LIST',
+            contributionMode: 'NONE',
+            children: [
+              {
+                id: '3',
+                number: '1.',
+                type: 'LIST_ITEM',
+                contributionMode: 'REMARK',
+                children: [
+                  {
+                    id: '4',
+                    number: null,
+                    type: 'CONTENT',
+                    contents: { en: 'Item' },
+                    children: [],
+                    format: 'TEXT',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  it('rejects PROPOSAL on a LIST container', () => {
+    expect(
+      isValidDocument({
+        id: '1',
+        type: 'DOCUMENT',
+        children: [
+          { id: '2', number: null, type: 'LIST', contributionMode: 'PROPOSAL', children: [] },
+        ],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('DocTreeEnvelope — contribution modes', () => {
+  it('accepts an envelope whose document carries valid modes', () => {
+    expect(
+      isValidDocTreeEnvelope({
+        DocTreeVersion: DOC_TREE_VERSION,
+        metadata: { title: { de: 'Doc' } },
+        document: {
+          id: '1',
+          type: 'DOCUMENT',
+          children: [
+            {
+              id: '2',
+              number: '1',
+              type: 'HEADING',
+              contents: { en: 'Title' },
+              format: 'TEXT',
+              contributionMode: 'PROPOSAL',
+              children: [],
+            },
+          ],
+        },
+      })
+    ).toBe(true);
+  });
+
+  it('rejects an envelope whose document carries an invalid mode (PROPOSAL on a LIST)', () => {
+    expect(
+      isValidDocTreeEnvelope({
+        DocTreeVersion: DOC_TREE_VERSION,
+        metadata: { title: { de: 'Doc' } },
+        document: {
+          id: '1',
+          type: 'DOCUMENT',
+          children: [
+            { id: '2', number: null, type: 'LIST', contributionMode: 'PROPOSAL', children: [] },
+          ],
+        },
       })
     ).toBe(false);
   });

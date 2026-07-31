@@ -1,7 +1,9 @@
 import {
   type BlockDocumentNode,
   type ContentBearingNodeType,
+  type ContributionMode,
   canHaveFormat,
+  canHaveMode,
   type DocumentNode,
   type DocumentRootNode,
   type FootnoteDocumentNode,
@@ -127,6 +129,93 @@ export function changeNodeFormat(
   if (!CONTENT_BEARING_TYPES.includes(node.type as ContentBearingNodeType)) return root;
   if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return root;
   return updateNodeAtPath(root, path, (n) => ({ ...n, format }) as DocumentNode);
+}
+
+/**
+ * Set (or clear) a node's contribution mode. No-op (returns the same root reference) when the node
+ * doesn't exist, the requested mode isn't allowed for its type, or the node already carries it.
+ * Passing `undefined` clears the field entirely, so a cleared node is indistinguishable from a
+ * never-set one after a JSON round-trip. Unlike {@link changeNodeFormat}, every node type — the
+ * root and containers included — is eligible.
+ */
+export function setNodeContributionMode(
+  root: DocumentRootNode,
+  path: NodePath,
+  mode: ContributionMode | undefined
+): DocumentRootNode {
+  const node = getNodeAtPath(root, path);
+  if (!node) return root;
+  if (mode !== undefined && !canHaveMode(node.type, mode)) return root;
+  // Already in the requested state (treating an absent field as `undefined`) — preserve reference.
+  if ((node.contributionMode ?? undefined) === mode) return root;
+  return updateNodeAtPath(root, path, (n) => {
+    if (mode === undefined) {
+      const next = { ...n };
+      delete (next as { contributionMode?: ContributionMode }).contributionMode;
+      return next as DocumentNode;
+    }
+    return { ...n, contributionMode: mode } as DocumentNode;
+  });
+}
+
+/**
+ * Recursively set (or clear) the contribution mode across the subtree rooted at `path` — the target
+ * node itself and all its descendants (pre-order), matching Demokratis's `iterateRecursive`.
+ *
+ * Two filters narrow which nodes are touched:
+ *  - `typeFilter` (optional): only nodes of that exact type are affected.
+ *  - the per-node clamp: a non-`undefined` mode is only written to nodes whose type may hold it
+ *    (see {@link canHaveMode}); others are left as-is. This keeps the tree valid — a blind write
+ *    could otherwise produce a node that fails validation on re-import.
+ *
+ * `mode === undefined` clears the field (resets to the element-type default) on affected nodes.
+ * Passing an empty `path` targets the document root, so a whole-document apply reuses this
+ * function. Returns the same `root` reference when nothing in the subtree changed.
+ */
+export function setSubtreeContributionMode(
+  root: DocumentRootNode,
+  path: NodePath,
+  mode: ContributionMode | undefined,
+  typeFilter?: DocumentNode['type']
+): DocumentRootNode {
+  const target = getNodeAtPath(root, path);
+  if (!target) return root;
+
+  const transform = (node: DocumentNode): DocumentNode => {
+    let next = node;
+
+    // 1. Apply to this node when the type filter and clamp both allow it.
+    if (typeFilter === undefined || node.type === typeFilter) {
+      if (mode === undefined) {
+        if (node.contributionMode !== undefined) {
+          const cleared = { ...node };
+          delete (cleared as { contributionMode?: ContributionMode }).contributionMode;
+          next = cleared as DocumentNode;
+        }
+      } else if (canHaveMode(node.type, mode) && node.contributionMode !== mode) {
+        next = { ...node, contributionMode: mode } as DocumentNode;
+      }
+    }
+
+    // 2. Recurse into children, preserving references when nothing below changed.
+    if ('children' in next && next.children.length > 0) {
+      let childChanged = false;
+      const newChildren = next.children.map((child) => {
+        const mapped = transform(child);
+        if (mapped !== child) childChanged = true;
+        return mapped;
+      });
+      if (childChanged) {
+        next = withMappedChildren(next as ParentDocumentNode, () => newChildren);
+      }
+    }
+
+    return next;
+  };
+
+  const nextTarget = transform(target);
+  if (nextTarget === target) return root; // nothing changed anywhere in the subtree
+  return updateNodeAtPath(root, path, () => nextTarget);
 }
 
 /**

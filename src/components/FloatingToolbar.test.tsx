@@ -393,3 +393,263 @@ describe('FloatingToolbar — merge button', () => {
     expect(onMerge).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('FloatingToolbar — contribution mode picker', () => {
+  const modeProps = {
+    ...baseProps,
+    onChangeContributionMode: vi.fn(),
+  };
+
+  // The mode controls live behind a dropdown; open it before querying the panel.
+  const openPanel = () => fireEvent.click(screen.getByTestId('contribution-mode-toggle'));
+
+  test('the trigger is hidden when nothing is selected', () => {
+    render(<FloatingToolbar {...modeProps} />);
+    expect(screen.queryByTestId('contribution-mode-toggle')).toBeNull();
+  });
+
+  test('the trigger is hidden while editing', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} isEditing={true} />);
+    expect(screen.queryByTestId('contribution-mode-toggle')).toBeNull();
+  });
+
+  test('the panel stays closed until the trigger is clicked', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeType="CONTENT" />);
+    expect(screen.getByTestId('contribution-mode-toggle')).toBeTruthy();
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+    openPanel();
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+  });
+
+  test('the trigger is shown for a multi selection (containers included)', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={4} />);
+    expect(screen.getByTestId('contribution-mode-toggle')).toBeTruthy();
+  });
+
+  test('the trigger summarises the current mode', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode="REMARK" />);
+    expect(screen.getByTestId('contribution-mode-toggle').textContent).toContain('Remark');
+  });
+
+  test('the trigger reads "Mixed" for a mixed selection', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={2} selectedNodeMode="mixed" />);
+    expect(screen.getByTestId('contribution-mode-toggle').textContent).toContain('Mixed');
+  });
+
+  test('disables PROPOSAL when the selection has no proposable node', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectionHasProposable={false} />);
+    openPanel();
+    expect(screen.getByTestId('mode-proposal')).toBeDisabled();
+  });
+
+  test('enables PROPOSAL when the selection includes a proposable node', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectionHasProposable={true} />);
+    openPanel();
+    expect(screen.getByTestId('mode-proposal')).not.toBeDisabled();
+  });
+
+  test('each button calls onChangeContributionMode with its value', () => {
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectionHasProposable={true}
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    openPanel();
+    fireEvent.click(screen.getByTestId('mode-none'));
+    fireEvent.click(screen.getByTestId('mode-remark'));
+    fireEvent.click(screen.getByTestId('mode-proposal'));
+    fireEvent.click(screen.getByTestId('mode-default'));
+    expect(onChangeContributionMode.mock.calls.map((c) => c[0])).toEqual([
+      'NONE',
+      'REMARK',
+      'PROPOSAL',
+      undefined,
+    ]);
+  });
+
+  test('marks the button matching selectedNodeMode as pressed', () => {
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectedNodeMode="REMARK"
+        selectionHasProposable={true}
+      />
+    );
+    openPanel();
+    expect(screen.getByTestId('mode-remark')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('mode-none')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('marks Default as pressed when the selection has no mode set', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeMode={undefined} />);
+    openPanel();
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('marks nothing pressed for a mixed selection', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={2} selectedNodeMode="mixed" />);
+    openPanel();
+    expect(screen.getByTestId('mode-default')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-none')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('mode-remark')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('closes on Escape', () => {
+    render(<FloatingToolbar {...modeProps} selectedCount={1} selectedNodeType="CONTENT" />);
+    openPanel();
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+});
+
+describe('FloatingToolbar — contribution mode keyboard shortcuts', () => {
+  const modeProps = {
+    ...baseProps,
+    selectedCount: 1,
+    selectionHasProposable: true,
+    onChangeContributionMode: vi.fn(),
+  };
+
+  test('pressing "i" opens the dropdown from selection mode', () => {
+    render(<FloatingToolbar {...modeProps} selectedNodeType="CONTENT" />);
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+    fireEvent.keyDown(document, { key: 'i' });
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+  });
+
+  test('the open shortcut is ignored while typing in an editable target', () => {
+    render(<FloatingToolbar {...modeProps} selectedNodeType="CONTENT" />);
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: 'i' });
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+    input.remove();
+  });
+
+  test('the open shortcut is ignored when a modifier is held', () => {
+    render(<FloatingToolbar {...modeProps} selectedNodeType="CONTENT" />);
+    fireEvent.keyDown(document, { key: 'i', metaKey: true });
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+
+  test.each([
+    ['1', undefined],
+    ['2', 'NONE'],
+    ['3', 'REMARK'],
+    ['4', 'PROPOSAL'],
+  ] as const)('while open, pressing %s applies its mode and closes', (digit, expected) => {
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedNodeType="CONTENT"
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.keyDown(document, { key: 'i' });
+    fireEvent.keyDown(document, { key: digit });
+    expect(onChangeContributionMode).toHaveBeenCalledTimes(1);
+    expect(onChangeContributionMode).toHaveBeenCalledWith(expected);
+    expect(screen.queryByTestId('contribution-mode-group')).toBeNull();
+  });
+
+  test('digit keys do nothing while the dropdown is closed', () => {
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedNodeType="CONTENT"
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.keyDown(document, { key: '3' });
+    expect(onChangeContributionMode).not.toHaveBeenCalled();
+  });
+
+  test('pressing 4 (Proposal) is a no-op when the selection is not proposable', () => {
+    const onChangeContributionMode = vi.fn();
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectionHasProposable={false}
+        onChangeContributionMode={onChangeContributionMode}
+      />
+    );
+    fireEvent.keyDown(document, { key: 'i' });
+    fireEvent.keyDown(document, { key: '4' });
+    expect(onChangeContributionMode).not.toHaveBeenCalled();
+    // The panel stays open so the user can pick a valid mode.
+    expect(screen.getByTestId('contribution-mode-group')).toBeTruthy();
+  });
+});
+
+describe('FloatingToolbar — bulk scope & type filter', () => {
+  const bulkProps = {
+    ...baseProps,
+    onChangeContributionMode: vi.fn(),
+    onChangeContributionScope: vi.fn(),
+    onChangeContributionTypeFilter: vi.fn(),
+  };
+
+  const openPanel = () => fireEvent.click(screen.getByTestId('contribution-mode-toggle'));
+
+  test('renders the scope toggle and type filter with a selection', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={2} />);
+    openPanel();
+    expect(screen.getByTestId('mode-scope-node')).toBeTruthy();
+    expect(screen.getByTestId('mode-scope-subtree')).toBeTruthy();
+    expect(screen.getByTestId('mode-type-filter')).toBeTruthy();
+  });
+
+  test('reflects the active scope via aria-pressed', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={1} contributionScope="subtree" />);
+    openPanel();
+    expect(screen.getByTestId('mode-scope-subtree')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('mode-scope-node')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('clicking a scope button calls onChangeContributionScope', () => {
+    const onChangeContributionScope = vi.fn();
+    render(
+      <FloatingToolbar
+        {...bulkProps}
+        selectedCount={1}
+        contributionScope="node"
+        onChangeContributionScope={onChangeContributionScope}
+      />
+    );
+    openPanel();
+    fireEvent.click(screen.getByTestId('mode-scope-subtree'));
+    expect(onChangeContributionScope).toHaveBeenCalledWith('subtree');
+  });
+
+  test('the type filter offers all node types and fires onChange', () => {
+    const onChangeContributionTypeFilter = vi.fn();
+    render(
+      <FloatingToolbar
+        {...bulkProps}
+        selectedCount={1}
+        onChangeContributionTypeFilter={onChangeContributionTypeFilter}
+      />
+    );
+    openPanel();
+    const filter = screen.getByTestId('mode-type-filter') as HTMLSelectElement;
+    const values = Array.from(filter.options).map((o) => o.value);
+    expect(values).toEqual(['all', 'HEADING', 'CONTENT', 'FOOTNOTE', 'LIST', 'LIST_ITEM', 'IMAGE']);
+    fireEvent.change(filter, { target: { value: 'CONTENT' } });
+    expect(onChangeContributionTypeFilter).toHaveBeenCalledWith('CONTENT');
+  });
+
+  test('reflects the current type filter value', () => {
+    render(<FloatingToolbar {...bulkProps} selectedCount={1} contributionTypeFilter="FOOTNOTE" />);
+    openPanel();
+    expect((screen.getByTestId('mode-type-filter') as HTMLSelectElement).value).toBe('FOOTNOTE');
+  });
+});

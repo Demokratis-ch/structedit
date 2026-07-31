@@ -650,3 +650,97 @@ describe('changeNodeTypeInDoc — parent-validity guard', () => {
     }
   });
 });
+
+describe('contribution mode threading through mutations', () => {
+  test('type change heading → content preserves the mode', () => {
+    const d = doc([{ ...heading('h1', 'X'), contributionMode: 'REMARK' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'h1', 'CONTENT');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('CONTENT');
+    expect(node.contributionMode).toBe('REMARK');
+  });
+
+  test('type change content → footnote preserves PROPOSAL', () => {
+    const d = doc([{ ...content('c1', 'X'), contributionMode: 'PROPOSAL' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'c1', 'FOOTNOTE');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('FOOTNOTE');
+    expect(node.contributionMode).toBe('PROPOSAL');
+  });
+
+  test('type change content → heading preserves NONE', () => {
+    const d = doc([{ ...content('c1', 'X'), contributionMode: 'NONE' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'c1', 'HEADING');
+    expect(getNodeAtPath(result!, [0])?.contributionMode).toBe('NONE');
+  });
+
+  test('type change heading(PROPOSAL) → list carries the mode onto the inner content, format reset to TEXT', () => {
+    const d = doc([{ ...heading('h1', 'X'), contributionMode: 'PROPOSAL' as const }]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'h1', 'LIST', 'unordered');
+    const listNode = getNodeAtPath(result!, [0]) as ListDocumentNode;
+    expect(listNode.type).toBe('LIST');
+    const inner = listNode.children[0].children[0] as ContentDocumentNode;
+    expect(inner.type).toBe('CONTENT');
+    expect(inner.contributionMode).toBe('PROPOSAL');
+    expect(inner.format).toBe('TEXT');
+  });
+
+  test('merge is first-node-wins for the contribution mode', () => {
+    const d = doc([
+      { ...content('a', 'A'), contributionMode: 'NONE' as const },
+      { ...content('b', 'B'), contributionMode: 'REMARK' as const },
+    ]);
+    const result = mergeNodesInDoc(['a', 'b'], d, idx(d));
+    const merged = getNodeAtPath(result!, [0])!;
+    expect(merged.id).toBe('a');
+    expect(merged.contributionMode).toBe('NONE');
+  });
+
+  test('flatten list → contents carries the list_item mode onto the synthesized content', () => {
+    const li = { ...listItem('li1', 'X', '1.'), contributionMode: 'NONE' as const };
+    const flattened = flattenListToContents(list('l1', [li]));
+    expect(flattened[0].type).toBe('CONTENT');
+    expect(flattened[0].contributionMode).toBe('NONE');
+  });
+
+  test('flatten prefers the content child mode over the list_item mode', () => {
+    const inner = { ...content('li2-c', 'Y'), contributionMode: 'PROPOSAL' as const };
+    const li: ListItemDocumentNode = {
+      id: 'li2',
+      number: '2.',
+      type: 'LIST_ITEM',
+      children: [inner],
+    };
+    const flattened = flattenListToContents(list('l2', [li]));
+    expect(flattened[0].contributionMode).toBe('PROPOSAL');
+  });
+
+  test('extract-and-convert (single list_item → content) carries the item mode', () => {
+    const li = { ...listItem('li1', 'X', '1.'), contributionMode: 'REMARK' as const };
+    const d = doc([list('l1', [li])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'li1', 'CONTENT');
+    const node = getNodeAtPath(result!, [0])!;
+    expect(node.type).toBe('CONTENT');
+    expect(node.contributionMode).toBe('REMARK');
+  });
+
+  test('a freshly created sibling has no contribution mode', () => {
+    const parent = doc([content('c1', 'X')]);
+    expect(createNewSiblingNode(parent, 'de').contributionMode).toBeUndefined();
+  });
+
+  test('outdent (lifting a heading out of a list_item) preserves its mode', () => {
+    const h = { ...heading('h1', 'X'), contributionMode: 'PROPOSAL' as const };
+    const li: ListItemDocumentNode = {
+      id: 'li1',
+      number: '1.',
+      type: 'LIST_ITEM',
+      children: [content('c1', 'before'), h],
+    };
+    const d = doc([list('l1', [li])]);
+    const result = outdentNodeInDoc(d, idx(d), 'h1');
+    const lifted = getNodeAtPath(result!, [1])!;
+    expect(lifted.id).toBe('h1');
+    expect(lifted.contributionMode).toBe('PROPOSAL');
+  });
+});

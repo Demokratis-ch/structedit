@@ -12,7 +12,13 @@ import type {
   NodeFormat,
   ParentType,
 } from '../types/document';
-import { canBeChildOf, canHaveFormat, DEFAULT_FORMAT } from '../types/document';
+import {
+  type ContributionMode,
+  canBeChildOf,
+  canHaveFormat,
+  carryModeOrClamp,
+  DEFAULT_FORMAT,
+} from '../types/document';
 import type { NodePath } from '../types/editor';
 import { generateId } from './document-utils';
 import {
@@ -206,6 +212,14 @@ export const carryFormatOrDefault = (
 };
 
 /**
+ * Spread helper for threading a contribution mode through the enumerated node constructors below.
+ * Yields `{ contributionMode }` only when a mode is defined, so an absent mode stays truly absent
+ * (matching the "default for element type" semantics) rather than serializing as `undefined`.
+ */
+const modeField = (mode: ContributionMode | undefined): { contributionMode?: ContributionMode } =>
+  mode !== undefined ? { contributionMode: mode } : {};
+
+/**
  * Flatten a list (and any nested lists inside its list_items) to a sequence of
  * content nodes. Each list_item becomes one content node carrying the
  * list_item's `number`; any nested list is flattened recursively and emitted
@@ -225,7 +239,9 @@ export function flattenListToContents(list: ListDocumentNode): DocumentNode[] {
       if (child.type === 'LIST') {
         flattenedChildren.push(...flattenListToContents(child));
       } else if (child.type === 'CONTENT' && !numberAttached) {
-        // Promote the first content child: it carries the list_item's id/number.
+        // Promote the first content child: it carries the list_item's id/number. Prefer the
+        // content child's own contribution mode, falling back to the list_item's, so a mode set on
+        // either survives the flatten (CONTENT can hold any mode, so no clamp is needed).
         const c = child;
         flattenedChildren.push({
           id: listItem.id,
@@ -234,6 +250,7 @@ export function flattenListToContents(list: ListDocumentNode): DocumentNode[] {
           format: c.format,
           contents: c.contents,
           children: c.children,
+          ...modeField(c.contributionMode ?? listItem.contributionMode),
         });
         numberAttached = true;
       } else {
@@ -252,6 +269,7 @@ export function flattenListToContents(list: ListDocumentNode): DocumentNode[] {
         format: 'TEXT',
         contents: {},
         children: [],
+        ...modeField(listItem.contributionMode),
       });
     }
 
@@ -606,6 +624,8 @@ export const extractAndConvertListItemInDoc = (
   // ("1.", "Art. 5", etc.) survives the conversion. Carry the source format
   // when valid for the target so single-item conversions match the multi-item
   // (list -> content) flatten path.
+  // The converted node inherits the list_item's id/number, so it inherits the item's contribution
+  // mode too (clamped to the target type, though HEADING/CONTENT hold everything a list_item can).
   const convertedNode: DocumentNode =
     targetType === 'HEADING'
       ? ({
@@ -615,6 +635,7 @@ export const extractAndConvertListItemInDoc = (
           format: carryFormatOrDefault(childFormat, 'HEADING'),
           contents,
           children: [],
+          ...modeField(carryModeOrClamp(item.contributionMode, 'HEADING')),
         } as HeadingDocumentNode)
       : ({
           id: item.id,
@@ -623,6 +644,7 @@ export const extractAndConvertListItemInDoc = (
           format: carryFormatOrDefault(childFormat, 'CONTENT'),
           contents,
           children: [],
+          ...modeField(carryModeOrClamp(item.contributionMode, 'CONTENT')),
         } as ContentDocumentNode);
 
   // Get parent of list info
@@ -737,6 +759,7 @@ export const changeNodeTypeInDoc = (
       type: 'FOOTNOTE',
       format: carryFormat,
       contents: node.contents,
+      ...modeField(carryModeOrClamp(node.contributionMode, 'FOOTNOTE')),
     };
 
     // Replace node with footnote
@@ -771,6 +794,7 @@ export const changeNodeTypeInDoc = (
       format: carryFormat,
       contents: node.contents,
       children: [],
+      ...modeField(carryModeOrClamp(node.contributionMode, 'HEADING')),
     };
 
     return updateNodeAtPath(doc, path, () => newNode);
@@ -789,6 +813,7 @@ export const changeNodeTypeInDoc = (
       format: carryFormat,
       contents: node.contents,
       children: [],
+      ...modeField(carryModeOrClamp(node.contributionMode, 'CONTENT')),
     };
 
     let newDoc = updateNodeAtPath(doc, path, () => contentNode);
@@ -834,9 +859,13 @@ export const changeNodeTypeInDoc = (
           id: node.id,
           number: null,
           type: 'CONTENT',
+          // Format is intentionally reset to TEXT here (see the list-item content shape); the
+          // contribution mode is orthogonal and carried onto the inner content node, which now
+          // owns the original node's identity.
           format: 'TEXT',
           contents: node.contents,
           children: [],
+          ...modeField(carryModeOrClamp(node.contributionMode, 'CONTENT')),
         },
       ],
     };
@@ -892,6 +921,10 @@ export const mergeNodesInDoc = (
 
   let mergedNode: DocumentNode;
 
+  // The merged node keeps the first node's id/number; its contribution mode follows suit
+  // (first-node-wins), clamped to the shared type (always a no-op since sources share a type).
+  const mergedMode = modeField(carryModeOrClamp(firstNode.contributionMode, firstNode.type));
+
   if (firstNode.type === 'HEADING') {
     const headings = nodes as HeadingDocumentNode[];
     mergedNode = {
@@ -904,6 +937,7 @@ export const mergeNodesInDoc = (
       ),
       contents: mergeContentsFromNodes(headings, ' '),
       children: headings.flatMap((n) => n.children),
+      ...mergedMode,
     };
   } else if (firstNode.type === 'CONTENT') {
     const contents = nodes as ContentDocumentNode[];
@@ -918,6 +952,7 @@ export const mergeNodesInDoc = (
       format,
       contents: mergeContentsFromNodes(contents, paragraphSeparatorFor(format)),
       children: contents.flatMap((n) => n.children),
+      ...mergedMode,
     };
   } else if (firstNode.type === 'FOOTNOTE') {
     const footnotes = nodes as FootnoteDocumentNode[];
@@ -931,6 +966,7 @@ export const mergeNodesInDoc = (
       type: 'FOOTNOTE',
       format,
       contents: mergeContentsFromNodes(footnotes, paragraphSeparatorFor(format)),
+      ...mergedMode,
     };
   } else if (firstNode.type === 'LIST') {
     const lists = nodes as ListDocumentNode[];
@@ -939,6 +975,7 @@ export const mergeNodesInDoc = (
       number: firstNode.number,
       type: 'LIST',
       children: lists.flatMap((n) => n.children),
+      ...mergedMode,
     };
   } else if (firstNode.type === 'LIST_ITEM') {
     const items = nodes as ListItemDocumentNode[];
@@ -947,6 +984,7 @@ export const mergeNodesInDoc = (
       number: firstNode.number,
       type: 'LIST_ITEM',
       children: items.flatMap((n) => n.children),
+      ...mergedMode,
     };
   } else {
     // Unreachable: resolveMergeTargets already rejected non-mergeable types.

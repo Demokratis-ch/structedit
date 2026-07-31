@@ -48,6 +48,24 @@ export type LocalizedText = Partial<{ [K in Language]: string }>;
  */
 export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_INLINE' | 'MARKDOWN';
 
+/**
+ * Per-node contribution mode — ported from the Demokratis platform's `DocNodeContributionMode`.
+ * It controls how consultation participants may interact with a node once the document is opened
+ * for feedback:
+ *
+ * - `NONE`     — locked; no interaction.
+ * - `REMARK`   — participants may attach a free-text annotation only.
+ * - `PROPOSAL` — participants may annotate AND submit an amendment proposal (their edited text,
+ *                shown as a diff). Only meaningful on "proposable" types (heading/content/footnote,
+ *                see {@link PROPOSABLE_TYPES}).
+ *
+ * The field is optional on every node; an absent value means "default for the element type",
+ * matching Demokratis's `null`. Values use StructEdit's uppercase enum convention (like
+ * {@link NodeFormat}); the Demokratis importer lowercase-folds them. Which modes a node type may
+ * carry is defined by {@link ALLOWED_MODES}.
+ */
+export type ContributionMode = 'NONE' | 'REMARK' | 'PROPOSAL';
+
 /** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
 export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
 
@@ -58,6 +76,7 @@ export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE
 export interface DocumentRootNode {
   id: string;
   type: 'DOCUMENT';
+  contributionMode?: ContributionMode;
   children: BlockDocumentNode[];
 }
 
@@ -66,6 +85,7 @@ export interface ListDocumentNode {
   id: string;
   number: string | null;
   type: 'LIST';
+  contributionMode?: ContributionMode;
   children: ListItemDocumentNode[];
 }
 
@@ -74,6 +94,7 @@ export interface ListItemDocumentNode {
   id: string;
   number: string | null;
   type: 'LIST_ITEM';
+  contributionMode?: ContributionMode;
   children: BlockDocumentNode[];
 }
 
@@ -82,6 +103,7 @@ export interface HeadingDocumentNode {
   id: string;
   number: string | null;
   type: 'HEADING';
+  contributionMode?: ContributionMode;
   contents: LocalizedText;
   format: NodeFormat;
   children: BlockDocumentNode[];
@@ -95,6 +117,7 @@ export interface ContentDocumentNode {
   id: string;
   number: string | null;
   type: 'CONTENT';
+  contributionMode?: ContributionMode;
   contents: LocalizedText;
   format: NodeFormat;
   children: FootnoteDocumentNode[];
@@ -105,6 +128,7 @@ export interface FootnoteDocumentNode {
   id: string;
   number: string | null;
   type: 'FOOTNOTE';
+  contributionMode?: ContributionMode;
   contents: LocalizedText;
   format: NodeFormat;
 }
@@ -114,6 +138,7 @@ export interface ImageDocumentNode {
   id: string;
   number: string | null;
   type: 'IMAGE';
+  contributionMode?: ContributionMode;
   contents: LocalizedText;
   format: NodeFormat;
 }
@@ -198,6 +223,29 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
   IMAGE: 'TEXT',
 };
 
+/**
+ * Node types on which a `PROPOSAL` contribution mode is meaningful — i.e. a participant may submit
+ * an amendment proposal against the node's text. Mirrors Demokratis `DocNodeType::isProposable()`.
+ */
+export const PROPOSABLE_TYPES = ['HEADING', 'CONTENT', 'FOOTNOTE'] as const;
+
+/**
+ * Allowed contribution modes per node type — the single source of truth for the mode picker and
+ * validation. `NONE` (lock) and `REMARK` (annotate) apply to every node; `PROPOSAL` only to the
+ * proposable types. An absent mode ("default for the element type") is always valid and is not
+ * listed here. The `satisfies Record<DocumentNode['type'], …>` is a compile-time drift guard: a new
+ * node type forces a new row here or the build fails (same idea as {@link ALLOWED_CHILDREN}).
+ */
+export const ALLOWED_MODES = {
+  DOCUMENT: ['NONE', 'REMARK'],
+  LIST: ['NONE', 'REMARK'],
+  LIST_ITEM: ['NONE', 'REMARK'],
+  IMAGE: ['NONE', 'REMARK'],
+  HEADING: ['NONE', 'REMARK', 'PROPOSAL'],
+  CONTENT: ['NONE', 'REMARK', 'PROPOSAL'],
+  FOOTNOTE: ['NONE', 'REMARK', 'PROPOSAL'],
+} as const satisfies Record<DocumentNode['type'], ContributionMode[]>;
+
 export const DOC_TREE_VERSION = 1 as const;
 
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
@@ -209,6 +257,7 @@ const VALID_FORMATS: NodeFormat[] = [
   'MARKDOWN_INLINE',
   'MARKDOWN',
 ];
+const VALID_MODES: ContributionMode[] = ['NONE', 'REMARK', 'PROPOSAL'];
 
 /**
  * Mapping of parent types to their allowed child types. `as const` preserves each row's literal
@@ -250,6 +299,21 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
   const allowed = ALLOWED_FORMATS[nodeType];
   return Array.isArray(allowed) && allowed.includes(format);
 };
+
+/** Whether a node type may carry a given contribution mode (see {@link ALLOWED_MODES}). */
+export const canHaveMode = (nodeType: DocumentNode['type'], mode: ContributionMode): boolean =>
+  (ALLOWED_MODES[nodeType] as readonly ContributionMode[]).includes(mode);
+
+/**
+ * Carry a contribution mode across a node type change: keep it when the target type may hold it,
+ * otherwise drop to `undefined` (the "default for element type"). Mirrors {@link carryFormatOrDefault}
+ * — except a mode's default is *absence*, so a disallowed mode clamps to `undefined`, not to a value.
+ */
+export const carryModeOrClamp = (
+  previousMode: ContributionMode | undefined,
+  nextType: DocumentNode['type']
+): ContributionMode | undefined =>
+  previousMode !== undefined && canHaveMode(nextType, previousMode) ? previousMode : undefined;
 
 /** Check if a node type can be a valid child of a parent type. */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
@@ -297,6 +361,15 @@ const isValidNodeInternal = (
 
   // Check parent-child relationship
   if (parentType !== null && !canBeChildOf(type, parentType)) return false;
+
+  // Validate the optional contribution mode uniformly across every node type (including the root
+  // and container types). Absent = "default for the element type"; when present it must be a known
+  // value and one that this node's type may carry.
+  if ('contributionMode' in node && node.contributionMode !== undefined) {
+    const mode = node.contributionMode;
+    if (typeof mode !== 'string' || !VALID_MODES.includes(mode as ContributionMode)) return false;
+    if (!canHaveMode(type, mode as ContributionMode)) return false;
+  }
 
   // Container nodes
   if (CONTAINER_TYPES.includes(type as 'DOCUMENT' | 'LIST' | 'LIST_ITEM')) {

@@ -612,3 +612,63 @@ describe('RecursiveTreeNode', () => {
     });
   });
 });
+
+describe('contribution mode indicator', () => {
+  test('renders no mode pill when the node has no contribution mode', () => {
+    const node = createTestNode();
+    const { queryByTestId, container } = renderWithContext(
+      <RecursiveTreeNode node={node} depth={1} />
+    );
+    expect(queryByTestId('contribution-mode-indicator')).toBeNull();
+    expect(container.querySelector('[data-contribution-mode="default"]')).toBeTruthy();
+  });
+
+  test('renders a mode pill and reflects the mode via the wrapper data attribute', () => {
+    const node: ContentDocumentNode = {
+      id: 'c1',
+      number: null,
+      type: 'CONTENT',
+      format: 'TEXT',
+      contents: { de: 'x' },
+      children: [],
+      contributionMode: 'PROPOSAL',
+    };
+    const { getByTestId, container } = renderWithContext(
+      <RecursiveTreeNode node={node} depth={1} />
+    );
+    expect(getByTestId('contribution-mode-indicator')).toBeTruthy();
+    expect(container.querySelector('[data-contribution-mode="PROPOSAL"]')).toBeTruthy();
+  });
+
+  test('renders the pill for a NONE (locked) container node', () => {
+    const node: ListDocumentNode = {
+      id: 'l1',
+      number: null,
+      type: 'LIST',
+      contributionMode: 'NONE',
+      children: [
+        {
+          id: 'li1',
+          number: '1.',
+          type: 'LIST_ITEM',
+          children: [
+            {
+              id: 'li1-c',
+              number: null,
+              type: 'CONTENT',
+              format: 'TEXT',
+              contents: { de: 'x' },
+              children: [],
+            },
+          ],
+        },
+      ],
+    };
+    const { getAllByTestId, container } = renderWithContext(
+      <RecursiveTreeNode node={node} depth={1} />
+    );
+    // The list itself carries the pill (children carry none).
+    expect(getAllByTestId('contribution-mode-indicator')).toHaveLength(1);
+    expect(container.querySelector('[data-contribution-mode="NONE"]')).toBeTruthy();
+  });
+});
