@@ -1,20 +1,15 @@
-import { Ban, MessageSquare, PenLine, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ContributionMode, DocumentNode } from '../types/document';
-import { type ContributionTypeFilter, MODE_TYPE_FILTERS } from './FloatingToolbar';
+import type { ContributionTypeFilter } from '../types/editor';
+import { filterAllowsProposal, MODE_CHOICES, MODE_TYPE_FILTERS } from './contribution-mode-ui';
 import { Button } from './ui/button';
 
-const DOC_MODE_BUTTONS: ReadonlyArray<{
-  mode: ContributionMode | undefined;
-  Icon: typeof Ban | null;
-  label: string;
-  testid: string;
-}> = [
-  { mode: undefined, Icon: null, label: 'Default', testid: 'doc-mode-default' },
-  { mode: 'NONE', Icon: Ban, label: 'None', testid: 'doc-mode-none' },
-  { mode: 'REMARK', Icon: MessageSquare, label: 'Remark', testid: 'doc-mode-remark' },
-  { mode: 'PROPOSAL', Icon: PenLine, label: 'Proposal', testid: 'doc-mode-proposal' },
-];
+// Same four choices as the selection toolbar, in the same order; only the test ids are local.
+const DOC_MODE_BUTTONS = MODE_CHOICES.map((choice) => ({
+  ...choice,
+  testid: `doc-mode-${choice.mode ? choice.mode.toLowerCase() : 'default'}`,
+}));
 
 interface DocumentContributionModeMenuProps {
   /** Apply (or clear, with `undefined`) a contribution mode across the whole document. */
@@ -90,18 +85,29 @@ export function DocumentContributionModeMenu({ onApply }: DocumentContributionMo
             </select>
           </label>
           <div className="grid grid-cols-2 gap-1">
-            {DOC_MODE_BUTTONS.map(({ mode, Icon, label, testid }) => (
-              <button
-                key={testid}
-                type="button"
-                data-testid={testid}
-                onClick={() => apply(mode)}
-                className="inline-flex items-center justify-center gap-1 rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-100"
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                {label}
-              </button>
-            ))}
+            {DOC_MODE_BUTTONS.map(({ mode, Icon, short, description, testid }) => {
+              // A filter naming a non-proposable type would make a PROPOSAL apply a no-op.
+              const disabled = mode === 'PROPOSAL' && !filterAllowsProposal(typeFilter);
+              return (
+                <button
+                  key={testid}
+                  type="button"
+                  data-testid={testid}
+                  disabled={disabled}
+                  onClick={() => apply(mode)}
+                  title={
+                    disabled
+                      ? 'Proposal is only available on headings, content and footnotes'
+                      : description
+                  }
+                  aria-label={description}
+                  className="inline-flex items-center justify-center gap-1 rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Icon && <Icon className="h-3.5 w-3.5" />}
+                  {short}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

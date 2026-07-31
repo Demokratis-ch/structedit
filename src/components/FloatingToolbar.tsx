@@ -2,7 +2,6 @@ import {
   ArrowDownToLine,
   ArrowUpToLine,
   Asterisk,
-  Ban,
   Bold,
   ChevronDown,
   Heading,
@@ -10,8 +9,6 @@ import {
   List,
   ListOrdered,
   Merge,
-  MessageSquare,
-  PenLine,
   SlidersHorizontal,
   SortAsc,
   Strikethrough,
@@ -26,11 +23,12 @@ import {
   ALLOWED_FORMATS,
   type ContentBearingNodeType,
   type ContributionMode,
-  type DocumentNode,
   type NodeFormat,
 } from '../types/document';
+import type { ContributionScope, ContributionTypeFilter } from '../types/editor';
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
+import { filterAllowsProposal, MODE_CHOICES, MODE_TYPE_FILTERS } from './contribution-mode-ui';
 
 type ToolbarBlockType = 'HEADING' | 'CONTENT' | 'ul' | 'ol' | 'abc' | 'FOOTNOTE';
 // Type used purely to drive the format selector — accepts every content-bearing node type
@@ -95,46 +93,14 @@ const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOT
 
 // The contribution-mode picker: how consultation participants may interact with the selected
 // element(s). `undefined` is the element-type default; `PROPOSAL` is offered only when the
-// selection includes a proposable node (heading/content/footnote).
-const MODE_BUTTONS: ReadonlyArray<{
-  mode: ContributionMode | undefined;
-  Icon: typeof Ban | null;
-  /** Full description, used for tooltips and aria-labels. */
-  label: string;
-  /** Compact label shown on the button and in the trigger summary. */
-  short: string;
-}> = [
-  { mode: undefined, Icon: null, label: 'Default (element-type default)', short: 'Default' },
-  { mode: 'NONE', Icon: Ban, label: 'None — locked, no interaction', short: 'None' },
-  { mode: 'REMARK', Icon: MessageSquare, label: 'Remark — annotations only', short: 'Remark' },
-  {
-    mode: 'PROPOSAL',
-    Icon: PenLine,
-    label: 'Proposal — annotations and amendment proposals',
-    short: 'Proposal',
-  },
-];
+// selection includes a proposable node (heading/content/footnote). Icons and wording come from
+// the shared presentation table so the tree pill and the document menu stay in step.
+const MODE_BUTTONS = MODE_CHOICES;
 
 /** Bare-key shortcut (in selection mode) that opens the contribution-mode dropdown. */
 const MODE_SHORTCUT = 'i';
 /** Digit keys selecting the four modes (in MODE_BUTTONS order) while the dropdown is open. */
 const MODE_DIGITS = ['1', '2', '3', '4'] as const;
-
-/** Scope of a bulk mode apply: the selected node(s) only, or each selected node plus descendants. */
-export type ContributionScope = 'node' | 'subtree';
-
-/** Node-type filter for a bulk mode apply. `'all'` means every type in scope. */
-export type ContributionTypeFilter = DocumentNode['type'] | 'all';
-
-export const MODE_TYPE_FILTERS: ReadonlyArray<{ value: ContributionTypeFilter; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'HEADING', label: 'Headings' },
-  { value: 'CONTENT', label: 'Content' },
-  { value: 'FOOTNOTE', label: 'Footnotes' },
-  { value: 'LIST', label: 'Lists' },
-  { value: 'LIST_ITEM', label: 'List items' },
-  { value: 'IMAGE', label: 'Images' },
-];
 
 export function FloatingToolbar({
   selectedCount,
@@ -492,21 +458,25 @@ function ContributionModePopover({
             Contribution mode <span className="normal-case text-gray-600">(press 1–4)</span>
           </p>
           <div className="grid grid-cols-2 gap-1">
-            {MODE_BUTTONS.map(({ mode, Icon, label, short }, i) => {
+            {MODE_BUTTONS.map(({ mode, Icon, description, short }, i) => {
               const active = selectedNodeMode === mode;
-              const disabled = mode === 'PROPOSAL' && !selectionHasProposable;
+              // PROPOSAL needs both a proposable node in the selection and a type filter that
+              // doesn't exclude every proposable type — otherwise the apply is a silent no-op.
+              const disabled =
+                mode === 'PROPOSAL' &&
+                (!selectionHasProposable || !filterAllowsProposal(contributionTypeFilter));
               return (
                 <button
                   key={mode ?? 'default'}
                   type="button"
                   data-testid={`mode-${mode ? mode.toLowerCase() : 'default'}`}
                   aria-pressed={active}
-                  aria-label={label}
+                  aria-label={description}
                   aria-keyshortcuts={MODE_DIGITS[i]}
                   title={
                     disabled
                       ? 'Proposal is only available on headings, content and footnotes'
-                      : `${label} (${MODE_DIGITS[i]})`
+                      : `${description} (${MODE_DIGITS[i]})`
                   }
                   disabled={disabled}
                   onClick={() => onChangeContributionMode?.(mode)}

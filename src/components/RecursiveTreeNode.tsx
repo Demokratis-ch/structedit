@@ -1,10 +1,11 @@
-import { Ban, GripVertical, MessageSquare, PenLine, Plus } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
 import type React from 'react';
 import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
 import type { ContributionMode, DocumentNode, NodeFormat } from '../types/document';
 import { ContentBlock } from './ContentBlock';
+import { MODE_PRESENTATION } from './contribution-mode-ui';
 import { NumberBadge } from './NumberBadge';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
 
@@ -40,24 +41,12 @@ const AddNodeButton: React.FC<{
   </button>
 );
 
-// Per-mode presentation for the always-visible contribution-mode pill. Icons mirror the Demokratis
-// editor (ban / comment / pen-line); an absent mode renders no pill.
-const MODE_INDICATOR: Record<ContributionMode, { Icon: typeof Ban; cls: string; label: string }> = {
-  NONE: {
-    Icon: Ban,
-    cls: 'text-gray-500 bg-gray-100 border-gray-300',
-    label: 'Locked — no participant interaction',
-  },
-  REMARK: {
-    Icon: MessageSquare,
-    cls: 'text-blue-600 bg-blue-50 border-blue-200',
-    label: 'Remark — participants may annotate',
-  },
-  PROPOSAL: {
-    Icon: PenLine,
-    cls: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-    label: 'Proposal — participants may annotate and propose amendments',
-  },
+// Colour treatment for the always-visible contribution-mode pill. The icon and wording come from
+// the shared presentation table; only the palette is local. An absent mode renders no pill.
+const MODE_INDICATOR_CLASS: Record<ContributionMode, string> = {
+  NONE: 'text-gray-500 bg-gray-100 border-gray-300',
+  REMARK: 'text-blue-600 bg-blue-50 border-blue-200',
+  PROPOSAL: 'text-emerald-700 bg-emerald-50 border-emerald-200',
 };
 
 /**
@@ -347,12 +336,13 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         {/* Contribution mode indicator (always visible when a mode is set) */}
         {node.contributionMode &&
           (() => {
-            const { Icon, cls, label } = MODE_INDICATOR[node.contributionMode];
+            const { Icon, description } = MODE_PRESENTATION[node.contributionMode];
+            const cls = MODE_INDICATOR_CLASS[node.contributionMode];
             return (
               <span
                 data-testid="contribution-mode-indicator"
                 className={`tree-node-mode-indicator absolute top-1 right-1 z-10 inline-flex items-center rounded border px-1 py-0.5 ${cls}`}
-                title={label}
+                title={description}
               >
                 <Icon size={12} />
               </span>

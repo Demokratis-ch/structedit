@@ -246,8 +246,11 @@ export const useTreeOperations = ({
    * Set (or clear) the contribution mode on every given node in a single history entry. Nodes
    * whose type can't hold the requested mode are skipped (their existing mode is left untouched),
    * so painting a mode across a mixed selection only affects the nodes it validly applies to.
-   * Passing `undefined` clears the mode. Rebuilds indices between iterations like the other
-   * multi-node ops so processing order doesn't matter.
+   * Passing `undefined` clears the mode.
+   *
+   * Unlike the structural multi-node ops, this one does not rebuild indices between iterations:
+   * setting a mode replaces node objects but never moves a node, so every path in `nodeIndex`
+   * stays valid for the whole batch and processing order doesn't matter.
    */
   const changeNodeContributionMode = useCallback(
     (ids: string[], mode: ContributionMode | undefined) => {
@@ -255,8 +258,7 @@ export const useTreeOperations = ({
       let changed = false;
 
       for (const id of ids) {
-        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
-        const path = idx.get(id);
+        const path = nodeIndex.get(id);
         if (!path) continue;
 
         const result = setNodeContributionMode(doc, path, mode);
@@ -279,6 +281,11 @@ export const useTreeOperations = ({
    * selected descendant whose ancestor is also selected (the ancestor's subtree already covers it).
    * The optional `typeFilter` restricts which node types are affected; the mode is clamped per node
    * so it only lands where the type allows it. Passing `undefined` clears the mode across the subtree.
+   *
+   * As in {@link changeNodeContributionMode}, no index rebuild is needed between iterations: the
+   * subtree apply rewrites node objects in place without moving any node, so the paths taken from
+   * `nodeIndex` stay valid across the batch. After `keepOutermostIds` the remaining subtrees are
+   * disjoint, so they cannot affect one another either.
    */
   const changeSubtreeContributionMode = useCallback(
     (ids: string[], mode: ContributionMode | undefined, typeFilter?: DocumentNode['type']) => {
@@ -286,8 +293,7 @@ export const useTreeOperations = ({
       let changed = false;
 
       for (const id of keepOutermostIds(ids, nodeIndex)) {
-        const idx = changed ? buildIndices(doc).nodeIndex : nodeIndex;
-        const path = idx.get(id);
+        const path = nodeIndex.get(id);
         if (!path) continue;
 
         const result = setSubtreeContributionMode(doc, path, mode, typeFilter);

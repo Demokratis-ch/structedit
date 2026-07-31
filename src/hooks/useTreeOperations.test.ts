@@ -5945,6 +5945,28 @@ describe('useTreeOperations', () => {
       expect(getNodeAtPath(newDoc, nIdx.get('h1b')!)?.contributionMode).toBe('REMARK');
     });
 
+    test('applies to every node of a deep selection, whatever the id order', () => {
+      // Setting a mode never moves a node, so the paths captured up front stay valid for the
+      // whole batch. Both orders must land the mode on all five nodes — nested ids interleaved
+      // with their ancestors, and the same set reversed.
+      const all = ['h1', 'p1', 'h2', 'p2', 'h1b'];
+      for (const ids of [all, [...all].reverse()]) {
+        mockCommit.mockClear();
+        const { result } = renderTreeOperations();
+
+        act(() => {
+          result.current.changeNodeContributionMode(ids, 'REMARK');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        const nIdx = buildIndices(newDoc).nodeIndex;
+        for (const id of all) {
+          expect(getNodeAtPath(newDoc, nIdx.get(id)!)?.contributionMode).toBe('REMARK');
+        }
+      }
+    });
+
     test('skips nodes whose type cannot hold the mode', () => {
       const listDoc = createDocumentWithList();
       const { result } = renderTreeOperations(listDoc);
@@ -6017,6 +6039,28 @@ describe('useTreeOperations', () => {
       const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
       for (const id of ['h1', 'p1', 'h2', 'p2']) {
         expect(modeOf(doc, id)).toBe('REMARK');
+      }
+    });
+
+    test('applies every disjoint subtree of a multi-node selection, whatever the id order', () => {
+      // Two sibling subtrees selected at once: neither contains the other, so both are applied
+      // in the same commit and the order they are processed in must not matter.
+      for (const ids of [
+        ['h1', 'h1b'],
+        ['h1b', 'h1'],
+      ]) {
+        mockCommit.mockClear();
+        const { result } = renderTreeOperations();
+
+        act(() => {
+          result.current.changeSubtreeContributionMode(ids, 'REMARK');
+        });
+
+        expect(mockCommit).toHaveBeenCalledTimes(1);
+        const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+        for (const id of ['h1', 'p1', 'h2', 'p2', 'h1b']) {
+          expect(modeOf(doc, id)).toBe('REMARK');
+        }
       }
     });
 

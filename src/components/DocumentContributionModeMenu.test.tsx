@@ -35,6 +35,41 @@ describe('DocumentContributionModeMenu', () => {
     expect(onApply).toHaveBeenCalledWith('NONE', 'FOOTNOTE');
   });
 
+  test('disables Proposal when the type filter names a non-proposable type', () => {
+    const onApply = vi.fn();
+    render(<DocumentContributionModeMenu onApply={onApply} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    // A LIST can never hold PROPOSAL, so applying it document-wide would silently do nothing.
+    fireEvent.change(screen.getByTestId('doc-mode-type-filter'), { target: { value: 'LIST' } });
+    expect(screen.getByTestId('doc-mode-proposal')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('doc-mode-proposal'));
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  test('re-enables Proposal when the filter moves back to a proposable type', () => {
+    render(<DocumentContributionModeMenu onApply={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    fireEvent.change(screen.getByTestId('doc-mode-type-filter'), { target: { value: 'LIST' } });
+    expect(screen.getByTestId('doc-mode-proposal')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('doc-mode-type-filter'), { target: { value: 'FOOTNOTE' } });
+    expect(screen.getByTestId('doc-mode-proposal')).not.toBeDisabled();
+  });
+
+  test('leaves Proposal enabled for the unfiltered (all types) apply', () => {
+    render(<DocumentContributionModeMenu onApply={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    expect(screen.getByTestId('doc-mode-proposal')).not.toBeDisabled();
+  });
+
+  test('the other modes stay enabled under a non-proposable filter', () => {
+    render(<DocumentContributionModeMenu onApply={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    fireEvent.change(screen.getByTestId('doc-mode-type-filter'), { target: { value: 'LIST' } });
+    expect(screen.getByTestId('doc-mode-none')).not.toBeDisabled();
+    expect(screen.getByTestId('doc-mode-remark')).not.toBeDisabled();
+    expect(screen.getByTestId('doc-mode-default')).not.toBeDisabled();
+  });
+
   test('closes the panel after applying', () => {
     render(<DocumentContributionModeMenu onApply={vi.fn()} />);
     fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));

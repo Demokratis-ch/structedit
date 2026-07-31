@@ -12,12 +12,9 @@ import {
   type NodeFormat,
   PROPOSABLE_TYPES,
 } from '../types/document';
+import type { ContributionScope, ContributionTypeFilter } from '../types/editor';
 import { MOD } from '../utils/platform';
-import {
-  type ContributionScope,
-  type ContributionTypeFilter,
-  FloatingToolbar,
-} from './FloatingToolbar';
+import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import { TreeCallbacksContext, TreeUIStoreContext } from './TreeNodeContext';
 import { Kbd } from './ui/Kbd';

@@ -448,6 +448,34 @@ describe('FloatingToolbar — contribution mode picker', () => {
     expect(screen.getByTestId('mode-proposal')).not.toBeDisabled();
   });
 
+  test('disables PROPOSAL when the type filter names a non-proposable type', () => {
+    // Even with a proposable node selected, a LIST-filtered apply can never land PROPOSAL.
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectionHasProposable={true}
+        contributionTypeFilter="LIST"
+      />
+    );
+    openPanel();
+    expect(screen.getByTestId('mode-proposal')).toBeDisabled();
+    expect(screen.getByTestId('mode-remark')).not.toBeDisabled();
+  });
+
+  test('keeps PROPOSAL enabled under a proposable type filter', () => {
+    render(
+      <FloatingToolbar
+        {...modeProps}
+        selectedCount={1}
+        selectionHasProposable={true}
+        contributionTypeFilter="HEADING"
+      />
+    );
+    openPanel();
+    expect(screen.getByTestId('mode-proposal')).not.toBeDisabled();
+  });
+
   test('each button calls onChangeContributionMode with its value', () => {
     const onChangeContributionMode = vi.fn();
     render(

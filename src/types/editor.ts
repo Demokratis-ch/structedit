@@ -29,6 +29,17 @@ export interface FlattenedNode {
 }
 
 /**
+ * Scope of a bulk contribution-mode apply: the selected node(s) only, or each selected node
+ * together with all its descendants.
+ */
+export type ContributionScope = 'node' | 'subtree';
+
+/**
+ * Node-type filter for a bulk contribution-mode apply. `'all'` means every type in scope.
+ */
+export type ContributionTypeFilter = DocumentNode['type'] | 'all';
+
+/**
  * Complete editor state for the tree-based editor.
  */
 export interface TreeEditorState {
