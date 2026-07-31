@@ -6131,6 +6131,51 @@ describe('useTreeOperations', () => {
       expect(modeOf(doc, 'li1')).toBeUndefined(); // list_item
     });
 
+    test('a type filter restricts the whole-document apply', () => {
+      const { result } = renderTreeOperations();
+
+      act(() => {
+        result.current.changeDocumentContributionMode('REMARK', 'CONTENT');
+      });
+
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const doc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect(modeOf(doc, 'p1')).toBe('REMARK'); // content
+      expect(modeOf(doc, 'p2')).toBe('REMARK'); // content
+      expect(doc.contributionMode).toBeUndefined(); // root — filtered out
+      expect(modeOf(doc, 'h1')).toBeUndefined(); // heading — filtered out
+      expect(modeOf(doc, 'h1b')).toBeUndefined();
+    });
+
+    test('clears the mode across the whole document', () => {
+      const { result } = renderTreeOperations();
+      act(() => {
+        result.current.changeDocumentContributionMode('REMARK');
+      });
+      const setDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+
+      // Re-render over the marked document, then clear with `undefined`.
+      const idx2 = buildIndices(setDoc);
+      const { result: result2 } = renderHook(() =>
+        useTreeOperations({
+          document: setDoc,
+          commit: mockCommit,
+          nodeIndex: idx2.nodeIndex,
+          parentIndex: idx2.parentIndex,
+          language: 'de',
+        })
+      );
+      act(() => {
+        result2.current.changeDocumentContributionMode(undefined);
+      });
+
+      const cleared = mockCommit.mock.calls[1][0] as DocumentRootNode;
+      expect(cleared.contributionMode).toBeUndefined();
+      for (const id of ['h1', 'p1', 'h2', 'p2', 'h1b']) {
+        expect(modeOf(cleared, id)).toBeUndefined();
+      }
+    });
+
     test('does not commit when the mode applies to nothing', () => {
       // A document whose only nodes are a list + list_items + content; PROPOSAL filtered to LIST
       // matches the list but a list can't hold PROPOSAL → no change.

@@ -30,6 +30,9 @@ serializes the tree back out as JSON.
   outside the normal render path.
 - Content is edited per node with a **formatting mode** (plain text → Markdown); see `NodeFormat`
   in the data model and the render/inline-mark utils.
+- Every node may also carry an optional **contribution mode** (`ContributionMode`: locked / remark /
+  proposal) saying how consultation participants may engage with it on Demokratis. Absent means
+  "element-type default"; `ALLOWED_MODES` says which types may carry which mode.
 - Documents **persist to IndexedDB** (recent documents + autosave), so work survives reloads.
 
 ## Repository

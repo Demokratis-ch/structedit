@@ -77,6 +77,24 @@ describe('DocumentContributionModeMenu', () => {
     expect(screen.queryByTestId('document-contribution-mode-panel')).toBeNull();
   });
 
+  test('closes on an outside click without applying', () => {
+    const onApply = vi.fn();
+    render(<DocumentContributionModeMenu onApply={onApply} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    expect(screen.getByTestId('document-contribution-mode-panel')).toBeTruthy();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByTestId('document-contribution-mode-panel')).toBeNull();
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  test('stays open on a click inside the panel', () => {
+    render(<DocumentContributionModeMenu onApply={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
+    fireEvent.mouseDown(screen.getByTestId('document-contribution-mode-panel'));
+    expect(screen.getByTestId('document-contribution-mode-panel')).toBeTruthy();
+  });
+
   test('closes on Escape', () => {
     render(<DocumentContributionModeMenu onApply={vi.fn()} />);
     fireEvent.click(screen.getByTestId('document-contribution-mode-toggle'));
