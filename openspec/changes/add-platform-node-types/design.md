@@ -132,7 +132,9 @@ id/number kept); the two leaf types do not (Non-Goals).
 `RecursiveTreeNode` renders a `CONTENT_GROUP` like a `LIST_ITEM` — editable number badge plus a
 `(content_group)` label, children nested — and renders `TABLE`/`DEFINITION_LIST` like `CONTENT`
 (number badge plus the `ContentBlock` in `MARKDOWN`). Enter on a selected group opens number
-edit (the `LIST`/`LIST_ITEM` rule, via `hasEditableText`). Shortcuts: `B` table, `D` definition
+edit (the `LIST`/`LIST_ITEM` rule, via `hasEditableText`), and double-click now does the same on
+every numbered container instead of entering a text-edit mode that had nothing to edit — the one
+behaviour change this design makes outside the three types. Shortcuts: `B` table, `D` definition
 list, `G` content group — the first free, memorable letters (`t`/`c` are taken by content,
 `m` by merge). Toolbar buttons use the lucide `Table`, `BookA` and `Group` icons and the same
 `(B)`/`(D)`/`(G)` title convention the tests key on.

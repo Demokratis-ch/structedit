@@ -7,7 +7,7 @@ Describes how the tree editor edits each node type — text editing versus numbe
 ## ADDED Requirements
 
 ### Requirement: A content group is edited by its number, never by text
-In the tree editor a `CONTENT_GROUP` SHALL render as a numbered container: an editable number badge, a `(content_group)` label and its nested children, with no editable text surface. Enter on a selected group SHALL open number editing; double-click SHALL NOT open text editing.
+In the tree editor a `CONTENT_GROUP` SHALL render as a numbered container: an editable number badge, a `(content_group)` label and its nested children, with no editable text surface. Enter on a selected group and double-click on it SHALL open number editing, never text editing — the same rule that applies to every numbered container (`LIST`, `LIST_ITEM`).
 
 #### Scenario: Group renders as a container with its number
 - **WHEN** a `CONTENT_GROUP` with `number: '2'` is rendered in the tree
@@ -16,6 +16,10 @@ In the tree editor a `CONTENT_GROUP` SHALL render as a numbered container: an ed
 #### Scenario: Enter on a selected group edits its number
 - **WHEN** a single `CONTENT_GROUP` is selected (not editing) and the user presses Enter
 - **THEN** the group's number input receives focus and no text edit mode is entered
+
+#### Scenario: Double-click on a numbered container edits its number
+- **WHEN** the user double-clicks a `CONTENT_GROUP`, a `LIST` or a `LIST_ITEM` row
+- **THEN** that node's number input opens, no text edit mode is entered, and double-clicking a paragraph inside the group still opens its text editor
 
 ### Requirement: Table and definition list edit their Markdown source
 In the tree editor a `TABLE` or `DEFINITION_LIST` SHALL render like a content node: a number badge and a content-editable block showing the raw `MARKDOWN` source while editing and the rendered output otherwise. The type indicator SHALL show the node type and format.
