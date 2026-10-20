@@ -5,10 +5,13 @@ import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
   ContentDocumentNode,
+  ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
 import {
@@ -610,5 +613,88 @@ describe('RecursiveTreeNode', () => {
       // No "·" separator and no format token in the indicator
       expect(queryByText(/LIST_ITEM ·/)).toBeNull();
     });
+  });
+});
+
+describe('RecursiveTreeNode — platform node types (issue #150)', () => {
+  const group = (): ContentGroupDocumentNode => ({
+    id: 'g1',
+    number: '2',
+    type: 'CONTENT_GROUP',
+    contents: { de: 'hidden wire text' },
+    format: 'TEXT',
+    children: [
+      {
+        id: 'c1',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Gruppentext' },
+        children: [],
+      },
+    ],
+  });
+
+  const table = (): TableDocumentNode => ({
+    id: 't1',
+    number: 'Tab. 1',
+    type: 'TABLE',
+    format: 'MARKDOWN',
+    contents: { de: '| a | b |\n| - | - |\n| 1 | 2 |' },
+  });
+
+  const definitionList = (): DefinitionListDocumentNode => ({
+    id: 'd1',
+    number: '',
+    type: 'DEFINITION_LIST',
+    format: 'MARKDOWN',
+    contents: { de: 'Bund :: Staat' },
+  });
+
+  test('a content group renders as a numbered container with no text editor of its own', () => {
+    const { container } = renderWithContext(<RecursiveTreeNode node={group()} depth={1} />);
+    const wrapper = container.querySelector('.tree-node') as HTMLElement;
+    const ownArea = wrapper.querySelector(':scope > .pl-6') as HTMLElement;
+    expect(ownArea).toHaveTextContent('2');
+    expect(ownArea).toHaveTextContent('(content_group)');
+    expect(ownArea.querySelector('[contenteditable]')).toBeNull();
+    expect(ownArea).not.toHaveTextContent('hidden wire text');
+    // The nested paragraph still renders normally.
+    expect(wrapper).toHaveTextContent('Gruppentext');
+  });
+
+  test('a content group shows only its type in the indicator (its format is wire-only)', () => {
+    const { container } = renderWithContext(<RecursiveTreeNode node={group()} depth={1} />);
+    const indicator = container.querySelector('.tree-node > .tree-node-type-indicator');
+    expect(indicator?.textContent).toBe('CONTENT_GROUP');
+  });
+
+  test('a table renders its number and the rendered table when not editing', () => {
+    const { container } = renderWithContext(<RecursiveTreeNode node={table()} depth={1} />);
+    expect(container).toHaveTextContent('Tab. 1');
+    expect(container.querySelector('[contenteditable] table')).not.toBeNull();
+    expect(container.querySelector('.tree-node-type-indicator')?.textContent).toBe(
+      'TABLE · MARKDOWN'
+    );
+  });
+
+  test('a table shows its raw source while editing', () => {
+    const store = new TreeUIStore();
+    store.setEditingId('t1');
+    const { container } = renderWithContext(<RecursiveTreeNode node={table()} depth={1} />, {
+      store,
+    });
+    const editable = container.querySelector('[contenteditable="true"]') as HTMLElement;
+    expect(editable.textContent).toBe('| a | b |\n| - | - |\n| 1 | 2 |');
+  });
+
+  test('a definition list shows its type and format in the indicator', () => {
+    const { container } = renderWithContext(
+      <RecursiveTreeNode node={definitionList()} depth={1} />
+    );
+    expect(container.querySelector('.tree-node-type-indicator')?.textContent).toBe(
+      'DEFINITION_LIST · MARKDOWN'
+    );
+    expect(container.querySelector('[contenteditable]')).not.toBeNull();
   });
 });

@@ -393,3 +393,49 @@ describe('FloatingToolbar — merge button', () => {
     expect(onMerge).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('FloatingToolbar — platform node types (issue #150)', () => {
+  test('offers table, definition list and content group buttons wired to onUpdateType', () => {
+    const onUpdateType = vi.fn();
+    render(<FloatingToolbar {...baseProps} selectedCount={1} onUpdateType={onUpdateType} />);
+    fireEvent.click(screen.getByTitle('Table (B)'));
+    fireEvent.click(screen.getByTitle('Definition List (D)'));
+    fireEvent.click(screen.getByTitle('Content Group (G)'));
+    expect(onUpdateType.mock.calls.map((c) => c[0])).toEqual([
+      'TABLE',
+      'DEFINITION_LIST',
+      'CONTENT_GROUP',
+    ]);
+  });
+
+  test('highlights the button of the selected node type', () => {
+    render(<FloatingToolbar {...baseProps} selectedCount={1} selectedNodeType="DEFINITION_LIST" />);
+    expect(screen.getByTitle('Definition List (D)').className).toContain('bg-blue-600');
+    expect(screen.getByTitle('Table (B)').className).not.toContain('bg-blue-600');
+  });
+
+  test('hides the format selector for a content group', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="CONTENT_GROUP"
+        selectedNodeFormat="TEXT"
+      />
+    );
+    expect(screen.queryByTestId('format-selector')).toBeNull();
+  });
+
+  test('offers only MARKDOWN for a table or definition list', () => {
+    render(
+      <FloatingToolbar
+        {...baseProps}
+        selectedCount={1}
+        selectedNodeType="TABLE"
+        selectedNodeFormat="MARKDOWN"
+      />
+    );
+    const options = Array.from(screen.getByTestId('format-selector').querySelectorAll('option'));
+    expect(options.map((o) => o.value)).toEqual(['MARKDOWN']);
+  });
+});

@@ -5,7 +5,7 @@ import { useDragDrop } from '../hooks/useDragDrop';
 import { useInlineMarks } from '../hooks/useInlineMarks';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import type { TreeEditorHandle } from '../hooks/useTreeEditor';
-import type { Language, NodeFormat } from '../types/document';
+import { hasEditableText, type Language, type NodeFormat } from '../types/document';
 import { MOD } from '../utils/platform';
 import { FloatingToolbar } from './FloatingToolbar';
 import { RecursiveTreeNode } from './RecursiveTreeNode';
@@ -83,6 +83,9 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     if (nodeType === 'HEADING') return 'HEADING';
     if (nodeType === 'CONTENT') return 'CONTENT';
     if (nodeType === 'FOOTNOTE') return 'FOOTNOTE';
+    if (nodeType === 'TABLE') return 'TABLE';
+    if (nodeType === 'DEFINITION_LIST') return 'DEFINITION_LIST';
+    if (nodeType === 'CONTENT_GROUP') return 'CONTENT_GROUP';
     if (nodeType === 'LIST_ITEM') {
       // Check parent list style via the node's number format
       const num = flatNode.node.number;
@@ -110,13 +113,14 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     return canMergeIds([...selectedIds]);
   }, [selectedIds, canMergeIds]);
 
-  // Format of the single selected content-bearing node, if any.
+  // Format of the single selected text-editable node, if any. A content group's format is a
+  // wire-only field and is deliberately not surfaced.
   const selectedNodeFormat = useMemo<NodeFormat | undefined>(() => {
     if (selectedCount !== 1) return undefined;
     const selectedId = Array.from(selectedIds)[0];
     const flatNode = flattenedNodes.find((fn) => fn.node.id === selectedId);
-    if (!flatNode || !('format' in flatNode.node)) return undefined;
-    return (flatNode.node as { format: NodeFormat }).format;
+    if (!flatNode || !hasEditableText(flatNode.node)) return undefined;
+    return flatNode.node.format;
   }, [selectedCount, selectedIds, flattenedNodes]);
 
   const handleChangeFormat = (format: NodeFormat) => {

@@ -3,7 +3,7 @@ import type React from 'react';
 import { memo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useNodeState } from '../hooks/useNodeState';
 import { useSelectionAttribute } from '../hooks/useSelectionAttribute';
-import type { DocumentNode, NodeFormat } from '../types/document';
+import { type DocumentNode, hasEditableText } from '../types/document';
 import { ContentBlock } from './ContentBlock';
 import { NumberBadge } from './NumberBadge';
 import { useTreeCallbacks, useTreeUIStore } from './TreeNodeContext';
@@ -118,6 +118,17 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         };
       }
 
+      // A content group is a container: a dashed outline marks the grouped Absatz
+      if (node.type === 'CONTENT_GROUP') {
+        return {
+          borderWidth: '1px',
+          borderColor: '#a7f3d0',
+          borderStyle: 'dashed',
+          padding: '4px 8px',
+          marginTop: '4px',
+        };
+      }
+
       // Other nodes get 1px full border
       return {
         borderWidth: '1px',
@@ -128,8 +139,10 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       };
     };
 
-    // Get content for current language (only for nodes with contents)
-    const content = 'contents' in node ? node.contents[language] || '' : '';
+    // Get content for current language (only for nodes whose text is edited here)
+    const content = hasEditableText(node) ? node.contents[language] || '' : '';
+    // Structured Markdown blocks are easier to edit aligned in a monospace face
+    const isStructuredBlock = node.type === 'TABLE' || node.type === 'DEFINITION_LIST';
 
     // Determine visual style based on node type and depth
     const getNodeStyle = () => {
@@ -208,10 +221,26 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         );
       }
 
+      // A content group is a numbered container like a list item: its wire-only contents are
+      // never shown or edited (see ContentGroupDocumentNode); the Preview renders the number
+      // inline before the first paragraph, as the platform does.
+      if (node.type === 'CONTENT_GROUP') {
+        return (
+          <div className="flex items-baseline flex-1">
+            {renderNumberBadge(
+              node.number,
+              'font-semibold text-emerald-700 border-emerald-200 bg-emerald-50'
+            )}{' '}
+            <span className="text-gray-400 select-none text-sm">(content_group)</span>
+          </div>
+        );
+      }
+
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
-          {/* Show number badge for headings, footnotes, and content (dashed placeholder when no number) */}
+          {/* Show number badge for headings, footnotes, content and the structured blocks
+              (dashed placeholder when no number) */}
           {node.type === 'HEADING' &&
             renderNumberBadge(
               node.number,
@@ -222,15 +251,15 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
               node.number,
               'font-medium text-amber-600 border-amber-200 bg-amber-50'
             )}
-          {node.type === 'CONTENT' &&
+          {(node.type === 'CONTENT' || isStructuredBlock) &&
             renderNumberBadge(node.number, 'font-medium text-gray-600 border-gray-300 bg-gray-50')}
 
-          {'contents' in node && (
+          {hasEditableText(node) && (
             <ContentBlock
               blockRefs={blockRefs}
               blockId={node.id}
               raw={content}
-              format={(node as { format: NodeFormat }).format}
+              format={node.format}
               disabled={!isEditing}
               tagName={getTagName()}
               onChange={(val) => onUpdateContent(node.id, val)}
@@ -240,6 +269,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
                 w-full outline-none break-words relative z-10 min-h-[28px]
                 ${getNodeStyle()}
                 ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}
+                ${isEditing && isStructuredBlock ? 'font-mono text-sm' : ''}
               `}
             />
           )}
@@ -329,7 +359,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
             transition-opacity duration-150
             opacity-0 group-hover:opacity-70"
         >
-          {'format' in node ? `${node.type} · ${node.format}` : node.type}
+          {hasEditableText(node) ? `${node.type} · ${node.format}` : node.type}
         </span>
 
         {/* Content area with left padding for drag handle */}

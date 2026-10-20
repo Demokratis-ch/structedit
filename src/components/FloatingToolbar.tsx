@@ -3,6 +3,8 @@ import {
   ArrowUpToLine,
   Asterisk,
   Bold,
+  BookA,
+  Group,
   Heading,
   Italic,
   List,
@@ -12,15 +14,30 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  Table,
   Trash2,
   Type,
   X,
 } from 'lucide-react';
-import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '../types/document';
+import {
+  ALLOWED_FORMATS,
+  type ContentBearingNodeType,
+  EDITABLE_TEXT_TYPES,
+  type NodeFormat,
+} from '../types/document';
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
 
-type ToolbarBlockType = 'HEADING' | 'CONTENT' | 'ul' | 'ol' | 'abc' | 'FOOTNOTE';
+export type ToolbarBlockType =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'ul'
+  | 'ol'
+  | 'abc'
+  | 'FOOTNOTE'
+  | 'TABLE'
+  | 'DEFINITION_LIST'
+  | 'CONTENT_GROUP';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
 type SelectorNodeType = ToolbarBlockType | 'IMAGE';
@@ -67,7 +84,9 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
   'MARKDOWN',
 ];
 
-const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
+// The format selector is offered for every node whose text is edited in the tree. A content
+// group's format is a wire-only field (see ContentGroupDocumentNode), so it is never offered.
+const FORMATTABLE_TYPES: readonly string[] = EDITABLE_TEXT_TYPES;
 
 export function FloatingToolbar({
   selectedCount,
@@ -107,7 +126,7 @@ export function FloatingToolbar({
     selectedCount === 1 &&
     !!selectedNodeFormat &&
     !!selectedNodeType &&
-    FORMATTABLE_TYPES.includes(selectedNodeType as ContentBearingNodeType);
+    FORMATTABLE_TYPES.includes(selectedNodeType);
 
   return (
     <div
@@ -172,6 +191,28 @@ export function FloatingToolbar({
         title="Footnote (F)"
       >
         <Asterisk size={18} />
+      </button>
+      <div className="w-px h-6 bg-gray-700 mx-1" />
+      <button
+        onClick={() => onUpdateType('TABLE')}
+        className={typeButtonClass('TABLE')}
+        title="Table (B)"
+      >
+        <Table size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('DEFINITION_LIST')}
+        className={typeButtonClass('DEFINITION_LIST')}
+        title="Definition List (D)"
+      >
+        <BookA size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('CONTENT_GROUP')}
+        className={typeButtonClass('CONTENT_GROUP')}
+        title="Content Group (G)"
+      >
+        <Group size={18} />
       </button>
 
       {showFormatSelector && (

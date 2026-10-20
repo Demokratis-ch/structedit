@@ -1,10 +1,14 @@
 import type {
+  ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   DocumentNode,
   Language,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
+  TableDocumentNode,
 } from '../types/document';
+import { parseDefinitionList } from '../utils/definition-list';
 import { renderContent } from '../utils/format-render';
 import { NumberBadgeDisplay } from './NumberBadge';
 
@@ -53,12 +57,23 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <ListNode node={node} language={language} headingDepth={headingDepth} />;
     case 'LIST_ITEM':
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
+    case 'CONTENT_GROUP':
+      return <ContentGroupNode node={node} language={language} headingDepth={headingDepth} />;
+    case 'TABLE':
+      return <TableNode node={node} language={language} />;
+    case 'DEFINITION_LIST':
+      return <DefinitionListNode node={node} language={language} />;
     case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
     case 'IMAGE':
       return null;
-    default:
-      return null;
+    case 'DOCUMENT':
+      return null; // The root is laid out by DocumentPreview
+    default: {
+      // Exhaustiveness: a new node type must get a branch above or this fails to compile.
+      const _exhaustive: never = node;
+      return _exhaustive;
+    }
   }
 }
 
@@ -103,13 +118,24 @@ export function HeadingNode({
 export function ContentNode({
   node,
   language,
+  inheritedNumber = null,
 }: {
   node: Extract<DocumentNode, { type: 'CONTENT' }>;
   language: Language;
+  /**
+   * The number this paragraph displays on behalf of its parent: a CONTENT_GROUP renders its
+   * number inline before its first paragraph (platform rule), ahead of the paragraph's own.
+   */
+  inheritedNumber?: string | null;
 }) {
   const text = node.contents[language] ?? '';
   const footnotes = node.children.filter((c) => c.type === 'FOOTNOTE');
-  const numberBadge = <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />;
+  const numberBadge = (
+    <>
+      <NumberBadgeDisplay value={inheritedNumber} className="font-bold mr-1" />
+      <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
+    </>
+  );
 
   return (
     <div className="my-1">
@@ -191,6 +217,102 @@ export function ListItemNode({
         <PreviewNode key={child.id} node={child} language={language} headingDepth={headingDepth} />
       ))}
       {footnotes.length > 0 && <FootnoteSection footnotes={footnotes} language={language} />}
+    </div>
+  );
+}
+
+/**
+ * A content group lays out its children in order. The group's own number renders inline before
+ * its first child when that is a paragraph (mirroring the platform's `rendersNumberInline()`),
+ * otherwise on its own line above the children. The group's `contents` are wire-only and never
+ * rendered (see ContentGroupDocumentNode).
+ */
+export function ContentGroupNode({
+  node,
+  language,
+  headingDepth = 1,
+}: {
+  node: ContentGroupDocumentNode;
+  language: Language;
+  headingDepth?: number;
+}) {
+  const [first, ...rest] = node.children;
+  const numberInline = first?.type === 'CONTENT';
+
+  return (
+    <div className="my-1">
+      {!numberInline && node.number && (
+        <div className="font-bold">
+          <NumberBadgeDisplay value={node.number} />
+        </div>
+      )}
+      {first &&
+        (first.type === 'CONTENT' ? (
+          <ContentNode node={first} language={language} inheritedNumber={node.number} />
+        ) : (
+          <PreviewNode node={first} language={language} headingDepth={headingDepth} />
+        ))}
+      {rest.map((child) => (
+        <PreviewNode key={child.id} node={child} language={language} headingDepth={headingDepth} />
+      ))}
+    </div>
+  );
+}
+
+/** A table renders its MARKDOWN pipe-table source, horizontally scrollable when wide. */
+export function TableNode({ node, language }: { node: TableDocumentNode; language: Language }) {
+  const text = node.contents[language] ?? '';
+  return (
+    <div className="my-2 flex items-baseline">
+      <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
+      <div className="flex-1 min-w-0 overflow-x-auto">
+        <MarkupBlock source={text} format={node.format} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A definition list renders its `Term :: Value` lines as a `<dl>`, each side as inline Markdown;
+ * when the source is not a clean list of pairs it falls back to the plain MARKDOWN renderer, as
+ * the platform does.
+ */
+export function DefinitionListNode({
+  node,
+  language,
+}: {
+  node: DefinitionListDocumentNode;
+  language: Language;
+}) {
+  const text = node.contents[language] ?? '';
+  const pairs = parseDefinitionList(text);
+  const numberBadge = <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />;
+
+  if (!pairs) {
+    return (
+      <div className="my-2 flex items-baseline">
+        {numberBadge}
+        <MarkupBlock source={text} format={node.format} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-2 flex items-baseline">
+      {numberBadge}
+      <dl className="flex-1 min-w-0">
+        {pairs.map(([term, value], i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: pairs are positional and never reordered
+          <div key={i} className="mb-1">
+            <dt className="font-semibold">
+              <MarkupSpan source={term} format="MARKDOWN_INLINE" />
+            </dt>
+            <dd className="ml-4">
+              <MarkupSpan source={value} format="MARKDOWN_INLINE" />
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

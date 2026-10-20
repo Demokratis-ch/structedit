@@ -93,6 +93,17 @@ describe('TreeEditor keyboard shortcuts', () => {
       },
       { key: 'a', expectedTitle: 'Alpha List (A)', description: 'A changes node to alpha list' },
       { key: 'f', expectedTitle: 'Footnote (F)', description: 'F changes node to footnote' },
+      { key: 'b', expectedTitle: 'Table (B)', description: 'B changes node to table' },
+      {
+        key: 'd',
+        expectedTitle: 'Definition List (D)',
+        description: 'D changes node to definition list',
+      },
+      {
+        key: 'g',
+        expectedTitle: 'Content Group (G)',
+        description: 'G wraps node into a content group',
+      },
     ];
 
     test.each(shortcutTests)('$description', ({ key }) => {
@@ -1594,5 +1605,121 @@ describe('inline-marks toolbar — end-to-end toggle', () => {
       input.blur();
     });
     expect(getContainer().innerHTML).toContain('<strong>1</strong>');
+  });
+});
+
+describe('platform node types (issue #150)', () => {
+  const renderWithDoc = (doc: DocumentRootNode) =>
+    render(
+      <EditorInterface
+        initialDocument={doc}
+        documentUrl={null}
+        documentName="test.json"
+        language="de"
+        onBack={() => {}}
+      />
+    );
+
+  const paragraphUnderHeading = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: 'Art. 1',
+        type: 'HEADING',
+        format: 'TEXT',
+        contents: { de: 'Zweck' },
+        children: [
+          {
+            id: 'p1',
+            number: '2',
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'Der Bund' },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  const groupDoc = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'g1',
+        number: '2',
+        type: 'CONTENT_GROUP',
+        contents: {},
+        format: 'TEXT',
+        children: [
+          {
+            id: 'c1',
+            number: null,
+            type: 'CONTENT',
+            format: 'TEXT',
+            contents: { de: 'Gruppentext' },
+            children: [],
+          },
+        ],
+      },
+    ],
+  });
+
+  const indicatorOf = (wrapper: HTMLElement) =>
+    wrapper.querySelector(':scope > .tree-node-type-indicator')?.textContent;
+
+  test('B converts the selected paragraph to a table', () => {
+    renderWithDoc(paragraphUnderHeading());
+    fireEvent.click(getTreePane().getByText('Der Bund'));
+    fireEvent.keyDown(getContainer(), { key: 'b' });
+    expect(indicatorOf(getNodeWrapper('Der Bund'))).toBe('TABLE · MARKDOWN');
+  });
+
+  test('D converts the selected paragraph to a definition list', () => {
+    renderWithDoc(paragraphUnderHeading());
+    fireEvent.click(getTreePane().getByText('Der Bund'));
+    fireEvent.keyDown(getContainer(), { key: 'd' });
+    expect(indicatorOf(getNodeWrapper('Der Bund'))).toBe('DEFINITION_LIST · MARKDOWN');
+  });
+
+  test('G wraps the selected paragraph into a content group carrying its number', () => {
+    renderWithDoc(paragraphUnderHeading());
+    fireEvent.click(getTreePane().getByText('Der Bund'));
+    fireEvent.keyDown(getContainer(), { key: 'g' });
+    const paragraph = getNodeWrapper('Der Bund');
+    const group = paragraph.parentElement?.closest('[draggable]') as HTMLElement;
+    expect(indicatorOf(group)).toBe('CONTENT_GROUP');
+    expect(group).toHaveTextContent('(content_group)');
+    expect(group).toHaveTextContent('2');
+  });
+
+  test('the toolbar highlights the Table button for a selected table', () => {
+    renderWithDoc(paragraphUnderHeading());
+    fireEvent.click(getTreePane().getByText('Der Bund'));
+    fireEvent.keyDown(getContainer(), { key: 'b' });
+    expect(screen.getByTitle('Table (B)').className).toContain('bg-blue-600');
+  });
+
+  test('Enter on a selected content group edits its number, not text', () => {
+    renderWithDoc(groupDoc());
+    fireEvent.click(getTreePane().getByText('(content_group)'));
+    const group = getNodeWrapper('(content_group)');
+    expect(group.dataset.selected).toBe('true');
+    fireEvent.keyDown(getContainer(), { key: 'Enter' });
+    expect(group.getAttribute('data-editing')).toBe('false');
+    expect(group.querySelector('input[data-structedit-field="number"]')).not.toBeNull();
+  });
+
+  test('double-click on a content group edits its number instead of opening a text editor', () => {
+    renderWithDoc(groupDoc());
+    const label = getTreePane().getByText('(content_group)');
+    fireEvent.doubleClick(label);
+    const group = getNodeWrapper('(content_group)');
+    expect(group.querySelector(':scope > .pl-6 [contenteditable="true"]')).toBeNull();
+    expect(group.getAttribute('data-editing')).toBe('false');
+    expect(group.querySelector('input[data-structedit-field="number"]')).not.toBeNull();
   });
 });
