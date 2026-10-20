@@ -1,0 +1,134 @@
+{
+  "DocTreeVersion": 1,
+  "metadata": { "title": { "de": "Bundesgesetz über die Mustersache", "fr": "Loi fédérale sur l'exemple" } },
+  "document": {
+    "id": "2fjDTK6a4Xj4wMfAVn4rMx",
+    "number": null,
+    "type": "DOCUMENT",
+    "children": [
+      {
+        "id": "9kQzA4cXb6p3BtKZtP6Nyc",
+        "number": "Art. 1",
+        "type": "HEADING",
+        "contents": { "de": "Zweck", "fr": "But" },
+        "format": "TEXT",
+        "children": [
+          {
+            "id": "7Yt3yHgT8mXcQoTq3b2Wya",
+            "number": "1",
+            "type": "CONTENT",
+            "contents": { "de": "Dieses Gesetz regelt die Mustersache.", "fr": "La présente loi règle l'exemple." },
+            "format": "TEXT",
+            "children": [
+              {
+                "id": "4nXbD2W1k9VqM7RfJhLcPe",
+                "number": "1",
+                "type": "FOOTNOTE",
+                "contents": { "de": "SR 101", "fr": "RS 101" },
+                "format": "TEXT"
+              }
+            ]
+          },
+          {
+            "id": "Bq8vZc3M5tKdXp2Y7HnRwa",
+            "number": "2",
+            "type": "CONTENT_GROUP",
+            "contents": { "de": "", "fr": "" },
+            "format": "TEXT",
+            "children": [
+              {
+                "id": "5pLmN8xT2cVbK9QjW3RdYe",
+                "number": "",
+                "type": "CONTENT",
+                "contents": { "de": "Es gilt für:", "fr": "Elle s'applique:" },
+                "format": "TEXT",
+                "children": []
+              },
+              {
+                "id": "3hGkF7sD1nBvC6XmZ2PqTa",
+                "number": null,
+                "type": "LIST",
+                "children": [
+                  {
+                    "id": "8wRtY4uJ6kHgN2bVx9CzMe",
+                    "number": "a.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "6dFsA9qW3eRtY1uIoP5LkZ",
+                        "number": "",
+                        "type": "CONTENT",
+                        "contents": { "de": "den Bund;", "fr": "à la Confédération;" },
+                        "format": "TEXT",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "2cVbN7mK4jHgF9dSaQ1wEr",
+                    "number": "b.",
+                    "type": "LIST_ITEM",
+                    "children": [
+                      {
+                        "id": "9zXcV3bN6mAsD2fGhJ7kLq",
+                        "number": "",
+                        "type": "CONTENT",
+                        "contents": { "de": "die Kantone.", "fr": "aux cantons." },
+                        "format": "TEXT",
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "7tRfE2wQ9yUiO4pAsD6fGh",
+            "number": "",
+            "type": "TABLE",
+            "contents": {
+              "de": "| Begriff | Bedeutung |\n| --- | --- |\n| Bund | Die Schweizerische Eidgenossenschaft |\n| Kanton | Ein Gliedstaat |",
+              "fr": "| Terme | Signification |\n| --- | --- |\n| Confédération | La Confédération suisse |\n| Canton | Un État membre |"
+            },
+            "format": "MARKDOWN"
+          },
+          {
+            "id": "4jKlM8nB3vCxZ1aSdF6gHq",
+            "number": "",
+            "type": "DEFINITION_LIST",
+            "contents": {
+              "de": "Bund :: Die Schweizerische Eidgenossenschaft\nKanton :: Ein Gliedstaat",
+              "fr": "Confédération :: La Confédération suisse\nCanton :: Un État membre"
+            },
+            "format": "MARKDOWN"
+          },
+          {
+            "id": "5gHjK2lZ7xCvB9nMaS4dFe",
+            "number": "",
+            "type": "IMAGE",
+            "contents": { "de": "https://demokratis.ch/example/abbildung-1.png" },
+            "format": "TEXT"
+          }
+        ]
+      },
+      {
+        "id": "3sDfG6hJ9kLzX2cVbN7mQw",
+        "number": "Art. 2",
+        "type": "HEADING",
+        "contents": { "de": "Geltungsbereich", "fr": "Champ d'application" },
+        "format": "MARKDOWN_MINIMAL",
+        "children": [
+          {
+            "id": "8aSdF4gHjK1lZxC7vBnM2e",
+            "number": "",
+            "type": "CONTENT",
+            "contents": { "de": "Dieses Gesetz gilt für **alle** Behörden.", "fr": "La présente loi s'applique à **toutes** les autorités." },
+            "format": "MARKDOWN",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

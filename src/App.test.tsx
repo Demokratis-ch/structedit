@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
 import { StrictMode } from 'react';
@@ -291,6 +293,35 @@ describe('App — loadFile URL import', () => {
       expect(entry.name).toBe('Remote Envelope');
       expect(entry.source.kind).toBe('json-envelope');
       expect(entry.source.bytes).toBe(raw);
+    }
+  });
+
+  it('opens a platform export with content groups, tables and definition lists (issue #150)', async () => {
+    setLoadFile('https://demokratis.ch/file/doc-tree/platform-export');
+    const raw = fs.readFileSync(
+      path.join(__dirname, 'test/fixtures/demokratis-doctree-export.json'),
+      'utf8'
+    );
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(makeFetchResponse(raw, { contentType: 'application/json' }));
+
+    render(<App />);
+
+    await screen.findByRole('button', { name: /close editor/i });
+    expect(screen.queryByText(/couldn.t read the document/i)).not.toBeInTheDocument();
+    const tree = screen.getByTestId('tree-editor-pane');
+    expect(tree).toHaveTextContent('(content_group)');
+    expect(tree).toHaveTextContent('Es gilt für:');
+    expect(tree).toHaveTextContent('TABLE · MARKDOWN');
+    expect(tree).toHaveTextContent('DEFINITION_LIST · MARKDOWN');
+
+    const recents = await listRecents();
+    expect(recents).toHaveLength(1);
+    const entry = recents[0];
+    if (!('status' in entry)) {
+      expect(entry.name).toBe('Bundesgesetz über die Mustersache');
+      expect(entry.source.kind).toBe('json-envelope');
     }
   });
 

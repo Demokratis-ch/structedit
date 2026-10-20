@@ -1,6 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import * as mammoth from 'mammoth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ContentDocumentNode } from '../types/document';
+import {
+  type ContentDocumentNode,
+  type DocumentNode,
+  isValidDocTreeEnvelope,
+} from '../types/document';
+import { buildDocTreeEnvelope } from './document-utils';
 import {
   createPlainTextDocument,
   deriveNameFromUrl,
@@ -496,5 +503,66 @@ describe('file-processing', () => {
       expect(deriveNameFromUrl('https://demokratis.ch/')).toBe('Demokratis document');
       expect(deriveNameFromUrl('not a url')).toBe('Demokratis document');
     });
+  });
+});
+
+describe('platform DocTree export (issue #150)', () => {
+  // A hand-written copy of what JsonEnvelopeV1Serializer on the Demokratis platform emits for a
+  // document using every exportable node type, including the three this change adds.
+  const fixturePath = path.join(__dirname, '../test/fixtures/demokratis-doctree-export.json');
+  const raw = fs.readFileSync(fixturePath, 'utf8');
+
+  const typesIn = (node: DocumentNode, acc = new Set<string>()): Set<string> => {
+    acc.add(node.type);
+    if ('children' in node) for (const child of node.children) typesIn(child, acc);
+    return acc;
+  };
+
+  it('is a valid DocTree v1 envelope', () => {
+    expect(isValidDocTreeEnvelope(JSON.parse(raw))).toBe(true);
+  });
+
+  it('opens via the string entry point with every platform type present', () => {
+    const result = processJsonEnvelopeString(raw, { name: 'fallback', originalFilename: null });
+    expect(result.name).toBe('Bundesgesetz über die Mustersache');
+    expect([...typesIn(result.doc)].sort()).toEqual(
+      [
+        'CONTENT',
+        'CONTENT_GROUP',
+        'DEFINITION_LIST',
+        'DOCUMENT',
+        'FOOTNOTE',
+        'HEADING',
+        'IMAGE',
+        'LIST',
+        'LIST_ITEM',
+        'TABLE',
+      ].sort()
+    );
+  });
+
+  it('opens via the file-upload entry point', async () => {
+    if (!Blob.prototype.text) {
+      Blob.prototype.text = function () {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(this);
+        });
+      };
+    }
+    const file = new File([raw], 'doctree-export.json', { type: 'application/json' });
+    const result = await processJsonEnvelopeFile(file);
+    expect(result.source.kind).toBe('json-envelope');
+    expect(typesIn(result.doc).has('CONTENT_GROUP')).toBe(true);
+  });
+
+  it('exports the opened tree unchanged', () => {
+    const parsed = JSON.parse(raw);
+    const result = processJsonEnvelopeString(raw, { name: 'fallback', originalFilename: null });
+    const exported = buildDocTreeEnvelope(result.doc, { language: 'de' });
+    expect(exported.document).toEqual(parsed.document);
+    expect(exported.DocTreeVersion).toBe(parsed.DocTreeVersion);
   });
 });

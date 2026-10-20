@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { StoredEntrySource } from './document-storage';
 import { migrateEntry, SCHEMA_VERSION } from './document-storage-migrations';
@@ -173,6 +175,22 @@ describe('document-storage-migrations', () => {
       const entry = out as { schemaVersion: number; tree: { type: string } };
       expect(entry.schemaVersion).toBe(2);
       expect(entry.tree.type).toBe('DOCUMENT');
+    });
+
+    it('passes through a v2 record containing the platform node types without a bump (issue #150)', () => {
+      const raw = fs.readFileSync(
+        path.join(__dirname, '../test/fixtures/demokratis-doctree-export.json'),
+        'utf8'
+      );
+      const v2 = {
+        ...makeV1Entry(JSON.parse(raw).document),
+        schemaVersion: 2,
+      };
+      const out = migrateEntry(v2);
+      expect('status' in out).toBe(false);
+      const entry = out as { schemaVersion: number; tree: { children: { type: string }[] } };
+      expect(entry.schemaVersion).toBe(SCHEMA_VERSION);
+      expect(entry.tree.children[0].type).toBe('HEADING');
     });
 
     it('flags an entry with a future schemaVersion as incompatible', () => {
