@@ -12,6 +12,11 @@
  * A DocTree is a tree of `DocumentNode`s rooted at a single `DocumentRootNode` (`type:
  * 'DOCUMENT'`). Only `id` and `type` are present on every node type; all other fields differ
  * per type (see the individual interfaces below).
+ *
+ * The node type set and the parent→child rules mirror the Demokratis platform's DocTree exactly
+ * as its JSON envelope exposes them (`DocNodeType::getAllowedChildTypes()` and the
+ * `JsonEnvelopeV1Parser` / `JsonEnvelopeV1Serializer` pair in the Demokratis repo), so a tree
+ * valid here is importable there and vice versa.
  */
 
 /**
@@ -48,8 +53,23 @@ export type LocalizedText = Partial<{ [K in Language]: string }>;
  */
 export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_INLINE' | 'MARKDOWN';
 
-/** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
-export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
+/**
+ * Node types that carry `contents` and a `format` on the wire. This is the envelope-level
+ * notion: it includes `CONTENT_GROUP`, whose fields exist only because the platform emits and
+ * requires them (see {@link ContentGroupDocumentNode}). For "does the user edit this node's
+ * text?" use {@link hasEditableText} instead.
+ */
+export type ContentBearingNodeType =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'FOOTNOTE'
+  | 'IMAGE'
+  | 'TABLE'
+  | 'DEFINITION_LIST'
+  | 'CONTENT_GROUP';
+
+/** The content-bearing types whose text is edited in the tree — everything except a group. */
+export type EditableTextNodeType = Exclude<ContentBearingNodeType, 'CONTENT_GROUP'>;
 
 /**
  * The tree root. There is exactly one per document, and — unlike every other node type — it
@@ -69,12 +89,15 @@ export interface ListDocumentNode {
   children: ListItemDocumentNode[];
 }
 
-/** A single item within a `LIST`. Its own text lives in a child `CONTENT` node. */
+/**
+ * A single item within a `LIST`. Its own text lives in a child `CONTENT` node. It may hold
+ * everything a heading may, except a `CONTENT_GROUP` (platform rule).
+ */
 export interface ListItemDocumentNode {
   id: string;
   number: string | null;
   type: 'LIST_ITEM';
-  children: BlockDocumentNode[];
+  children: ListItemChildNode[];
 }
 
 /** A heading. Has both content and children because headings define the document's structure. */
@@ -118,6 +141,51 @@ export interface ImageDocumentNode {
   format: NodeFormat;
 }
 
+/**
+ * A content group ("Absatzgruppe" on the platform): a numbered container for one Absatz — its
+ * text as a `CONTENT` child, lettered sub-items as a `LIST`, optionally images. The platform
+ * renders the group's `number` inline before its first `CONTENT` child.
+ *
+ * `contents` and `format` are **wire fields only**: the platform has no text on a group, but
+ * its serializer emits them (empty strings per language) and its parser requires them, so they
+ * must be present for the envelope to round-trip. StructEdit never shows or edits them; a group
+ * created here carries `contents: {}` and `format: 'TEXT'`. See the `add-platform-node-types`
+ * design (D1) for the rationale and the planned follow-up should the platform change.
+ */
+export interface ContentGroupDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'CONTENT_GROUP';
+  contents: LocalizedText;
+  format: NodeFormat;
+  children: ContentGroupChildNode[];
+}
+
+/**
+ * A table. A leaf whose `contents` is a GFM pipe table in `MARKDOWN` (the only allowed format).
+ * The platform stores but does not display a table's `number`; it is kept for model uniformity.
+ */
+export interface TableDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'TABLE';
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
+/**
+ * A definition list ("Begriffsliste"). A leaf whose `contents` is one `Term :: Value` pair per
+ * line in `MARKDOWN` (the only allowed format); see `utils/definition-list.ts` for the
+ * separator rule shared with the platform. `number` is kept for model uniformity.
+ */
+export interface DefinitionListDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'DEFINITION_LIST';
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
 /** Any node in a DocTree, including the tree root. */
 export type DocumentNode =
   | DocumentRootNode
@@ -126,19 +194,31 @@ export type DocumentNode =
   | HeadingDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | ContentGroupDocumentNode
+  | TableDocumentNode
+  | DefinitionListDocumentNode;
 
 /**
- * The block-level nodes allowed directly under `DOCUMENT`, `HEADING`, and `LIST_ITEM` (the
- * `children` element type of all three). This is the typed counterpart of the `ALLOWED_CHILDREN`
- * rows for those parents; a compile-time guard keeps the two in sync (see below).
+ * The block-level nodes allowed directly under `DOCUMENT` and `HEADING` (the `children` element
+ * type of both). This is the typed counterpart of the `ALLOWED_CHILDREN` rows for those
+ * parents; a compile-time guard keeps the two in sync (see below).
  */
 export type BlockDocumentNode =
   | HeadingDocumentNode
   | ListDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | ContentGroupDocumentNode
+  | TableDocumentNode
+  | DefinitionListDocumentNode;
+
+/** The nodes allowed directly under `LIST_ITEM`: every block-level node except a content group. */
+export type ListItemChildNode = Exclude<BlockDocumentNode, ContentGroupDocumentNode>;
+
+/** The nodes allowed directly under `CONTENT_GROUP`. */
+export type ContentGroupChildNode = ListDocumentNode | ContentDocumentNode | ImageDocumentNode;
 
 /**
  * Every node that carries a `children` array — i.e. the nodes a tree path can descend through.
@@ -149,7 +229,8 @@ export type ParentDocumentNode =
   | ListDocumentNode
   | ListItemDocumentNode
   | HeadingDocumentNode
-  | ContentDocumentNode;
+  | ContentDocumentNode
+  | ContentGroupDocumentNode;
 
 /**
  * Any node that carries a `number` — i.e. every node type except the tree root. The root is the
@@ -157,8 +238,21 @@ export type ParentDocumentNode =
  */
 export type NumberedDocumentNode = Exclude<DocumentNode, DocumentRootNode>;
 
+/** Any node that carries `contents` and a `format` (see {@link ContentBearingNodeType}). */
+export type ContentBearingNode = Extract<DocumentNode, { type: ContentBearingNodeType }>;
+
+/** Any node whose text the user edits in the tree (see {@link EditableTextNodeType}). */
+export type EditableTextNode = Extract<DocumentNode, { type: EditableTextNodeType }>;
+
 /** A node type that may legally contain children, plus `null` for the document's root level. */
-export type ParentType = 'DOCUMENT' | 'LIST' | 'LIST_ITEM' | 'HEADING' | 'CONTENT' | null;
+export type ParentType =
+  | 'DOCUMENT'
+  | 'LIST'
+  | 'LIST_ITEM'
+  | 'HEADING'
+  | 'CONTENT'
+  | 'CONTENT_GROUP'
+  | null;
 
 /**
  * Versioned wrapper around an exported document tree. Lets the export format evolve (and later
@@ -180,14 +274,20 @@ export interface DocTreeEnvelope {
 
 /**
  * Allowed formats per content-bearing node type — the single source of truth used by validation,
- * the renderer, and the UI. Headings are single-line, so they top out at `MARKDOWN_MINIMAL`;
- * images carry no rich text, so they allow only `TEXT`/`NEWLINES`.
+ * the renderer, and the UI, mirroring the platform's `DocNodeType::getAllowedContentFormats()`.
+ * Headings are single-line, so they top out at `MARKDOWN_MINIMAL`; images carry no rich text, so
+ * they allow only `TEXT`/`NEWLINES`. Tables and definition lists are structured Markdown blocks
+ * and allow nothing else; a content group's format is a wire field (see
+ * {@link ContentGroupDocumentNode}).
  */
 export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
   HEADING: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
   CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   IMAGE: ['TEXT', 'NEWLINES'],
+  TABLE: ['MARKDOWN'],
+  DEFINITION_LIST: ['MARKDOWN'],
+  CONTENT_GROUP: ['TEXT', 'NEWLINES'],
 };
 
 /** Default format assigned to each content-bearing node type at creation/import. */
@@ -196,12 +296,32 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
   CONTENT: 'TEXT',
   FOOTNOTE: 'TEXT',
   IMAGE: 'TEXT',
+  TABLE: 'MARKDOWN',
+  DEFINITION_LIST: 'MARKDOWN',
+  CONTENT_GROUP: 'TEXT',
 };
+
+/** Runtime list of {@link ContentBearingNodeType}, derived from the allow-list table. */
+export const CONTENT_BEARING_TYPES: readonly ContentBearingNodeType[] = Object.keys(
+  ALLOWED_FORMATS
+) as ContentBearingNodeType[];
+
+/** Runtime list of {@link EditableTextNodeType}. */
+export const EDITABLE_TEXT_TYPES: readonly EditableTextNodeType[] = CONTENT_BEARING_TYPES.filter(
+  (t): t is EditableTextNodeType => t !== 'CONTENT_GROUP'
+);
 
 export const DOC_TREE_VERSION = 1 as const;
 
+/** Types that carry neither `contents` nor `format` (the pure containers). */
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
-const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE')[] = ['IMAGE', 'FOOTNOTE'];
+/** Content-bearing types that must not carry `children`. */
+const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE' | 'TABLE' | 'DEFINITION_LIST')[] = [
+  'IMAGE',
+  'FOOTNOTE',
+  'TABLE',
+  'DEFINITION_LIST',
+];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
   'NEWLINES',
@@ -215,9 +335,28 @@ const VALID_FORMATS: NodeFormat[] = [
  * element types so the drift guard below can compare them against the typed `children` unions.
  */
 const ALLOWED_CHILDREN = {
-  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  DOCUMENT: [
+    'HEADING',
+    'LIST',
+    'CONTENT',
+    'FOOTNOTE',
+    'IMAGE',
+    'CONTENT_GROUP',
+    'TABLE',
+    'DEFINITION_LIST',
+  ],
+  HEADING: [
+    'HEADING',
+    'LIST',
+    'CONTENT',
+    'FOOTNOTE',
+    'IMAGE',
+    'CONTENT_GROUP',
+    'TABLE',
+    'DEFINITION_LIST',
+  ],
+  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'TABLE', 'DEFINITION_LIST'],
+  CONTENT_GROUP: ['LIST', 'CONTENT', 'IMAGE'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
 } as const satisfies Record<NonNullable<ParentType>, DocumentNode['type'][]>;
@@ -238,6 +377,7 @@ export type _AllowedChildrenMatchesTypes = AssertTrue<
 > &
   AssertTrue<SameSet<AllowedChildType<'HEADING'>, TypedChildType<HeadingDocumentNode>>> &
   AssertTrue<SameSet<AllowedChildType<'LIST_ITEM'>, TypedChildType<ListItemDocumentNode>>> &
+  AssertTrue<SameSet<AllowedChildType<'CONTENT_GROUP'>, TypedChildType<ContentGroupDocumentNode>>> &
   AssertTrue<SameSet<AllowedChildType<'LIST'>, TypedChildType<ListDocumentNode>>> &
   AssertTrue<SameSet<AllowedChildType<'CONTENT'>, TypedChildType<ContentDocumentNode>>>;
 
@@ -250,6 +390,18 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
   const allowed = ALLOWED_FORMATS[nodeType];
   return Array.isArray(allowed) && allowed.includes(format);
 };
+
+/** Whether a node carries `contents` and a `format` on the wire. */
+export const isContentBearingNode = (node: DocumentNode): node is ContentBearingNode =>
+  (CONTENT_BEARING_TYPES as readonly string[]).includes(node.type);
+
+/**
+ * Whether the user edits this node's text in the tree. False for the pure containers and for a
+ * `CONTENT_GROUP`, whose `contents` exist only for the wire — a group is edited by its number,
+ * like a list item. The single predicate behind every text-edit vs. number-edit decision.
+ */
+export const hasEditableText = (node: DocumentNode): node is EditableTextNode =>
+  (EDITABLE_TEXT_TYPES as readonly string[]).includes(node.type);
 
 /** Check if a node type can be a valid child of a parent type. */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
@@ -316,7 +468,7 @@ const isValidNodeInternal = (
   };
 
   // Leaf nodes
-  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE')) {
+  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE' | 'TABLE' | 'DEFINITION_LIST')) {
     if (!isValidContents(node.contents)) return false;
     if ('children' in node) return false;
     if (!isValidFormatForType(type as ContentBearingNodeType)) return false;
@@ -337,6 +489,16 @@ const isValidNodeInternal = (
     if (!Array.isArray(node.children)) return false;
     if (!isValidFormatForType('CONTENT')) return false;
     return node.children.every((child) => isValidNodeInternal(child, 'CONTENT', seenIds));
+  }
+
+  // Content groups: a numbered container that also carries the platform's wire fields. The
+  // contents are accepted as any localized strings (a platform export may carry text there)
+  // but are never rendered — see ContentGroupDocumentNode.
+  if (type === 'CONTENT_GROUP') {
+    if (!isValidContents(node.contents)) return false;
+    if (!Array.isArray(node.children)) return false;
+    if (!isValidFormatForType('CONTENT_GROUP')) return false;
+    return node.children.every((child) => isValidNodeInternal(child, 'CONTENT_GROUP', seenIds));
   }
 
   return false;
@@ -366,6 +528,11 @@ export const isValidDocTreeEnvelope = (obj: unknown): obj is DocTreeEnvelope => 
 
 /**
  * ================================ 4. Example ================================
+ *
+ * One valid document that uses every node type once, in the shape a Swiss legal draft takes:
+ * an article heading, a numbered Absatz with a footnote, a grouped Absatz whose number renders
+ * inline before its text and whose lettered items form a list, then a table, a definition list
+ * and an image.
  */
 
 export const exampleDocument: DocumentRootNode = {
@@ -374,16 +541,16 @@ export const exampleDocument: DocumentRootNode = {
   children: [
     {
       id: '002',
-      number: '1',
+      number: 'Art. 1',
       type: 'HEADING',
-      contents: { en: 'Introduction' },
+      contents: { en: 'Purpose' },
       format: 'TEXT',
       children: [
         {
           id: '003',
-          number: null,
+          number: '1',
           type: 'CONTENT',
-          contents: { en: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.' },
+          contents: { en: 'This act regulates the matter.' },
           format: 'TEXT',
           children: [
             {
@@ -394,6 +561,85 @@ export const exampleDocument: DocumentRootNode = {
               format: 'TEXT',
             },
           ],
+        },
+        {
+          // A grouped Absatz: the group carries the number "2", its first child the text, and
+          // the lettered items sit in a list below. `contents`/`format` are wire fields only.
+          id: '005',
+          number: '2',
+          type: 'CONTENT_GROUP',
+          contents: {},
+          format: 'TEXT',
+          children: [
+            {
+              id: '006',
+              number: null,
+              type: 'CONTENT',
+              contents: { en: 'It applies to:' },
+              format: 'TEXT',
+              children: [],
+            },
+            {
+              id: '007',
+              number: null,
+              type: 'LIST',
+              children: [
+                {
+                  id: '008',
+                  number: 'a.',
+                  type: 'LIST_ITEM',
+                  children: [
+                    {
+                      id: '009',
+                      number: null,
+                      type: 'CONTENT',
+                      contents: { en: 'the Confederation;' },
+                      format: 'TEXT',
+                      children: [],
+                    },
+                  ],
+                },
+                {
+                  id: '010',
+                  number: 'b.',
+                  type: 'LIST_ITEM',
+                  children: [
+                    {
+                      id: '011',
+                      number: null,
+                      type: 'CONTENT',
+                      contents: { en: 'the cantons.' },
+                      format: 'TEXT',
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: '012',
+          number: '',
+          type: 'TABLE',
+          contents: {
+            en: '| Term | Meaning |\n| --- | --- |\n| Confederation | The federal state |',
+          },
+          format: 'MARKDOWN',
+        },
+        {
+          id: '013',
+          number: '',
+          type: 'DEFINITION_LIST',
+          contents: { en: 'Confederation :: The federal state\nCanton :: A member state' },
+          format: 'MARKDOWN',
+        },
+        {
+          id: '014',
+          number: null,
+          type: 'IMAGE',
+          contents: { en: 'https://example.com/figure-1.png' },
+          format: 'TEXT',
         },
       ],
     },

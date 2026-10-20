@@ -3,24 +3,30 @@ import {
   ALLOWED_FORMATS,
   type BlockDocumentNode,
   type ContentDocumentNode,
+  type ContentGroupChildNode,
+  type ContentGroupDocumentNode,
   canBeChildOf,
   canHaveFormat,
   DEFAULT_FORMAT,
+  type DefinitionListDocumentNode,
   DOC_TREE_VERSION,
   type DocumentNode,
   type DocumentRootNode,
   exampleDocument,
   type FootnoteDocumentNode,
   type HeadingDocumentNode,
+  hasEditableText,
   type ImageDocumentNode,
   isValidDocTreeEnvelope,
   isValidDocument,
   isValidNode,
   type ListDocumentNode,
+  type ListItemChildNode,
   type ListItemDocumentNode,
   type NodeFormat,
   type NumberedDocumentNode,
   type ParentDocumentNode,
+  type TableDocumentNode,
 } from './document';
 
 /**
@@ -43,12 +49,25 @@ type _TypeAssertions = [
   Expect<Equal<ContentDocumentNode['type'], 'CONTENT'>>,
   Expect<Equal<FootnoteDocumentNode['type'], 'FOOTNOTE'>>,
   Expect<Equal<ImageDocumentNode['type'], 'IMAGE'>>,
+  Expect<Equal<ContentGroupDocumentNode['type'], 'CONTENT_GROUP'>>,
+  Expect<Equal<TableDocumentNode['type'], 'TABLE'>>,
+  Expect<Equal<DefinitionListDocumentNode['type'], 'DEFINITION_LIST'>>,
   // The document root has no `number`; every other node type does.
   Expect<Equal<HasKey<DocumentRootNode, 'number'>, false>>,
   Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
-  // `DocumentNode` is the union of all seven per-type interfaces.
+  Expect<Equal<HasKey<ContentGroupDocumentNode, 'number'>, true>>,
+  Expect<Equal<HasKey<TableDocumentNode, 'number'>, true>>,
+  Expect<Equal<HasKey<DefinitionListDocumentNode, 'number'>, true>>,
+  // The platform types carry the wire fields the Demokratis envelope requires (issue #150):
+  // a content group has contents + format + children, the two leaves have contents + format.
+  Expect<Equal<HasKey<ContentGroupDocumentNode, 'contents'>, true>>,
+  Expect<Equal<HasKey<ContentGroupDocumentNode, 'format'>, true>>,
+  Expect<Equal<HasKey<ContentGroupDocumentNode, 'children'>, true>>,
+  Expect<Equal<HasKey<TableDocumentNode, 'children'>, false>>,
+  Expect<Equal<HasKey<DefinitionListDocumentNode, 'children'>, false>>,
+  // `DocumentNode` is the union of all ten per-type interfaces.
   Expect<
     Equal<
       DocumentNode,
@@ -59,6 +78,9 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | ContentGroupDocumentNode
+      | TableDocumentNode
+      | DefinitionListDocumentNode
     >
   >,
   // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
@@ -70,9 +92,14 @@ type _TypeAssertions = [
   Expect<Equal<ContentDocumentNode['children'], FootnoteDocumentNode[]>>,
   Expect<Equal<DocumentRootNode['children'], BlockDocumentNode[]>>,
   Expect<Equal<HeadingDocumentNode['children'], BlockDocumentNode[]>>,
-  Expect<Equal<ListItemDocumentNode['children'], BlockDocumentNode[]>>,
+  // A list item may hold everything a heading may, except a content group (platform rule).
+  Expect<Equal<ListItemDocumentNode['children'], ListItemChildNode[]>>,
+  Expect<Equal<ListItemChildNode, Exclude<BlockDocumentNode, ContentGroupDocumentNode>>>,
+  // A content group holds only lists, paragraphs and images.
+  Expect<Equal<ContentGroupDocumentNode['children'], ContentGroupChildNode[]>>,
+  Expect<Equal<ContentGroupChildNode, ListDocumentNode | ContentDocumentNode | ImageDocumentNode>>,
   // `BlockDocumentNode` is the block-level union; `ParentDocumentNode` is exactly the nodes that
-  // carry `children` (every node type except the two leaves).
+  // carry `children` (every node type except the four leaves).
   Expect<
     Equal<
       BlockDocumentNode,
@@ -81,10 +108,16 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | ContentGroupDocumentNode
+      | TableDocumentNode
+      | DefinitionListDocumentNode
     >
   >,
   Expect<
-    Equal<Exclude<DocumentNode, ParentDocumentNode>, FootnoteDocumentNode | ImageDocumentNode>
+    Equal<
+      Exclude<DocumentNode, ParentDocumentNode>,
+      FootnoteDocumentNode | ImageDocumentNode | TableDocumentNode | DefinitionListDocumentNode
+    >
   >,
 ];
 
@@ -1183,5 +1216,331 @@ describe('isValidNode — format field rules', () => {
         ],
       })
     ).toBe(false);
+  });
+});
+
+/**
+ * ====================== Platform node types (issue #150) ======================
+ * CONTENT_GROUP, TABLE and DEFINITION_LIST mirror the Demokratis DocTree exactly as its JSON
+ * envelope exposes them (see openspec/changes/add-platform-node-types/design.md).
+ */
+
+const tableNode = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  id: 't1',
+  number: '',
+  type: 'TABLE',
+  contents: { de: '| a | b |\n| - | - |\n| 1 | 2 |' },
+  format: 'MARKDOWN',
+  ...overrides,
+});
+
+const definitionListNode = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  id: 'd1',
+  number: '',
+  type: 'DEFINITION_LIST',
+  contents: { de: 'Bund :: Die Eidgenossenschaft' },
+  format: 'MARKDOWN',
+  ...overrides,
+});
+
+const contentGroupNode = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  id: 'g1',
+  number: '2',
+  type: 'CONTENT_GROUP',
+  contents: {},
+  format: 'TEXT',
+  children: [],
+  ...overrides,
+});
+
+const paragraph = (id: string, number: string | null = null): ContentDocumentNode => ({
+  id,
+  number,
+  type: 'CONTENT',
+  format: 'TEXT',
+  contents: { de: `Absatz ${id}` },
+  children: [],
+});
+
+const documentWith = (children: unknown[]): Record<string, unknown> => ({
+  id: 'root',
+  type: 'DOCUMENT',
+  children,
+});
+
+describe('Platform node types (issue #150) — node type set', () => {
+  it('accepts a document using a content group, a table and a definition list', () => {
+    expect(
+      isValidDocument(
+        documentWith([
+          contentGroupNode({
+            children: [
+              paragraph('p1'),
+              { id: 'l1', number: null, type: 'LIST', children: [] },
+              { id: 'i1', number: null, type: 'IMAGE', contents: { de: 'x.png' }, format: 'TEXT' },
+            ],
+          }),
+          tableNode(),
+          definitionListNode(),
+        ])
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a node of an unknown type', () => {
+    expect(isValidNode({ id: '1', number: null, type: 'QUESTION', children: [] })).toBe(false);
+  });
+
+  it('shows every node type in the example document', () => {
+    const types = new Set<string>();
+    const walk = (n: DocumentNode) => {
+      types.add(n.type);
+      if ('children' in n) n.children.forEach(walk);
+    };
+    walk(exampleDocument);
+    expect([...types].sort()).toEqual(
+      [
+        'CONTENT',
+        'CONTENT_GROUP',
+        'DEFINITION_LIST',
+        'DOCUMENT',
+        'FOOTNOTE',
+        'HEADING',
+        'IMAGE',
+        'LIST',
+        'LIST_ITEM',
+        'TABLE',
+      ].sort()
+    );
+  });
+});
+
+describe('Platform node types (issue #150) — canBeChildOf', () => {
+  it('allows a content group under the document root and under a heading', () => {
+    expect(canBeChildOf('CONTENT_GROUP', 'DOCUMENT')).toBe(true);
+    expect(canBeChildOf('CONTENT_GROUP', null)).toBe(true);
+    expect(canBeChildOf('CONTENT_GROUP', 'HEADING')).toBe(true);
+  });
+
+  it('rejects a content group under a list item, a list, a content node or another group', () => {
+    expect(canBeChildOf('CONTENT_GROUP', 'LIST_ITEM')).toBe(false);
+    expect(canBeChildOf('CONTENT_GROUP', 'LIST')).toBe(false);
+    expect(canBeChildOf('CONTENT_GROUP', 'CONTENT')).toBe(false);
+    expect(canBeChildOf('CONTENT_GROUP', 'CONTENT_GROUP')).toBe(false);
+  });
+
+  it('allows only lists, content and images inside a content group', () => {
+    expect(canBeChildOf('LIST', 'CONTENT_GROUP')).toBe(true);
+    expect(canBeChildOf('CONTENT', 'CONTENT_GROUP')).toBe(true);
+    expect(canBeChildOf('IMAGE', 'CONTENT_GROUP')).toBe(true);
+    expect(canBeChildOf('HEADING', 'CONTENT_GROUP')).toBe(false);
+    expect(canBeChildOf('FOOTNOTE', 'CONTENT_GROUP')).toBe(false);
+    expect(canBeChildOf('TABLE', 'CONTENT_GROUP')).toBe(false);
+    expect(canBeChildOf('DEFINITION_LIST', 'CONTENT_GROUP')).toBe(false);
+    expect(canBeChildOf('LIST_ITEM', 'CONTENT_GROUP')).toBe(false);
+  });
+
+  it('allows tables and definition lists under document, heading and list item', () => {
+    for (const type of ['TABLE', 'DEFINITION_LIST'] as const) {
+      expect(canBeChildOf(type, 'DOCUMENT')).toBe(true);
+      expect(canBeChildOf(type, 'HEADING')).toBe(true);
+      expect(canBeChildOf(type, 'LIST_ITEM')).toBe(true);
+    }
+  });
+
+  it('rejects tables and definition lists under content, list and content group', () => {
+    for (const type of ['TABLE', 'DEFINITION_LIST'] as const) {
+      expect(canBeChildOf(type, 'CONTENT')).toBe(false);
+      expect(canBeChildOf(type, 'LIST')).toBe(false);
+      expect(canBeChildOf(type, 'CONTENT_GROUP')).toBe(false);
+    }
+  });
+
+  it('rejects a content group nested in a list item at document level', () => {
+    expect(
+      isValidDocument(
+        documentWith([
+          {
+            id: 'l',
+            number: null,
+            type: 'LIST',
+            children: [
+              { id: 'li', number: '1.', type: 'LIST_ITEM', children: [contentGroupNode()] },
+            ],
+          },
+        ])
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a content group nested in a content group', () => {
+    expect(
+      isValidDocument(
+        documentWith([contentGroupNode({ children: [contentGroupNode({ id: 'g2' })] })])
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a heading or a table inside a content group', () => {
+    const heading = {
+      id: 'h',
+      number: null,
+      type: 'HEADING',
+      contents: { de: 'x' },
+      format: 'TEXT',
+      children: [],
+    };
+    expect(isValidDocument(documentWith([contentGroupNode({ children: [heading] })]))).toBe(false);
+    expect(isValidDocument(documentWith([contentGroupNode({ children: [tableNode()] })]))).toBe(
+      false
+    );
+  });
+});
+
+describe('Platform node types (issue #150) — TABLE and DEFINITION_LIST are leaves', () => {
+  it('accepts a well-formed table and definition list', () => {
+    expect(isValidNode(tableNode())).toBe(true);
+    expect(isValidNode(definitionListNode())).toBe(true);
+  });
+
+  it('rejects a children field on either leaf', () => {
+    expect(isValidNode(tableNode({ children: [] }))).toBe(false);
+    expect(isValidNode(definitionListNode({ children: [] }))).toBe(false);
+  });
+
+  it('rejects a missing contents field', () => {
+    const t = tableNode();
+    delete t.contents;
+    expect(isValidNode(t)).toBe(false);
+    const d = definitionListNode();
+    delete d.contents;
+    expect(isValidNode(d)).toBe(false);
+  });
+
+  it('requires a number field but accepts the empty string the platform emits', () => {
+    const t = tableNode();
+    delete t.number;
+    expect(isValidNode(t)).toBe(false);
+    expect(isValidNode(tableNode({ number: '' }))).toBe(true);
+    expect(isValidNode(tableNode({ number: 'Tab. 1' }))).toBe(true);
+    expect(isValidNode(tableNode({ number: null }))).toBe(true);
+  });
+
+  it('rejects a missing format and any format other than MARKDOWN', () => {
+    const t = tableNode();
+    delete t.format;
+    expect(isValidNode(t)).toBe(false);
+    expect(isValidNode(tableNode({ format: 'TEXT' }))).toBe(false);
+    expect(isValidNode(tableNode({ format: 'MARKDOWN_INLINE' }))).toBe(false);
+    expect(isValidNode(definitionListNode({ format: 'TEXT' }))).toBe(false);
+    expect(isValidNode(definitionListNode({ format: 'NEWLINES' }))).toBe(false);
+  });
+});
+
+describe('Platform node types (issue #150) — CONTENT_GROUP wire shape', () => {
+  it('accepts a group with empty contents and a number', () => {
+    expect(isValidNode(contentGroupNode())).toBe(true);
+  });
+
+  it('accepts a group exactly as the platform exports it (empty string per language)', () => {
+    expect(isValidNode(contentGroupNode({ contents: { de: '', fr: '' } }))).toBe(true);
+  });
+
+  it('tolerates text in the hidden contents rather than rejecting a platform export', () => {
+    expect(isValidNode(contentGroupNode({ contents: { de: 'stray' } }))).toBe(true);
+  });
+
+  it('rejects a group missing contents', () => {
+    const g = contentGroupNode();
+    delete g.contents;
+    expect(isValidNode(g)).toBe(false);
+  });
+
+  it('rejects a group missing format, or with a Markdown format', () => {
+    const g = contentGroupNode();
+    delete g.format;
+    expect(isValidNode(g)).toBe(false);
+    expect(isValidNode(contentGroupNode({ format: 'MARKDOWN' }))).toBe(false);
+    expect(isValidNode(contentGroupNode({ format: 'MARKDOWN_MINIMAL' }))).toBe(false);
+    expect(isValidNode(contentGroupNode({ format: 'NEWLINES' }))).toBe(true);
+  });
+
+  it('rejects a group missing its children array', () => {
+    const g = contentGroupNode();
+    delete g.children;
+    expect(isValidNode(g)).toBe(false);
+  });
+
+  it('rejects a group missing its number field', () => {
+    const g = contentGroupNode();
+    delete g.number;
+    expect(isValidNode(g)).toBe(false);
+  });
+
+  it('validates the children of a group against the group rules', () => {
+    expect(isValidNode(contentGroupNode({ children: [paragraph('p')] }))).toBe(true);
+    expect(
+      isValidNode(
+        contentGroupNode({
+          children: [{ id: 'f', number: null, type: 'FOOTNOTE', contents: {}, format: 'TEXT' }],
+        })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('Platform node types (issue #150) — formats', () => {
+  it('ALLOWED_FORMATS mirrors the platform allow-lists', () => {
+    expect(ALLOWED_FORMATS.TABLE).toEqual(['MARKDOWN']);
+    expect(ALLOWED_FORMATS.DEFINITION_LIST).toEqual(['MARKDOWN']);
+    expect(ALLOWED_FORMATS.CONTENT_GROUP).toEqual(['TEXT', 'NEWLINES']);
+  });
+
+  it('DEFAULT_FORMAT is MARKDOWN for the structured blocks and TEXT for a group', () => {
+    expect(DEFAULT_FORMAT.TABLE).toBe('MARKDOWN');
+    expect(DEFAULT_FORMAT.DEFINITION_LIST).toBe('MARKDOWN');
+    expect(DEFAULT_FORMAT.CONTENT_GROUP).toBe('TEXT');
+  });
+
+  it('canHaveFormat reflects the new allow-lists', () => {
+    expect(canHaveFormat('TABLE', 'MARKDOWN')).toBe(true);
+    expect(canHaveFormat('TABLE', 'TEXT')).toBe(false);
+    expect(canHaveFormat('DEFINITION_LIST', 'MARKDOWN')).toBe(true);
+    expect(canHaveFormat('DEFINITION_LIST', 'NEWLINES')).toBe(false);
+    expect(canHaveFormat('CONTENT_GROUP', 'NEWLINES')).toBe(true);
+    expect(canHaveFormat('CONTENT_GROUP', 'MARKDOWN')).toBe(false);
+  });
+});
+
+describe('Platform node types (issue #150) — hasEditableText', () => {
+  it('is true for every node whose text the user edits in the tree', () => {
+    expect(hasEditableText(paragraph('p'))).toBe(true);
+    expect(hasEditableText(tableNode() as unknown as DocumentNode)).toBe(true);
+    expect(hasEditableText(definitionListNode() as unknown as DocumentNode)).toBe(true);
+    expect(
+      hasEditableText({
+        id: 'h',
+        number: null,
+        type: 'HEADING',
+        contents: {},
+        format: 'TEXT',
+        children: [],
+      })
+    ).toBe(true);
+    expect(
+      hasEditableText({ id: 'f', number: null, type: 'FOOTNOTE', contents: {}, format: 'TEXT' })
+    ).toBe(true);
+    expect(
+      hasEditableText({ id: 'i', number: null, type: 'IMAGE', contents: {}, format: 'TEXT' })
+    ).toBe(true);
+  });
+
+  it('is false for a content group (its contents exist only for the wire) and for containers', () => {
+    expect(hasEditableText(contentGroupNode() as unknown as DocumentNode)).toBe(false);
+    expect(hasEditableText({ id: 'l', number: null, type: 'LIST', children: [] })).toBe(false);
+    expect(hasEditableText({ id: 'li', number: null, type: 'LIST_ITEM', children: [] })).toBe(
+      false
+    );
+    expect(hasEditableText({ id: 'r', type: 'DOCUMENT', children: [] })).toBe(false);
   });
 });

@@ -18,8 +18,10 @@ serializes the tree back out as JSON.
 
 ### The tree
 - The document is an **immutable tree** rooted at a single `DocumentRootNode`. Every node has a
-  `type` (HEADING, CONTENT, LIST, LIST_ITEM, …). `types/document.ts` is the canonical reference
-  for node shapes, allowed children, and formatting rules — read it before touching the model.
+  `type` (HEADING, CONTENT, CONTENT_GROUP, TABLE, DEFINITION_LIST, LIST, LIST_ITEM, FOOTNOTE,
+  IMAGE) mirroring the Demokratis platform's DocTree. `types/document.ts` is the canonical
+  reference for node shapes, allowed children, and formatting rules — read it before touching
+  the model.
 - **Paths are index arrays** — `[0, 2, 1]` means root's 1st child → its 3rd child → its 2nd
   child. All edits are immutable and go through `utils/tree-utils.ts`.
 
