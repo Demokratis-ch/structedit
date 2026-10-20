@@ -2,13 +2,17 @@ import { describe, expect, test } from 'vitest';
 import type {
   BlockDocumentNode,
   ContentDocumentNode,
+  ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
+  ImageDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
   NumberedDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -648,5 +652,377 @@ describe('changeNodeTypeInDoc — parent-validity guard', () => {
       const out = changeNodeTypeInDoc(d, idx(d), id, target);
       if (out) expect(isValidDocument(out)).toBe(true);
     }
+  });
+});
+
+/**
+ * ====================== Platform node types (issue #150) ======================
+ */
+
+const table = (id: string, source = '| a | b |\n| - | - |\n| 1 | 2 |'): TableDocumentNode => ({
+  id,
+  number: '',
+  type: 'TABLE',
+  format: 'MARKDOWN',
+  contents: { de: source },
+});
+
+const definitionList = (id: string, source = 'Bund :: Staat'): DefinitionListDocumentNode => ({
+  id,
+  number: '',
+  type: 'DEFINITION_LIST',
+  format: 'MARKDOWN',
+  contents: { de: source },
+});
+
+const image = (id: string): ImageDocumentNode => ({
+  id,
+  number: null,
+  type: 'IMAGE',
+  format: 'TEXT',
+  contents: { de: 'x.png' },
+});
+
+const group = (
+  id: string,
+  number: string | null,
+  children: ContentGroupDocumentNode['children']
+): ContentGroupDocumentNode => ({
+  id,
+  number,
+  type: 'CONTENT_GROUP',
+  contents: {},
+  format: 'TEXT',
+  children,
+});
+
+describe('changeNodeTypeInDoc — text nodes ↔ TABLE / DEFINITION_LIST', () => {
+  test('converts a content node to a table in place, keeping id/number/contents', () => {
+    const d = doc([content('p1', '| a |', '3')]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'TABLE');
+    expect(result).not.toBeNull();
+    const node = getNodeAtPath(result!, [0]) as TableDocumentNode;
+    expect(node).toEqual({
+      id: 'p1',
+      number: '3',
+      type: 'TABLE',
+      format: 'MARKDOWN',
+      contents: { de: '| a |' },
+    });
+    expect('children' in node).toBe(false);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('lifts footnote children as following siblings when content becomes a table', () => {
+    const c: ContentDocumentNode = { ...content('p1', 'x'), children: [footnote('f1', 'note')] };
+    const d = doc([c, content('p2', 'after')]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'TABLE');
+    expect(result!.children.map((n) => [n.type, n.id])).toEqual([
+      ['TABLE', 'p1'],
+      ['FOOTNOTE', 'f1'],
+      ['CONTENT', 'p2'],
+    ]);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test("lifts a heading's children when it becomes a definition list", () => {
+    const h: HeadingDocumentNode = {
+      ...heading('h1', 'Begriffe', 'Art. 2'),
+      format: 'MARKDOWN_MINIMAL',
+      children: [content('c1', 'x'), list('l1', [listItem('li1', 'one', '1.')])],
+    };
+    const d = doc([h]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'h1', 'DEFINITION_LIST');
+    expect(result!.children.map((n) => [n.type, n.id])).toEqual([
+      ['DEFINITION_LIST', 'h1'],
+      ['CONTENT', 'c1'],
+      ['LIST', 'l1'],
+    ]);
+    const dl = result!.children[0] as DefinitionListDocumentNode;
+    expect(dl.number).toBe('Art. 2');
+    expect(dl.format).toBe('MARKDOWN');
+    expect(dl.contents).toEqual({ de: 'Begriffe' });
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('a footnote becomes a table where the parent allows it', () => {
+    const h: HeadingDocumentNode = { ...heading('h1', 'H'), children: [footnote('f1', 'note')] };
+    const d = doc([h]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'f1', 'TABLE');
+    expect(result).not.toBeNull();
+    expect((getNodeAtPath(result!, [0, 0]) as TableDocumentNode).type).toBe('TABLE');
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('refuses to convert a footnote under a content node to a table', () => {
+    const c: ContentDocumentNode = { ...content('c1', 'body'), children: [footnote('f1', 'note')] };
+    const d = doc([c]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'f1', 'TABLE')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'f1', 'DEFINITION_LIST')).toBeNull();
+  });
+
+  test('refuses to convert a content node inside a content group to a table', () => {
+    const d = doc([group('g1', '2', [content('c1', 'x')])]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'c1', 'TABLE')).toBeNull();
+  });
+
+  test('converts a table to a heading with the heading default format', () => {
+    const d = doc([table('t1')]);
+    const result = changeNodeTypeInDoc(d, idx(d), 't1', 'HEADING');
+    const h = getNodeAtPath(result!, [0]) as HeadingDocumentNode;
+    expect(h.type).toBe('HEADING');
+    expect(h.format).toBe('TEXT');
+    expect(h.contents).toEqual({ de: '| a | b |\n| - | - |\n| 1 | 2 |' });
+    expect(h.children).toEqual([]);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('converts a table to content and to a footnote, carrying MARKDOWN', () => {
+    const d = doc([table('t1'), definitionList('d1')]);
+    const asContent = getNodeAtPath(
+      changeNodeTypeInDoc(d, idx(d), 't1', 'CONTENT')!,
+      [0]
+    ) as ContentDocumentNode;
+    expect(asContent.type).toBe('CONTENT');
+    expect(asContent.format).toBe('MARKDOWN');
+    expect(asContent.children).toEqual([]);
+    const asFootnote = getNodeAtPath(
+      changeNodeTypeInDoc(d, idx(d), 'd1', 'FOOTNOTE')!,
+      [1]
+    ) as FootnoteDocumentNode;
+    expect(asFootnote.type).toBe('FOOTNOTE');
+    expect(asFootnote.format).toBe('MARKDOWN');
+  });
+
+  test('converts a table to a list item like any other text node', () => {
+    const d = doc([table('t1')]);
+    const result = changeNodeTypeInDoc(d, idx(d), 't1', 'LIST', 'numbered');
+    const l = getNodeAtPath(result!, [0]) as ListDocumentNode;
+    expect(l.type).toBe('LIST');
+    expect(l.children[0].children[0].id).toBe('t1');
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('swaps table and definition list in place', () => {
+    const d = doc([table('t1'), definitionList('d1')]);
+    const r1 = changeNodeTypeInDoc(d, idx(d), 't1', 'DEFINITION_LIST')!;
+    expect(getNodeAtPath(r1, [0])).toEqual({ ...table('t1'), type: 'DEFINITION_LIST' });
+    const r2 = changeNodeTypeInDoc(d, idx(d), 'd1', 'TABLE')!;
+    expect(getNodeAtPath(r2, [1])).toEqual({ ...definitionList('d1'), type: 'TABLE' });
+  });
+
+  test('returns null when the node already has the target type', () => {
+    const d = doc([table('t1'), definitionList('d1')]);
+    expect(changeNodeTypeInDoc(d, idx(d), 't1', 'TABLE')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'd1', 'DEFINITION_LIST')).toBeNull();
+  });
+
+  test('refuses to convert lists and list items to tables or definition lists', () => {
+    const d = doc([list('l1', [listItem('li1', 'one', '1.')])]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'l1', 'TABLE')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'l1', 'DEFINITION_LIST')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'li1', 'TABLE')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'li1', 'DEFINITION_LIST')).toBeNull();
+  });
+});
+
+describe('changeNodeTypeInDoc — wrapping into a CONTENT_GROUP', () => {
+  test('wraps a numbered paragraph under a heading, moving the number onto the group', () => {
+    const h: HeadingDocumentNode = {
+      ...heading('h1', 'Art. 1'),
+      children: [content('p1', 'Der Bund', '2'), content('p2', 'after')],
+    };
+    const d = doc([h]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'CONTENT_GROUP');
+    expect(result).not.toBeNull();
+    const parent = getNodeAtPath(result!, [0]) as HeadingDocumentNode;
+    expect(parent.children.map((n) => n.type)).toEqual(['CONTENT_GROUP', 'CONTENT']);
+    const g = parent.children[0] as ContentGroupDocumentNode;
+    expect(g.number).toBe('2');
+    expect(g.contents).toEqual({});
+    expect(g.format).toBe('TEXT');
+    expect(g.id).not.toBe('p1');
+    expect(g.children).toEqual([{ ...content('p1', 'Der Bund', null) }]);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('wraps a list at document level', () => {
+    const l = list('l1', [listItem('li1', 'one', 'a.')]);
+    const d = doc([l]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'l1', 'CONTENT_GROUP');
+    expect(result).not.toBeNull();
+    const g = getNodeAtPath(result!, [0]) as ContentGroupDocumentNode;
+    expect(g.type).toBe('CONTENT_GROUP');
+    expect(g.number).toBeNull();
+    expect(g.children).toEqual([l]);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('refuses to wrap inside a list item or inside another group', () => {
+    const d = doc([
+      list('l1', [listItem('li1', 'one', '1.')]),
+      group('g1', '2', [content('c1', 'x')]),
+    ]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'li1-c', 'CONTENT_GROUP')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'c1', 'CONTENT_GROUP')).toBeNull();
+  });
+
+  test('refuses to wrap headings, footnotes, images, tables and definition lists', () => {
+    const d = doc([
+      heading('h1', 'H'),
+      footnote('f1', 'n'),
+      image('i1'),
+      table('t1'),
+      definitionList('d1'),
+      group('g1', '2', []),
+    ]);
+    for (const id of ['h1', 'f1', 'i1', 't1', 'd1', 'g1']) {
+      expect(changeNodeTypeInDoc(d, idx(d), id, 'CONTENT_GROUP')).toBeNull();
+    }
+  });
+});
+
+describe('changeNodeTypeInDoc — dissolving a CONTENT_GROUP', () => {
+  test('lifts the children in place and moves the number onto the first paragraph', () => {
+    const d = doc([
+      heading('h0', 'before'),
+      group('g1', '2', [content('c1', 'Der Bund'), list('l1', [listItem('li1', 'a', 'a.')])]),
+      heading('h2', 'after'),
+    ]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT');
+    expect(result).not.toBeNull();
+    expect(result!.children.map((n) => [n.type, n.id])).toEqual([
+      ['HEADING', 'h0'],
+      ['CONTENT', 'c1'],
+      ['LIST', 'l1'],
+      ['HEADING', 'h2'],
+    ]);
+    expect((result!.children[1] as ContentDocumentNode).number).toBe('2');
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('synthesizes a numbered paragraph carrying the group id when the first child is a list', () => {
+    const d = doc([group('g1', '3', [list('l1', [listItem('li1', 'a', 'a.')])])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT');
+    expect(result!.children.map((n) => [n.type, n.id])).toEqual([
+      ['CONTENT', 'g1'],
+      ['LIST', 'l1'],
+    ]);
+    const placeholder = result!.children[0] as ContentDocumentNode;
+    expect(placeholder.number).toBe('3');
+    expect(placeholder.contents).toEqual({});
+    expect(placeholder.format).toBe('TEXT');
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('keeps a first paragraph that already has its own number and inserts a placeholder', () => {
+    const d = doc([group('g1', '3', [content('c1', 'x', '1')])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT');
+    expect(result!.children.map((n) => [n.id, (n as NumberedDocumentNode).number])).toEqual([
+      ['g1', '3'],
+      ['c1', '1'],
+    ]);
+  });
+
+  test('drops an unnumbered group without a placeholder', () => {
+    const d = doc([group('g1', null, [content('c1', 'x'), image('i1')])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT');
+    expect(result!.children.map((n) => n.id)).toEqual(['c1', 'i1']);
+    expect((result!.children[0] as ContentDocumentNode).number).toBeNull();
+  });
+
+  test('an empty numbered group becomes a single empty paragraph', () => {
+    const d = doc([group('g1', '4', [])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT');
+    expect(result!.children).toEqual([
+      { id: 'g1', number: '4', type: 'CONTENT', format: 'TEXT', contents: {}, children: [] },
+    ]);
+  });
+
+  test('refuses every other target for a group', () => {
+    const d = doc([group('g1', '2', [content('c1', 'x')])]);
+    for (const target of ['HEADING', 'FOOTNOTE', 'LIST', 'TABLE', 'DEFINITION_LIST'] as const) {
+      expect(changeNodeTypeInDoc(d, idx(d), 'g1', target)).toBeNull();
+    }
+  });
+});
+
+describe('mergeNodesInDoc — content groups', () => {
+  test('merges adjacent groups keeping the first id and number', () => {
+    const d = doc([
+      group('g1', '2', [content('c1', 'x')]),
+      group('g2', '3', [content('c2', 'y'), list('l2', [])]),
+    ]);
+    expect(canMergeIdsInDoc(['g1', 'g2'], d, idx(d))).toBe(true);
+    const result = mergeNodesInDoc(['g1', 'g2'], d, idx(d));
+    expect(result).not.toBeNull();
+    expect(result!.children).toHaveLength(1);
+    const g = result!.children[0] as ContentGroupDocumentNode;
+    expect(g.id).toBe('g1');
+    expect(g.number).toBe('2');
+    expect(g.contents).toEqual({});
+    expect(g.format).toBe('TEXT');
+    expect(g.children.map((c) => c.id)).toEqual(['c1', 'c2', 'l2']);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('does not merge tables or definition lists', () => {
+    const d = doc([table('t1'), table('t2'), definitionList('d1'), definitionList('d2')]);
+    expect(canMergeIdsInDoc(['t1', 't2'], d, idx(d))).toBe(false);
+    expect(canMergeIdsInDoc(['d1', 'd2'], d, idx(d))).toBe(false);
+  });
+});
+
+describe('indent / outdent — content groups', () => {
+  test('Tab nests a paragraph under the preceding content group', () => {
+    const d = doc([group('g1', '2', [content('c1', 'x')]), content('p1', 'y')]);
+    const result = indentNodeInDoc(d, idx(d), 'p1');
+    expect(result).not.toBeNull();
+    const g = getNodeAtPath(result!, [0]) as ContentGroupDocumentNode;
+    expect(g.children.map((c) => c.id)).toEqual(['c1', 'p1']);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('Tab does not nest a heading or a table under a content group', () => {
+    const d = doc([group('g1', '2', [content('c1', 'x')]), heading('h1', 'H')]);
+    expect(indentNodeInDoc(d, idx(d), 'h1')).toBeNull();
+    const d2 = doc([group('g1', '2', [content('c1', 'x')]), table('t1')]);
+    expect(indentNodeInDoc(d2, idx(d2), 't1')).toBeNull();
+  });
+
+  test('Shift-Tab lifts a paragraph out of a content group', () => {
+    const d = doc([group('g1', '2', [content('c1', 'x'), content('c2', 'y')])]);
+    const result = outdentNodeInDoc(d, idx(d), 'c2');
+    expect(result).not.toBeNull();
+    expect(result!.children.map((n) => [n.type, n.id])).toEqual([
+      ['CONTENT_GROUP', 'g1'],
+      ['CONTENT', 'c2'],
+    ]);
+    expect(isValidDocument(result!)).toBe(true);
+  });
+
+  test('Shift-Tab refuses to lift a footnote out of a paragraph inside a group', () => {
+    const c: ContentDocumentNode = { ...content('c1', 'x'), children: [footnote('f1', 'n')] };
+    const d = doc([group('g1', '2', [c])]);
+    expect(outdentNodeInDoc(d, idx(d), 'f1')).toBeNull();
+  });
+
+  test('Shift-Tab refuses to lift a table out of a list item that sits inside a group', () => {
+    const item: ListItemDocumentNode = { ...listItem('li1', 'one', '1.'), children: [table('t1')] };
+    const d = doc([group('g1', '2', [list('l1', [item])])]);
+    expect(liftNodeOutOfListItem(d, [0, 0, 0, 0])).toBeNull();
+    expect(outdentNodeInDoc(d, idx(d), 't1')).toBeNull();
+  });
+
+  test('findPreviousSiblingTarget offers a content group only for nodes it may hold', () => {
+    const d = doc([group('g1', '2', []), content('p1', 'y'), heading('h1', 'H')]);
+    expect(findPreviousSiblingTarget(d, 1, 'CONTENT')?.node.id).toBe('g1');
+    expect(findPreviousSiblingTarget(d, 1, 'LIST')?.node.id).toBe('g1');
+    expect(findPreviousSiblingTarget(d, 1, 'IMAGE')?.node.id).toBe('g1');
+    expect(findPreviousSiblingTarget(d, 1, 'HEADING')).toBeNull();
+    expect(findPreviousSiblingTarget(d, 1, 'TABLE')).toBeNull();
+    expect(findPreviousSiblingTarget(d, 1, 'FOOTNOTE')).toBeNull();
+    // A paragraph in between still takes a footnote, as before.
+    expect(findPreviousSiblingTarget(d, 2, 'FOOTNOTE')?.node.id).toBe('p1');
   });
 });

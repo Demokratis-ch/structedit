@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { TreeUIStore } from '../stores/TreeUIStore';
+import { hasEditableText } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 
 export interface ClickModifiers {
@@ -82,19 +83,28 @@ export const useSelection = ({ store, flattenedNodes, nodeIdToFlatIndex }: UseSe
   );
 
   /**
-   * Handle double click to enter edit mode.
+   * Handle double click to enter edit mode: text edit for nodes with editable text, number
+   * edit for the numbered containers (LIST / LIST_ITEM / CONTENT_GROUP) — the same split the
+   * Enter key applies (issue #136), so a content group never opens an empty text editor.
    */
   const handleNodeDoubleClick = useCallback(
     (id: string) => {
+      const node = flattenedNodes.find((fn) => fn.node.id === id)?.node;
+      const numberEdit = node !== undefined && !hasEditableText(node) && 'number' in node;
       store.batch(() => {
-        store.setEditingNumberId(null);
         store.setSelection(new Set([id]));
-        store.setEditingId(id);
+        if (numberEdit) {
+          store.setEditingId(null);
+          store.setEditingNumberId(id);
+        } else {
+          store.setEditingNumberId(null);
+          store.setEditingId(id);
+        }
       });
       lastSelectedId.current = id;
       anchorId.current = id;
     },
-    [store]
+    [store, flattenedNodes]
   );
 
   /**

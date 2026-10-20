@@ -1,5 +1,6 @@
 import type React from 'react';
-import type { Language, NodeFormat } from '../types/document';
+import { hasEditableText, type Language, type NodeFormat } from '../types/document';
+import type { TypeChangeTarget } from '../utils/tree-mutations';
 import type { TreeEditorHandle } from './useTreeEditor';
 
 /** Check whether the collapsed cursor is at the start or end of `el`. */
@@ -71,7 +72,7 @@ export function useKeyboardShortcuts({
       e.preventDefault();
       e.stopPropagation();
       const node = flattenedNodes.find((fn) => fn.node.id === id)?.node;
-      const format = node && 'format' in node ? (node as { format: NodeFormat }).format : 'TEXT';
+      const format = node && hasEditableText(node) ? node.format : 'TEXT';
       // TEXT and MARKDOWN_MINIMAL are single-line — Enter submits (exit edit mode, keep the
       // node selected). The other formats
       // accept a literal `\n`; execCommand is the only reliable cross-browser path inside
@@ -99,7 +100,7 @@ export function useKeyboardShortcuts({
     }
     if (e.key === 'Backspace') {
       const node = flattenedNodes.find((fn) => fn.node.id === id);
-      const content = node && 'contents' in node.node ? node.node.contents[language] || '' : '';
+      const content = node && hasEditableText(node.node) ? node.node.contents[language] || '' : '';
       if (content.trim() === '') {
         if (flattenedNodes.length > 0) {
           e.preventDefault();
@@ -159,7 +160,7 @@ export function useKeyboardShortcuts({
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
-    let targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE';
+    let targetType: TypeChangeTarget;
     let listStyle: ListStyle | undefined;
 
     switch (toolbarType) {
@@ -183,6 +184,15 @@ export function useKeyboardShortcuts({
         break;
       case 'FOOTNOTE':
         targetType = 'FOOTNOTE';
+        break;
+      case 'TABLE':
+        targetType = 'TABLE';
+        break;
+      case 'DEFINITION_LIST':
+        targetType = 'DEFINITION_LIST';
+        break;
+      case 'CONTENT_GROUP':
+        targetType = 'CONTENT_GROUP';
         break;
       default:
         return;
@@ -224,13 +234,13 @@ export function useKeyboardShortcuts({
     } else if (e.key === 'Enter' && lastSelectedId.current) {
       // Enter edit mode on the focused selected node (issue #136). Collapse to that single
       // node and edit — mirroring the double-click path (useSelection.handleNodeDoubleClick).
-      // Content-bearing nodes get text edit (caret placed at the end); container nodes that
-      // only carry a number (LIST / LIST_ITEM) get number edit instead.
+      // Nodes with editable text get text edit (caret placed at the end); container nodes that
+      // only carry a number (LIST / LIST_ITEM / CONTENT_GROUP) get number edit instead.
       e.preventDefault();
       const id = lastSelectedId.current;
       const fn = flattenedNodes.find((f) => f.node.id === id);
       if (fn) {
-        const isTextEdit = 'contents' in fn.node;
+        const isTextEdit = hasEditableText(fn.node);
         store.batch(() => {
           store.setSelection(new Set([id]));
           if (isTextEdit) {
@@ -289,6 +299,9 @@ export function useKeyboardShortcuts({
         o: 'ol',
         a: 'abc',
         f: 'FOOTNOTE',
+        b: 'TABLE',
+        d: 'DEFINITION_LIST',
+        g: 'CONTENT_GROUP',
       };
       const toolbarType = shortcutMap[key];
       if (toolbarType) {

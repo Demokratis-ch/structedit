@@ -1,18 +1,21 @@
 import type {
+  ContentBearingNode,
   ContentBearingNodeType,
   ContentDocumentNode,
+  ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   DocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
-  ImageDocumentNode,
   Language,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
   ParentType,
+  TableDocumentNode,
 } from '../types/document';
-import { canBeChildOf, canHaveFormat, DEFAULT_FORMAT } from '../types/document';
+import { canBeChildOf, canHaveFormat, DEFAULT_FORMAT, hasEditableText } from '../types/document';
 import type { NodePath } from '../types/editor';
 import { generateId } from './document-utils';
 import {
@@ -39,7 +42,22 @@ const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
   'HEADING',
   'LIST',
   'LIST_ITEM',
+  'CONTENT_GROUP',
 ]);
+
+/**
+ * The node types a selection can be converted to. `TABLE` / `DEFINITION_LIST` replace a text node
+ * in place; `CONTENT_GROUP` wraps a paragraph or list (and `CONTENT` dissolves a group again) —
+ * see `changeNodeTypeInDoc`.
+ */
+export type TypeChangeTarget =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'LIST'
+  | 'FOOTNOTE'
+  | 'TABLE'
+  | 'DEFINITION_LIST'
+  | 'CONTENT_GROUP';
 
 // Most → least permissive. Used to pick the resulting format when merging.
 const FORMAT_RANK: Record<NodeFormat, number> = {
@@ -137,9 +155,7 @@ export const canMergeIdsInDoc = (
 
 /** Per-language join. Empty strings on either side don't introduce stray separators. */
 const mergeContentsFromNodes = (
-  nodes: ReadonlyArray<
-    HeadingDocumentNode | ContentDocumentNode | FootnoteDocumentNode | ImageDocumentNode
-  >,
+  nodes: ReadonlyArray<ContentBearingNode>,
   separator: string
 ): Partial<Record<Language, string>> => {
   const languages = new Set<Language>();
@@ -269,9 +285,10 @@ export function flattenListToContents(list: ListDocumentNode): DocumentNode[] {
  *
  * This is what lets a node whose type the LIST schema can't hold — most visibly
  * a HEADING that ended up inside a list — be "tabbed out" of the list (issue
- * #101, problem 4). A single level of lifting always lands in a valid parent:
- * a LIST's parent is always DOCUMENT, HEADING, or LIST_ITEM, all of which accept
- * every node type a list_item can hold.
+ * #101, problem 4). A single level of lifting lands in a valid parent when the
+ * list sits under DOCUMENT, HEADING or LIST_ITEM, which accept every node type a
+ * list_item can hold; under a CONTENT_GROUP (which holds only lists, paragraphs
+ * and images) the lift is refused for anything else.
  *
  * `path` points at the node to lift; its parent must be a LIST_ITEM. Returns
  * null when the structure isn't the expected LIST > LIST_ITEM > node shape
@@ -294,6 +311,7 @@ export function liftNodeOutOfListItem(
   const gpPath = listPath.slice(0, -1);
   const gp = gpPath.length === 0 ? doc : getNodeAtPath(doc, gpPath);
   if (!gp || !('children' in gp)) return null;
+  if (!canBeChildOf(node.type, gp.type as ParentType)) return null;
 
   const nodeIndexInItem = path[path.length - 1];
   const itemIndexInList = itemPath[itemPath.length - 1];
@@ -379,24 +397,29 @@ export function createNewSiblingNode(parent: DocumentNode, language: Language): 
 }
 
 /**
- * Find the previous sibling that can accept the given node as a child.
- * - For footnotes: heading or content (both can have footnote children)
- * - For other nodes: heading only
+ * Find the previous sibling that can accept the given node as a child — the target of a
+ * Tab/indent. Candidates are the containers a node can be tabbed into: a heading (holds any
+ * block node), a content node (holds footnotes) and a content group (holds lists, paragraphs
+ * and images); `canBeChildOf` decides per node type.
  */
 export const findPreviousSiblingTarget = (
   parent: DocumentNode,
   childIndex: number,
   nodeType: DocumentNode['type']
-): { node: HeadingDocumentNode | ContentDocumentNode; index: number } | null => {
+): {
+  node: HeadingDocumentNode | ContentDocumentNode | ContentGroupDocumentNode;
+  index: number;
+} | null => {
   if (!('children' in parent)) return null;
 
   for (let i = childIndex - 1; i >= 0; i--) {
     const sibling = parent.children[i];
-    if (sibling.type === 'HEADING') {
-      return { node: sibling, index: i };
-    }
-    // Footnotes can also be nested under content nodes
-    if (nodeType === 'FOOTNOTE' && sibling.type === 'CONTENT') {
+    if (
+      (sibling.type === 'HEADING' ||
+        sibling.type === 'CONTENT' ||
+        sibling.type === 'CONTENT_GROUP') &&
+      canBeChildOf(nodeType, sibling.type)
+    ) {
       return { node: sibling, index: i };
     }
   }
@@ -501,7 +524,14 @@ export const outdentNodeInDoc = (
     return liftNodeOutOfListItem(doc, path);
   }
 
-  if (parent.type !== 'HEADING' && parent.type !== 'LIST' && parent.type !== 'CONTENT') return null;
+  if (
+    parent.type !== 'HEADING' &&
+    parent.type !== 'LIST' &&
+    parent.type !== 'CONTENT' &&
+    parent.type !== 'CONTENT_GROUP'
+  ) {
+    return null;
+  }
 
   // Special case: if parent is list and node is list_item
   if (parent.type === 'LIST' && node.type === 'LIST_ITEM') {
@@ -547,9 +577,12 @@ export const outdentNodeInDoc = (
     return newDoc;
   }
 
-  // Standard case: move node to be sibling of parent
+  // Standard case: move node to be sibling of parent — unless the grandparent cannot hold it
+  // (a footnote leaving a paragraph that sits inside a content group would land in the group).
   const grandparentPath = parentPath.slice(0, -1);
   const parentIndexInGrandparent = parentPath[parentPath.length - 1];
+  const grandparent = grandparentPath.length === 0 ? doc : getNodeAtPath(doc, grandparentPath);
+  if (!grandparent || !canBeChildOf(node.type, grandparent.type as ParentType)) return null;
 
   let newDoc = removeNodeAtPath(doc, path);
   newDoc = insertNodeAtPath(newDoc, grandparentPath, parentIndexInGrandparent + 1, node);
@@ -571,11 +604,81 @@ export const getNumberForStyle = (style: ListStyle, index: number): string | nul
   }
 };
 
-/** Check if a node has contents (is leaf, heading, or content - not pure container). */
-const hasContents = (
-  node: DocumentNode
-): node is FootnoteDocumentNode | ImageDocumentNode | HeadingDocumentNode | ContentDocumentNode => {
-  return 'contents' in node;
+/**
+ * Insert `children` as siblings right after the node at `nodeIdxInParent` — the "lift" step
+ * shared by every conversion that turns a container into a node that can't hold its children.
+ */
+const liftChildrenAfter = (
+  doc: DocumentRootNode,
+  parentPath: NodePath,
+  nodeIdxInParent: number,
+  children: readonly DocumentNode[]
+): DocumentRootNode => {
+  let newDoc = doc;
+  for (let i = 0; i < children.length; i++) {
+    newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, children[i]);
+  }
+  return newDoc;
+};
+
+/**
+ * Wrap a paragraph or list in a new CONTENT_GROUP standing in its place. The group takes the
+ * node's number (it renders it inline before its first paragraph, as the platform does) and the
+ * platform's wire fields; the node keeps its id so the selection stays on it.
+ */
+const wrapInContentGroup = (
+  doc: DocumentRootNode,
+  path: NodePath,
+  node: ContentDocumentNode | ListDocumentNode
+): DocumentRootNode => {
+  const groupNode: ContentGroupDocumentNode = {
+    id: generateId(),
+    number: node.number,
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: DEFAULT_FORMAT.CONTENT_GROUP,
+    children: [{ ...node, number: null }],
+  };
+  return updateNodeAtPath(doc, path, () => groupNode);
+};
+
+/**
+ * Dissolve a CONTENT_GROUP into its children, in place. The group's number moves onto the first
+ * child when that is an unnumbered paragraph (the one that was displaying it inline); otherwise
+ * a placeholder paragraph carrying the number and the group's id is inserted first, so the label
+ * survives — the same rule `flattenListToContents` applies to list items.
+ */
+const dissolveContentGroup = (
+  doc: DocumentRootNode,
+  parentPath: NodePath,
+  nodeIdxInParent: number,
+  group: ContentGroupDocumentNode
+): DocumentRootNode => {
+  const children: DocumentNode[] = [...group.children];
+  const first = children[0];
+  let replacement: DocumentNode[];
+  if (group.number === null) {
+    replacement = children;
+  } else if (first && first.type === 'CONTENT' && first.number === null) {
+    replacement = [{ ...first, number: group.number }, ...children.slice(1)];
+  } else {
+    replacement = [
+      {
+        id: group.id,
+        number: group.number,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: {},
+        children: [],
+      },
+      ...children,
+    ];
+  }
+  return updateChildrenAtPath(doc, parentPath, (siblings) => {
+    const out = [...siblings];
+    out.splice(nodeIdxInParent, 1, ...replacement);
+    return out;
+  });
 };
 
 /**
@@ -650,12 +753,17 @@ export const extractAndConvertListItemInDoc = (
 /**
  * Change the type of a single node in a document (pure function, no commit).
  * Returns the new document, or null if the operation can't be performed.
+ *
+ * Three shapes of change exist, and each target reuses one of them: an in-place replacement
+ * (text node ↔ heading / content / footnote / table / definition list, lifting any children the
+ * new type can't hold as following siblings), a wrap (content or list → list item, → content
+ * group) and a dissolve (list → contents, content group → its children).
  */
 export const changeNodeTypeInDoc = (
   doc: DocumentRootNode,
   idx: Map<string, NodePath>,
   id: string,
-  targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
+  targetType: TypeChangeTarget,
   listStyle?: ListStyle
 ): DocumentRootNode | null => {
   const path = idx.get(id);
@@ -681,8 +789,8 @@ export const changeNodeTypeInDoc = (
         number: getNumberForStyle(style, indexInParent),
       }));
     }
-    if (targetType === 'FOOTNOTE') {
-      // list_item cannot be converted to footnote directly
+    if (targetType !== 'HEADING' && targetType !== 'CONTENT') {
+      // A list_item only extracts to the two block types; it is neither a leaf nor a group.
       return null;
     }
     // Extract from list and convert
@@ -713,16 +821,48 @@ export const changeNodeTypeInDoc = (
       }
       return newDoc;
     }
+    if (targetType === 'CONTENT_GROUP') {
+      if (!canBeChildOf('CONTENT_GROUP', parent.type as ParentType)) return null;
+      return wrapInContentGroup(doc, path, node);
+    }
     return null;
   }
 
-  // Can only convert nodes with contents
-  if (!hasContents(node)) return null;
+  // A content group only dissolves (→ CONTENT); its hidden wire contents never convert to text.
+  if (node.type === 'CONTENT_GROUP') {
+    if (targetType !== 'CONTENT') return null;
+    return dissolveContentGroup(doc, parentPath, nodeIdxInParent, node);
+  }
+
+  // Can only convert nodes whose text the user edits
+  if (!hasEditableText(node)) return null;
 
   // Safety: the conversions below replace the node in place, so never produce a child its current
-  // parent can't hold. Placed after the LIST/LIST_ITEM cases, which deliberately re-parent into a
-  // different container.
+  // parent can't hold. Placed after the LIST/LIST_ITEM/CONTENT_GROUP cases, which deliberately
+  // re-parent into a different container.
   if (!canBeChildOf(targetType, parent.type as ParentType)) return null;
+
+  // Handle wrapping into a content group: only a paragraph, so no text is hidden by the wrap
+  if (targetType === 'CONTENT_GROUP') {
+    if (node.type !== 'CONTENT') return null;
+    return wrapInContentGroup(doc, path, node);
+  }
+
+  // Handle conversion to the two structured-block leaves
+  if (targetType === 'TABLE' || targetType === 'DEFINITION_LIST') {
+    if (node.type === targetType) return null; // Already that type
+    const leaf: TableDocumentNode | DefinitionListDocumentNode = {
+      id: node.id,
+      number: node.number,
+      type: targetType,
+      format: DEFAULT_FORMAT[targetType],
+      contents: node.contents,
+    };
+    const newDoc = updateNodeAtPath(doc, path, () => leaf);
+    return 'children' in node
+      ? liftChildrenAfter(newDoc, parentPath, nodeIdxInParent, node.children)
+      : newDoc;
+  }
 
   // Handle conversion to footnote
   if (targetType === 'FOOTNOTE') {
@@ -739,23 +879,11 @@ export const changeNodeTypeInDoc = (
       contents: node.contents,
     };
 
-    // Replace node with footnote
-    let newDoc = updateNodeAtPath(doc, path, () => footnoteNode);
-
-    // If converting from heading or content with children, lift children as siblings
-    if (node.type === 'HEADING') {
-      const headingChildren = node.children;
-      for (let i = 0; i < headingChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
-      }
-    } else if (node.type === 'CONTENT') {
-      const contentChildren = node.children;
-      for (let i = 0; i < contentChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, contentChildren[i]);
-      }
-    }
-
-    return newDoc;
+    // Replace node with footnote; a heading's or content's children are lifted as siblings
+    const newDoc = updateNodeAtPath(doc, path, () => footnoteNode);
+    return 'children' in node
+      ? liftChildrenAfter(newDoc, parentPath, nodeIdxInParent, node.children)
+      : newDoc;
   }
 
   // Handle conversion to heading
@@ -791,18 +919,12 @@ export const changeNodeTypeInDoc = (
       children: [],
     };
 
-    let newDoc = updateNodeAtPath(doc, path, () => contentNode);
+    const newDoc = updateNodeAtPath(doc, path, () => contentNode);
 
-    // If converting from heading, lift children as siblings
-    if (node.type === 'HEADING') {
-      const headingChildren = node.children;
-      for (let i = 0; i < headingChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
-      }
-    }
-    // footnote -> content: no children to lift (footnote is a leaf node)
-
-    return newDoc;
+    // If converting from heading, lift children as siblings (the leaves have none to lift)
+    return node.type === 'HEADING'
+      ? liftChildrenAfter(newDoc, parentPath, nodeIdxInParent, node.children)
+      : newDoc;
   }
 
   // Handle conversion to list
@@ -852,10 +974,7 @@ export const changeNodeTypeInDoc = (
 
     // If it was a heading, lift its children after the new list
     if (node.type === 'HEADING') {
-      const headingChildren = node.children;
-      for (let i = 0; i < headingChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
-      }
+      newDoc = liftChildrenAfter(newDoc, parentPath, nodeIdxInParent, node.children);
     }
 
     // Merge adjacent lists in the parent
@@ -872,8 +991,8 @@ export const changeNodeTypeInDoc = (
  * (pure function, no commit). The first node keeps its id and number; trailing
  * siblings are removed. Content-bearing nodes have their text joined per
  * language (`"\n"` for content/footnote, `" "` for heading) and their children
- * appended in source order. Container nodes (list, list_item) just concatenate
- * their children.
+ * appended in source order. Container nodes (list, list_item, content group)
+ * just concatenate their children.
  *
  * Returns the new document, or null when the selection doesn't qualify — see
  * `resolveMergeTargets`.
@@ -947,6 +1066,16 @@ export const mergeNodesInDoc = (
       number: firstNode.number,
       type: 'LIST_ITEM',
       children: items.flatMap((n) => n.children),
+    };
+  } else if (firstNode.type === 'CONTENT_GROUP') {
+    const groups = nodes as ContentGroupDocumentNode[];
+    mergedNode = {
+      id: firstNode.id,
+      number: firstNode.number,
+      type: 'CONTENT_GROUP',
+      contents: firstNode.contents,
+      format: firstNode.format,
+      children: groups.flatMap((n) => n.children),
     };
   } else {
     // Unreachable: resolveMergeTargets already rejected non-mergeable types.

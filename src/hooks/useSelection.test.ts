@@ -278,6 +278,56 @@ describe('useSelection', () => {
     expect(result.current.lastSelectedId.current).toBe('p1');
   });
 
+  test('handleNodeDoubleClick on a numbered container enters number edit mode (issue #150)', () => {
+    const doc: DocumentRootNode = {
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'g1',
+          number: '2',
+          type: 'CONTENT_GROUP',
+          contents: {},
+          format: 'TEXT',
+          children: [
+            {
+              id: 'c1',
+              number: null,
+              type: 'CONTENT',
+              format: 'TEXT',
+              contents: { de: 'x' },
+              children: [],
+            },
+          ],
+        },
+        {
+          id: 'l1',
+          number: null,
+          type: 'LIST',
+          children: [{ id: 'li1', number: '1.', type: 'LIST_ITEM', children: [] }],
+        },
+      ],
+    };
+    harness = createHarness(doc);
+    const { result } = render();
+
+    for (const id of ['g1', 'l1', 'li1']) {
+      act(() => {
+        result.current.handleNodeDoubleClick(id);
+      });
+      expect(harness.store.getEditingNumberId()).toBe(id);
+      expect(harness.store.getEditingId()).toBeNull();
+      expect(harness.store.getSelectedIds().has(id)).toBe(true);
+    }
+
+    // The paragraph inside the group still gets a text editor.
+    act(() => {
+      result.current.handleNodeDoubleClick('c1');
+    });
+    expect(harness.store.getEditingId()).toBe('c1');
+    expect(harness.store.getEditingNumberId()).toBeNull();
+  });
+
   test('handleNumberDoubleClick enters number edit mode and clears editingId', () => {
     const { result } = render();
 

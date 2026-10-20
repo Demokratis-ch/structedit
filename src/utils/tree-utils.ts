@@ -1,10 +1,12 @@
 import {
   type BlockDocumentNode,
-  type ContentBearingNodeType,
+  type ContentGroupChildNode,
   canHaveFormat,
   type DocumentNode,
   type DocumentRootNode,
   type FootnoteDocumentNode,
+  isContentBearingNode,
+  type ListItemChildNode,
   type ListItemDocumentNode,
   type NodeFormat,
   type ParentDocumentNode,
@@ -16,8 +18,9 @@ import type { FlattenedNode, NodePath } from '../types/editor';
  *
  * The `map` callback operates at the widened `DocumentNode[]` level so generic walkers and tree
  * transforms need not know which concrete parent they hold; the cast back to the exact child union
- * (`ListItemDocumentNode[]` / `FootnoteDocumentNode[]` / `BlockDocumentNode[]`) is asserted here,
- * keyed off the runtime `type` discriminant. Every immutable children-rebuild routes through this
+ * (`ListItemDocumentNode[]` / `FootnoteDocumentNode[]` / `ListItemChildNode[]` /
+ * `ContentGroupChildNode[]` / `BlockDocumentNode[]`) is asserted here, keyed off the runtime
+ * `type` discriminant. Every immutable children-rebuild routes through this
  * one helper rather than sprinkling casts at each call site — the cast trusts the callback to
  * return nodes valid for the parent (it can't be statically enforced once widened to `DocumentNode`).
  */
@@ -30,8 +33,12 @@ export function withMappedChildren<T extends ParentDocumentNode>(
       return { ...node, children: map(node.children) as ListItemDocumentNode[] };
     case 'CONTENT':
       return { ...node, children: map(node.children) as FootnoteDocumentNode[] };
+    case 'LIST_ITEM':
+      return { ...node, children: map(node.children) as ListItemChildNode[] };
+    case 'CONTENT_GROUP':
+      return { ...node, children: map(node.children) as ContentGroupChildNode[] };
     default:
-      // DOCUMENT | HEADING | LIST_ITEM all carry block-level children.
+      // DOCUMENT | HEADING carry block-level children.
       return { ...node, children: map(node.children) as BlockDocumentNode[] };
   }
 }
@@ -110,8 +117,6 @@ export function updateChildrenAtPath(
   );
 }
 
-const CONTENT_BEARING_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
-
 /**
  * Change a content-bearing node's format. No-op when the target node is a container
  * (no format) or the chosen format isn't allowed for the node's type. Leaves
@@ -124,8 +129,8 @@ export function changeNodeFormat(
 ): DocumentRootNode {
   const node = getNodeAtPath(root, path);
   if (!node) return root;
-  if (!CONTENT_BEARING_TYPES.includes(node.type as ContentBearingNodeType)) return root;
-  if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return root;
+  if (!isContentBearingNode(node)) return root;
+  if (!canHaveFormat(node.type, format)) return root;
   return updateNodeAtPath(root, path, (n) => ({ ...n, format }) as DocumentNode);
 }
 

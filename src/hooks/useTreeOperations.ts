@@ -1,17 +1,13 @@
 import { useCallback } from 'react';
 import type {
-  ContentBearingNodeType,
-  ContentDocumentNode,
+  ContentBearingNode,
   DocumentNode,
   DocumentRootNode,
-  FootnoteDocumentNode,
-  HeadingDocumentNode,
-  ImageDocumentNode,
   Language,
   NodeFormat,
   ParentType,
 } from '../types/document';
-import { canBeChildOf, canHaveFormat } from '../types/document';
+import { canBeChildOf, canHaveFormat, isContentBearingNode } from '../types/document';
 import type { NodePath } from '../types/editor';
 import {
   canMergeIdsInDoc,
@@ -22,6 +18,7 @@ import {
   type ListStyle,
   mergeNodesInDoc,
   outdentNodeInDoc,
+  type TypeChangeTarget,
 } from '../utils/tree-mutations';
 import {
   buildIndices,
@@ -141,18 +138,12 @@ export const useTreeOperations = ({
       if (!path) return;
 
       const node = getNodeAtPath(document, path);
-      if (!node || !('contents' in node)) return;
+      if (!node || !isContentBearingNode(node)) return;
 
       const newDoc = updateNodeAtPath(document, path, (n) => ({
         ...n,
         contents: {
-          ...(
-            n as
-              | FootnoteDocumentNode
-              | ImageDocumentNode
-              | HeadingDocumentNode
-              | ContentDocumentNode
-          ).contents,
+          ...(n as ContentBearingNode).contents,
           [language]: contents,
         },
       }));
@@ -228,10 +219,8 @@ export const useTreeOperations = ({
       if (!path) return;
 
       const node = getNodeAtPath(document, path);
-      if (!node) return;
-      const contentBearing: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
-      if (!contentBearing.includes(node.type as ContentBearingNodeType)) return;
-      if (!canHaveFormat(node.type as ContentBearingNodeType, format)) return;
+      if (!node || !isContentBearingNode(node)) return;
+      if (!canHaveFormat(node.type, format)) return;
 
       const newDoc = changeNodeFormatInTree(document, path, format);
       commit(newDoc);
@@ -261,11 +250,7 @@ export const useTreeOperations = ({
    * Processes all nodes sequentially with index rebuilding, committing once at the end.
    */
   const changeNodeTypes = useCallback(
-    (
-      ids: string[],
-      targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
-      listStyle?: ListStyle
-    ) => {
+    (ids: string[], targetType: TypeChangeTarget, listStyle?: ListStyle) => {
       let doc = document;
       let changed = false;
 

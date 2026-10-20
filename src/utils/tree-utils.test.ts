@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import type {
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   DocumentRootNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
+import { isValidDocument } from '../types/document';
 import {
   buildIndices,
   changeNodeFormat,
@@ -15,6 +18,7 @@ import {
   mergeAdjacentLists,
   moveNode,
   removeNodeAtPath,
+  updateChildrenAtPath,
   updateNodeAtPath,
 } from './tree-utils';
 
@@ -992,5 +996,87 @@ describe('changeNodeFormat', () => {
     const doc = createTestDocument();
     const result = changeNodeFormat(doc, [99], 'TEXT');
     expect(result).toBe(doc);
+  });
+});
+
+describe('platform node types (issue #150)', () => {
+  const group = (): ContentGroupDocumentNode => ({
+    id: 'g1',
+    number: '2',
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: 'TEXT',
+    children: [
+      {
+        id: 'g1-c',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Absatz' },
+        children: [],
+      },
+    ],
+  });
+
+  const table = (): TableDocumentNode => ({
+    id: 't1',
+    number: '',
+    type: 'TABLE',
+    format: 'MARKDOWN',
+    contents: { de: '| a |\n| - |\n| 1 |' },
+  });
+
+  const docWithGroup = (): DocumentRootNode => ({
+    id: 'root',
+    type: 'DOCUMENT',
+    children: [group(), table()],
+  });
+
+  test('updateChildrenAtPath rebuilds a content group, keeping its wire fields', () => {
+    const doc = docWithGroup();
+    const extra: ContentDocumentNode = {
+      id: 'g1-d',
+      number: null,
+      type: 'CONTENT',
+      format: 'TEXT',
+      contents: { de: 'more' },
+      children: [],
+    };
+    const updated = updateChildrenAtPath(doc, [0], (children) => [...children, extra]);
+    const g = getNodeAtPath(updated, [0]) as ContentGroupDocumentNode;
+    expect(g.type).toBe('CONTENT_GROUP');
+    expect(g.number).toBe('2');
+    expect(g.contents).toEqual({});
+    expect(g.format).toBe('TEXT');
+    expect(g.children.map((c) => c.id)).toEqual(['g1-c', 'g1-d']);
+    expect(isValidDocument(updated)).toBe(true);
+    // Structural sharing: the untouched sibling is the same reference.
+    expect(updated.children[1]).toBe(doc.children[1]);
+  });
+
+  test('getNodeAtPath descends through a content group', () => {
+    const doc = docWithGroup();
+    expect(getNodeAtPath(doc, [0, 0])?.id).toBe('g1-c');
+  });
+
+  test('buildIndices and flattenForRendering include a group and its children', () => {
+    const doc = docWithGroup();
+    const { nodeIndex, parentIndex } = buildIndices(doc);
+    expect(nodeIndex.get('g1-c')).toEqual([0, 0]);
+    expect(parentIndex.get('g1-c')).toBe('g1');
+    expect(flattenForRendering(doc).map((f) => f.node.id)).toEqual(['g1', 'g1-c', 't1']);
+  });
+
+  test('changeNodeFormat accepts NEWLINES on a content group and refuses MARKDOWN', () => {
+    const doc = docWithGroup();
+    const updated = changeNodeFormat(doc, [0], 'NEWLINES');
+    expect((getNodeAtPath(updated, [0]) as ContentGroupDocumentNode).format).toBe('NEWLINES');
+    expect(changeNodeFormat(doc, [0], 'MARKDOWN')).toBe(doc);
+  });
+
+  test('changeNodeFormat refuses anything but MARKDOWN on a table', () => {
+    const doc = docWithGroup();
+    expect(changeNodeFormat(doc, [1], 'TEXT')).toBe(doc);
+    expect(changeNodeFormat(doc, [1], 'NEWLINES')).toBe(doc);
   });
 });

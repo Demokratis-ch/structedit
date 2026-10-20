@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, type MockedFunction, test, vi } from 'vit
 import type {
   BlockDocumentNode,
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
   NumberedDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -5279,6 +5281,201 @@ describe('useTreeOperations', () => {
       // p1 is still the first child of h1 — no actual change inside h1.
       const h1 = newDoc.children[1] as HeadingDocumentNode;
       expect(h1.children[0].id).toBe('p1');
+    });
+  });
+
+  describe('platform node types (issue #150)', () => {
+    const para = (id: string, text: string, number: string | null = null): ContentDocumentNode => ({
+      id,
+      number,
+      type: 'CONTENT',
+      format: 'TEXT',
+      contents: { de: text },
+      children: [],
+    });
+
+    // h1 > [p1 "2", g1 "3" > [c1]], then a table and a list with one item at root level.
+    const createPlatformDoc = (): DocumentRootNode => ({
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'h1',
+          number: 'Art. 1',
+          type: 'HEADING',
+          format: 'TEXT',
+          contents: { de: 'Zweck' },
+          children: [
+            para('p1', 'Erster Absatz', '2'),
+            {
+              id: 'g1',
+              number: '3',
+              type: 'CONTENT_GROUP',
+              contents: {},
+              format: 'TEXT',
+              children: [para('c1', 'Gruppentext')],
+            },
+          ],
+        },
+        {
+          id: 't1',
+          number: '',
+          type: 'TABLE',
+          format: 'MARKDOWN',
+          contents: { de: '| a |\n| - |\n| 1 |' },
+        },
+        {
+          id: 'l1',
+          number: null,
+          type: 'LIST',
+          children: [
+            { id: 'li1', number: 'a.', type: 'LIST_ITEM', children: [para('lc1', 'item')] },
+          ],
+        },
+      ],
+    });
+
+    test('changeNodeTypes converts a paragraph to a table in one commit', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.changeNodeTypes(['p1'], 'TABLE');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const converted = (newDoc.children[0] as HeadingDocumentNode)
+        .children[0] as TableDocumentNode;
+      expect(converted.type).toBe('TABLE');
+      expect(converted.format).toBe('MARKDOWN');
+      expect(converted.number).toBe('2');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('changeNodeTypes wraps a paragraph into a content group in one commit', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.changeNodeTypes(['p1'], 'CONTENT_GROUP');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const wrapped = (newDoc.children[0] as HeadingDocumentNode)
+        .children[0] as ContentGroupDocumentNode;
+      expect(wrapped.type).toBe('CONTENT_GROUP');
+      expect(wrapped.number).toBe('2');
+      expect(wrapped.children.map((c) => c.id)).toEqual(['p1']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('changeNodeTypes dissolves a group and converts several nodes in one commit', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.changeNodeTypes(['p1', 'g1'], 'CONTENT');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      // p1 was already content (no-op); g1 dissolved into c1 carrying the number.
+      expect(h1.children.map((c) => [c.id, (c as NumberedDocumentNode).number])).toEqual([
+        ['p1', '2'],
+        ['c1', '3'],
+      ]);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('changeNodeTypes converts two paragraphs to definition lists', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.changeNodeTypes(['p1', 'c1'], 'DEFINITION_LIST');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const h1 = newDoc.children[0] as HeadingDocumentNode;
+      expect(h1.children[0].type).toBe('DEFINITION_LIST');
+      // c1 sits inside a group, which cannot hold a definition list — left unchanged.
+      expect((h1.children[1] as ContentGroupDocumentNode).children[0].type).toBe('CONTENT');
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('moveNodeById drops a paragraph into a content group', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      let outcome: ReturnType<typeof result.current.moveNodeById> | undefined;
+      act(() => {
+        outcome = result.current.moveNodeById('p1', 'c1', 'bottom');
+      });
+      expect(outcome).toEqual({ success: true });
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const g1 = (newDoc.children[0] as HeadingDocumentNode)
+        .children[0] as ContentGroupDocumentNode;
+      expect(g1.children.map((c) => c.id)).toEqual(['c1', 'p1']);
+      expect(isValidDocument(newDoc)).toBe(true);
+    });
+
+    test('moveNodeById refuses a table or a heading dropped into a content group', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      let outcome: ReturnType<typeof result.current.moveNodeById> | undefined;
+      act(() => {
+        outcome = result.current.moveNodeById('t1', 'c1', 'bottom');
+      });
+      expect(outcome).toEqual({ success: false, reason: 'TABLE cannot be child of CONTENT_GROUP' });
+      act(() => {
+        outcome = result.current.moveNodeById('h1', 'c1', 'top');
+      });
+      expect(outcome).toEqual({
+        success: false,
+        reason: 'HEADING cannot be child of CONTENT_GROUP',
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+    });
+
+    test('moveNodeById refuses a content group dropped into a list item', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      let outcome: ReturnType<typeof result.current.moveNodeById> | undefined;
+      act(() => {
+        outcome = result.current.moveNodeById('g1', 'lc1', 'bottom');
+      });
+      expect(outcome).toEqual({
+        success: false,
+        reason: 'CONTENT_GROUP cannot be child of LIST_ITEM',
+      });
+      expect(result.current.getReceivingParentId('g1', 'lc1')).toBeNull();
+    });
+
+    test('getReceivingParentId names the group for a paragraph and null for a heading', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      expect(result.current.getReceivingParentId('p1', 'c1')).toBe('g1');
+      expect(result.current.getReceivingParentId('h1', 'c1')).toBeNull();
+    });
+
+    test('updateNodeContents edits a table source', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.updateNodeContents('t1', '| b |\n| - |\n| 2 |');
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      expect((newDoc.children[1] as TableDocumentNode).contents.de).toBe('| b |\n| - |\n| 2 |');
+    });
+
+    test('changeNodeFormat follows the allow-lists for the new types', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.changeNodeFormat('t1', 'TEXT');
+      });
+      expect(mockCommit).not.toHaveBeenCalled();
+      act(() => {
+        result.current.changeNodeFormat('g1', 'NEWLINES');
+      });
+      expect(mockCommit).toHaveBeenCalledTimes(1);
+    });
+
+    test('addNodeAfter inside a content group creates a paragraph', () => {
+      const { result } = renderTreeOperations(createPlatformDoc());
+      act(() => {
+        result.current.addNodeAfter('c1');
+      });
+      const newDoc = mockCommit.mock.calls[0][0] as DocumentRootNode;
+      const g1 = (newDoc.children[0] as HeadingDocumentNode)
+        .children[1] as ContentGroupDocumentNode;
+      expect(g1.children.map((c) => c.type)).toEqual(['CONTENT', 'CONTENT']);
+      expect(isValidDocument(newDoc)).toBe(true);
     });
   });
 
