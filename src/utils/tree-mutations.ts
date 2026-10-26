@@ -11,6 +11,7 @@ import type {
   ListItemDocumentNode,
   NodeFormat,
   ParentType,
+  TableDocumentNode,
 } from '../types/document';
 import { canBeChildOf, canHaveFormat, DEFAULT_FORMAT } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -40,6 +41,8 @@ const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
   'LIST',
   'LIST_ITEM',
 ]);
+
+export type TypeChangeTarget = 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE' | 'TABLE';
 
 // Most → least permissive. Used to pick the resulting format when merging.
 const FORMAT_RANK: Record<NodeFormat, number> = {
@@ -574,7 +577,12 @@ export const getNumberForStyle = (style: ListStyle, index: number): string | nul
 /** Check if a node has contents (is leaf, heading, or content - not pure container). */
 const hasContents = (
   node: DocumentNode
-): node is FootnoteDocumentNode | ImageDocumentNode | HeadingDocumentNode | ContentDocumentNode => {
+): node is
+  | FootnoteDocumentNode
+  | ImageDocumentNode
+  | HeadingDocumentNode
+  | ContentDocumentNode
+  | TableDocumentNode => {
   return 'contents' in node;
 };
 
@@ -655,7 +663,7 @@ export const changeNodeTypeInDoc = (
   doc: DocumentRootNode,
   idx: Map<string, NodePath>,
   id: string,
-  targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
+  targetType: TypeChangeTarget,
   listStyle?: ListStyle
 ): DocumentRootNode | null => {
   const path = idx.get(id);
@@ -681,8 +689,8 @@ export const changeNodeTypeInDoc = (
         number: getNumberForStyle(style, indexInParent),
       }));
     }
-    if (targetType === 'FOOTNOTE') {
-      // list_item cannot be converted to footnote directly
+    if (targetType === 'FOOTNOTE' || targetType === 'TABLE') {
+      // list_item cannot be converted to a leaf directly
       return null;
     }
     // Extract from list and convert
@@ -724,37 +732,23 @@ export const changeNodeTypeInDoc = (
   // different container.
   if (!canBeChildOf(targetType, parent.type as ParentType)) return null;
 
-  // Handle conversion to footnote
-  if (targetType === 'FOOTNOTE') {
-    if (node.type === 'FOOTNOTE') return null; // Already a footnote
+  // Handle conversion to a leaf (footnote, table): lift children as siblings
+  if (targetType === 'FOOTNOTE' || targetType === 'TABLE') {
+    if (node.type === targetType) return null;
 
-    const carryFormat = carryFormatOrDefault((node as { format?: NodeFormat }).format, 'FOOTNOTE');
-
-    // Create footnote node (leaf - no children)
-    const footnoteNode: FootnoteDocumentNode = {
+    const leaf: FootnoteDocumentNode | TableDocumentNode = {
       id: node.id,
       number: node.number,
-      type: 'FOOTNOTE',
-      format: carryFormat,
+      type: targetType,
+      format: carryFormatOrDefault((node as { format?: NodeFormat }).format, targetType),
       contents: node.contents,
     };
 
-    // Replace node with footnote
-    let newDoc = updateNodeAtPath(doc, path, () => footnoteNode);
-
-    // If converting from heading or content with children, lift children as siblings
-    if (node.type === 'HEADING') {
-      const headingChildren = node.children;
-      for (let i = 0; i < headingChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, headingChildren[i]);
-      }
-    } else if (node.type === 'CONTENT') {
-      const contentChildren = node.children;
-      for (let i = 0; i < contentChildren.length; i++) {
-        newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, contentChildren[i]);
-      }
+    let newDoc = updateNodeAtPath(doc, path, () => leaf);
+    const children = 'children' in node ? node.children : [];
+    for (let i = 0; i < children.length; i++) {
+      newDoc = insertNodeAtPath(newDoc, parentPath, nodeIdxInParent + 1 + i, children[i]);
     }
-
     return newDoc;
   }
 
