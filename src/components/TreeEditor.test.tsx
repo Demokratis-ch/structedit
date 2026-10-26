@@ -117,6 +117,17 @@ describe('TreeEditor keyboard shortcuts', () => {
       expect(getTreePane().getByText('First Heading')).toBeInTheDocument();
     });
 
+    test('B converts the selected node to a table', () => {
+      renderTreeEditor();
+      selectFirstNode();
+      fireEvent.keyDown(getContainer(), { key: 'b' });
+      const wrapper = getNodeWrapper('First Heading');
+      expect(wrapper.querySelector(':scope > .tree-node-type-indicator')?.textContent).toBe(
+        'TABLE · MARKDOWN'
+      );
+      expect(screen.getByTitle('Table (B)').className).toContain('bg-blue-600');
+    });
+
     test('uppercase keys also work (case insensitive)', () => {
       renderTreeEditor();
       selectFirstNode();

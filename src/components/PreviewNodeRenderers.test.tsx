@@ -5,8 +5,15 @@ import type {
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
-import { ContentNode, HeadingNode, ListItemNode, ListNode } from './PreviewNodeRenderers';
+import {
+  ContentNode,
+  HeadingNode,
+  ListItemNode,
+  ListNode,
+  PreviewNode,
+} from './PreviewNodeRenderers';
 
 describe('HeadingNode', () => {
   test('maps depth to the matching heading level', () => {
@@ -253,4 +260,17 @@ describe('ListItemNode', () => {
     expect(screen.getByText('Item body.')).toBeInTheDocument();
     expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
   });
+});
+
+test('PreviewNode renders a table after its number, horizontally scrollable', () => {
+  const node: TableDocumentNode = {
+    id: 't',
+    number: 'Tab. 1',
+    type: 'TABLE',
+    format: 'MARKDOWN',
+    contents: { de: '| a | b |\n| - | - |\n| 1 | 2 |' },
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.textContent?.trim().startsWith('Tab. 1')).toBe(true);
+  expect(container.querySelector('.overflow-x-auto table td')?.textContent).toBe('1');
 });

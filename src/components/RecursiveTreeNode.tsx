@@ -211,7 +211,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
-          {/* Show number badge for headings, footnotes, and content (dashed placeholder when no number) */}
+          {/* Show number badge for headings, footnotes, content and tables (dashed placeholder when no number) */}
           {node.type === 'HEADING' &&
             renderNumberBadge(
               node.number,
@@ -222,7 +222,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
               node.number,
               'font-medium text-amber-600 border-amber-200 bg-amber-50'
             )}
-          {node.type === 'CONTENT' &&
+          {(node.type === 'CONTENT' || node.type === 'TABLE') &&
             renderNumberBadge(node.number, 'font-medium text-gray-600 border-gray-300 bg-gray-50')}
 
           {'contents' in node && (
