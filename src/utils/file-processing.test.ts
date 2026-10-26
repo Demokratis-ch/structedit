@@ -1,6 +1,7 @@
 import * as mammoth from 'mammoth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContentDocumentNode } from '../types/document';
+import { buildDocTreeEnvelope } from './document-utils';
 import {
   createPlainTextDocument,
   deriveNameFromUrl,
@@ -497,4 +498,40 @@ describe('file-processing', () => {
       expect(deriveNameFromUrl('not a url')).toBe('Demokratis document');
     });
   });
+});
+
+it('opens a platform export with a table and exports it unchanged', () => {
+  // Shape as emitted by the platform's JsonEnvelopeV1Serializer.
+  const document = {
+    id: 'root',
+    number: null,
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: 'Art. 1',
+        type: 'HEADING',
+        contents: { de: 'Begriffe' },
+        format: 'TEXT',
+        children: [
+          {
+            id: 't1',
+            number: '',
+            type: 'TABLE',
+            contents: {
+              de: '| Begriff | Bedeutung |\n| --- | --- |\n| Bund | Eidgenossenschaft |',
+            },
+            format: 'MARKDOWN',
+          },
+        ],
+      },
+    ],
+  };
+  const raw = JSON.stringify({
+    DocTreeVersion: 1,
+    metadata: { title: { de: 'Gesetz' } },
+    document,
+  });
+  const { doc } = processJsonEnvelopeString(raw, { name: 'fallback', originalFilename: null });
+  expect(buildDocTreeEnvelope(doc, { language: 'de' }).document).toEqual(document);
 });

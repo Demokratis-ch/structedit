@@ -49,7 +49,7 @@ export type LocalizedText = Partial<{ [K in Language]: string }>;
 export type NodeFormat = 'TEXT' | 'NEWLINES' | 'MARKDOWN_MINIMAL' | 'MARKDOWN_INLINE' | 'MARKDOWN';
 
 /** Node types that carry `contents` and a `format` (i.e. anything that can hold text/an image). */
-export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE';
+export type ContentBearingNodeType = 'HEADING' | 'CONTENT' | 'FOOTNOTE' | 'IMAGE' | 'TABLE';
 
 /**
  * The tree root. There is exactly one per document, and — unlike every other node type — it
@@ -118,6 +118,15 @@ export interface ImageDocumentNode {
   format: NodeFormat;
 }
 
+/** A table. A leaf: `contents` is a Markdown pipe table. */
+export interface TableDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'TABLE';
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
 /** Any node in a DocTree, including the tree root. */
 export type DocumentNode =
   | DocumentRootNode
@@ -126,7 +135,8 @@ export type DocumentNode =
   | HeadingDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | TableDocumentNode;
 
 /**
  * The block-level nodes allowed directly under `DOCUMENT`, `HEADING`, and `LIST_ITEM` (the
@@ -138,7 +148,8 @@ export type BlockDocumentNode =
   | ListDocumentNode
   | ContentDocumentNode
   | FootnoteDocumentNode
-  | ImageDocumentNode;
+  | ImageDocumentNode
+  | TableDocumentNode;
 
 /**
  * Every node that carries a `children` array — i.e. the nodes a tree path can descend through.
@@ -188,6 +199,7 @@ export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
   CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   IMAGE: ['TEXT', 'NEWLINES'],
+  TABLE: ['MARKDOWN'],
 };
 
 /** Default format assigned to each content-bearing node type at creation/import. */
@@ -196,12 +208,13 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
   CONTENT: 'TEXT',
   FOOTNOTE: 'TEXT',
   IMAGE: 'TEXT',
+  TABLE: 'MARKDOWN',
 };
 
 export const DOC_TREE_VERSION = 1 as const;
 
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
-const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE')[] = ['IMAGE', 'FOOTNOTE'];
+const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE' | 'TABLE')[] = ['IMAGE', 'FOOTNOTE', 'TABLE'];
 const VALID_FORMATS: NodeFormat[] = [
   'TEXT',
   'NEWLINES',
@@ -215,9 +228,9 @@ const VALID_FORMATS: NodeFormat[] = [
  * element types so the drift guard below can compare them against the typed `children` unions.
  */
 const ALLOWED_CHILDREN = {
-  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
-  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE'],
+  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'TABLE'],
+  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'TABLE'],
+  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'TABLE'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
 } as const satisfies Record<NonNullable<ParentType>, DocumentNode['type'][]>;
@@ -316,7 +329,7 @@ const isValidNodeInternal = (
   };
 
   // Leaf nodes
-  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE')) {
+  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE' | 'TABLE')) {
     if (!isValidContents(node.contents)) return false;
     if ('children' in node) return false;
     if (!isValidFormatForType(type as ContentBearingNodeType)) return false;

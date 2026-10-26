@@ -21,6 +21,7 @@ import {
   type NodeFormat,
   type NumberedDocumentNode,
   type ParentDocumentNode,
+  type TableDocumentNode,
 } from './document';
 
 /**
@@ -48,7 +49,7 @@ type _TypeAssertions = [
   Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
-  // `DocumentNode` is the union of all seven per-type interfaces.
+  // `DocumentNode` is the union of all eight per-type interfaces.
   Expect<
     Equal<
       DocumentNode,
@@ -59,6 +60,7 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | TableDocumentNode
     >
   >,
   // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
@@ -72,7 +74,7 @@ type _TypeAssertions = [
   Expect<Equal<HeadingDocumentNode['children'], BlockDocumentNode[]>>,
   Expect<Equal<ListItemDocumentNode['children'], BlockDocumentNode[]>>,
   // `BlockDocumentNode` is the block-level union; `ParentDocumentNode` is exactly the nodes that
-  // carry `children` (every node type except the two leaves).
+  // carry `children` (every node type except the leaves).
   Expect<
     Equal<
       BlockDocumentNode,
@@ -81,10 +83,14 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | TableDocumentNode
     >
   >,
   Expect<
-    Equal<Exclude<DocumentNode, ParentDocumentNode>, FootnoteDocumentNode | ImageDocumentNode>
+    Equal<
+      Exclude<DocumentNode, ParentDocumentNode>,
+      FootnoteDocumentNode | ImageDocumentNode | TableDocumentNode
+    >
   >,
 ];
 
@@ -1183,5 +1189,30 @@ describe('isValidNode — format field rules', () => {
         ],
       })
     ).toBe(false);
+  });
+});
+
+describe('TABLE', () => {
+  const table = (overrides: Record<string, unknown> = {}) => ({
+    id: 't1',
+    number: '',
+    type: 'TABLE',
+    contents: { de: '| a |\n| - |\n| 1 |' },
+    format: 'MARKDOWN',
+    ...overrides,
+  });
+
+  it('is a MARKDOWN-only leaf', () => {
+    expect(isValidNode(table())).toBe(true);
+    expect(isValidNode(table({ children: [] }))).toBe(false);
+    expect(isValidNode(table({ format: 'TEXT' }))).toBe(false);
+  });
+
+  it('is allowed under document, heading and list item only', () => {
+    expect(canBeChildOf('TABLE', 'DOCUMENT')).toBe(true);
+    expect(canBeChildOf('TABLE', 'HEADING')).toBe(true);
+    expect(canBeChildOf('TABLE', 'LIST_ITEM')).toBe(true);
+    expect(canBeChildOf('TABLE', 'CONTENT')).toBe(false);
+    expect(canBeChildOf('TABLE', 'LIST')).toBe(false);
   });
 });
