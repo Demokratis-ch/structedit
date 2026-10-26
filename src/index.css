@@ -409,3 +409,13 @@ td {
   border-top: 1px solid var(--border);
   margin-block: 1em;
 }
+
+/* `Term :: Value` pairs, laid out like the platform's `.def-list`: term left, value right. */
+.markdown-rendered dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 2rem;
+}
+.markdown-rendered dd {
+  text-align: right;
+}

@@ -2,11 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
   ContentDocumentNode,
+  DefinitionListDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
-import { ContentNode, HeadingNode, ListItemNode, ListNode } from './PreviewNodeRenderers';
+import {
+  ContentNode,
+  HeadingNode,
+  ListItemNode,
+  ListNode,
+  PreviewNode,
+} from './PreviewNodeRenderers';
 
 describe('HeadingNode', () => {
   test('maps depth to the matching heading level', () => {
@@ -253,4 +260,17 @@ describe('ListItemNode', () => {
     expect(screen.getByText('Item body.')).toBeInTheDocument();
     expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
   });
+});
+
+test('PreviewNode renders a definition list after its number', () => {
+  const node: DefinitionListDocumentNode = {
+    id: 'd',
+    number: '1',
+    type: 'DEFINITION_LIST',
+    format: 'MARKDOWN',
+    contents: { de: 'Bund :: Eidgenossenschaft' },
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.textContent?.trim().startsWith('1')).toBe(true);
+  expect(container.querySelector('dl')?.innerHTML).toBe('<dt>Bund</dt><dd>Eidgenossenschaft</dd>');
 });
