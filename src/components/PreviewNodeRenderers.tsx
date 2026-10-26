@@ -1,4 +1,5 @@
 import type {
+  ContentGroupDocumentNode,
   DocumentNode,
   Language,
   ListDocumentNode,
@@ -53,6 +54,8 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <ListNode node={node} language={language} headingDepth={headingDepth} />;
     case 'LIST_ITEM':
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
+    case 'CONTENT_GROUP':
+      return <ContentGroupNode node={node} language={language} headingDepth={headingDepth} />;
     case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
     case 'IMAGE':
@@ -237,5 +240,34 @@ export function FootnoteSection({
         })}
       </div>
     </details>
+  );
+}
+
+/** A content group: its number starts the first paragraph, else stands above, as on the platform. */
+function ContentGroupNode({
+  node,
+  language,
+  headingDepth,
+}: {
+  node: ContentGroupDocumentNode;
+  language: Language;
+  headingDepth: number;
+}) {
+  const [first, ...rest] = node.children;
+  const inline = first?.type === 'CONTENT';
+  return (
+    <div>
+      {inline ? (
+        <ContentNode
+          node={{ ...first, number: [node.number, first.number].filter(Boolean).join(' ') || null }}
+          language={language}
+        />
+      ) : (
+        <NumberBadgeDisplay value={node.number} className="font-bold" />
+      )}
+      {(inline ? rest : node.children).map((child) => (
+        <PreviewNode key={child.id} node={child} language={language} headingDepth={headingDepth} />
+      ))}
+    </div>
   );
 }

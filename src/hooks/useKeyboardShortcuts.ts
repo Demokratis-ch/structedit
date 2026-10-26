@@ -1,5 +1,6 @@
 import type React from 'react';
 import { hasEditableText, type Language, type NodeFormat } from '../types/document';
+import type { TypeChangeTarget } from '../utils/tree-mutations';
 import type { TreeEditorHandle } from './useTreeEditor';
 
 /** Check whether the collapsed cursor is at the start or end of `el`. */
@@ -159,7 +160,7 @@ export function useKeyboardShortcuts({
 
     // Map toolbar type to target type and list style
     type ListStyle = 'unordered' | 'numbered' | 'lettered';
-    let targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE';
+    let targetType: TypeChangeTarget;
     let listStyle: ListStyle | undefined;
 
     switch (toolbarType) {
@@ -183,6 +184,9 @@ export function useKeyboardShortcuts({
         break;
       case 'FOOTNOTE':
         targetType = 'FOOTNOTE';
+        break;
+      case 'CONTENT_GROUP':
+        targetType = 'CONTENT_GROUP';
         break;
       default:
         return;
@@ -289,6 +293,7 @@ export function useKeyboardShortcuts({
         o: 'ol',
         a: 'abc',
         f: 'FOOTNOTE',
+        g: 'CONTENT_GROUP',
       };
       const toolbarType = shortcutMap[key];
       if (toolbarType) {

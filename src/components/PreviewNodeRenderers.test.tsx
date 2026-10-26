@@ -2,11 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
 } from '../types/document';
-import { ContentNode, HeadingNode, ListItemNode, ListNode } from './PreviewNodeRenderers';
+import {
+  ContentNode,
+  HeadingNode,
+  ListItemNode,
+  ListNode,
+  PreviewNode,
+} from './PreviewNodeRenderers';
 
 describe('HeadingNode', () => {
   test('maps depth to the matching heading level', () => {
@@ -253,4 +260,26 @@ describe('ListItemNode', () => {
     expect(screen.getByText('Item body.')).toBeInTheDocument();
     expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
   });
+});
+
+test('PreviewNode renders a content group with its number at the start of its first paragraph', () => {
+  const node: ContentGroupDocumentNode = {
+    id: 'g',
+    number: '2',
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: 'TEXT',
+    children: [
+      {
+        id: 'c',
+        number: null,
+        type: 'CONTENT',
+        format: 'TEXT',
+        contents: { de: 'Es gilt für:' },
+        children: [],
+      },
+    ],
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.querySelector('p')?.textContent).toBe('2Es gilt für:');
 });
