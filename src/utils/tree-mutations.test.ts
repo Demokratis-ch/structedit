@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type {
   BlockDocumentNode,
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
@@ -27,6 +28,7 @@ import {
   mergeNodesInDoc,
   outdentNodeInDoc,
   resolveMergeTargets,
+  wrapInContentGroupInDoc,
 } from './tree-mutations';
 import { buildIndices, getNodeAtPath } from './tree-utils';
 
@@ -648,5 +650,43 @@ describe('changeNodeTypeInDoc — parent-validity guard', () => {
       const out = changeNodeTypeInDoc(d, idx(d), id, target);
       if (out) expect(isValidDocument(out)).toBe(true);
     }
+  });
+});
+
+describe('CONTENT_GROUP', () => {
+  const group = (children: ContentGroupDocumentNode['children']): ContentGroupDocumentNode => ({
+    id: 'g1',
+    number: '2',
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: 'TEXT',
+    children,
+  });
+
+  test('wraps a paragraph and its list in a group that takes over the number', () => {
+    const d = doc([
+      content('p1', 'Es gilt für:', '2'),
+      list('l1', [listItem('li1', 'den Bund.', 'a.')]),
+    ]);
+    const result = wrapInContentGroupInDoc(['p1', 'l1', 'li1', 'li1-c'], d, idx(d))!;
+    expect(result.children).toEqual([
+      {
+        ...group([content('p1', 'Es gilt für:'), list('l1', [listItem('li1', 'den Bund.', 'a.')])]),
+        id: expect.any(String),
+      },
+    ]);
+    expect(isValidDocument(result)).toBe(true);
+  });
+
+  test('converting a group to a paragraph dissolves it, the number moving onto the first child', () => {
+    const d = doc([group([content('p1', 'Es gilt für:'), list('l1', [])])]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'g1', 'CONTENT')!;
+    expect(result.children).toEqual([content('p1', 'Es gilt für:', '2'), list('l1', [])]);
+  });
+
+  test('refuses other conversions of a group, which would drop its children', () => {
+    const d = doc([group([content('p1', 'x')])]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'g1', 'HEADING')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'g1', 'FOOTNOTE')).toBeNull();
   });
 });

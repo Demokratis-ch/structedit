@@ -1,6 +1,7 @@
 import type {
   ContentBearingNodeType,
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   DocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
@@ -40,6 +41,8 @@ const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
   'LIST',
   'LIST_ITEM',
 ]);
+
+export type TypeChangeTarget = 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE' | 'CONTENT_GROUP';
 
 // Most → least permissive. Used to pick the resulting format when merging.
 const FORMAT_RANK: Record<NodeFormat, number> = {
@@ -89,8 +92,24 @@ export const resolveMergeTargets = (
   doc: DocumentRootNode,
   nodeIndex: Map<string, NodePath>
 ): NodePath[] | null => {
-  if (ids.length < 2) return null;
+  const sorted = resolveSiblingRange(ids, nodeIndex);
+  if (!sorted || sorted.length < 2) return null;
 
+  const firstNode = getNodeAtPath(doc, sorted[0]);
+  if (!firstNode || !MERGEABLE_TYPES.has(firstNode.type)) return null;
+  for (const p of sorted) {
+    const n = getNodeAtPath(doc, p);
+    if (!n || n.type !== firstNode.type) return null;
+  }
+
+  return sorted;
+};
+
+/** The paths of the outermost ids in document order, when they are contiguous siblings. */
+const resolveSiblingRange = (
+  ids: readonly string[],
+  nodeIndex: Map<string, NodePath>
+): NodePath[] | null => {
   const paths: NodePath[] = [];
   for (const id of ids) {
     const path = nodeIndex.get(id);
@@ -101,7 +120,7 @@ export const resolveMergeTargets = (
   const outermost = paths.filter(
     (p) => !paths.some((other) => other !== p && isStrictPathPrefix(other, p))
   );
-  if (outermost.length < 2) return null;
+  if (outermost.length === 0) return null;
 
   const parentKey = outermost[0].slice(0, -1).join('.');
   for (const p of outermost) {
@@ -114,14 +133,6 @@ export const resolveMergeTargets = (
       return null;
     }
   }
-
-  const firstNode = getNodeAtPath(doc, sorted[0]);
-  if (!firstNode || !MERGEABLE_TYPES.has(firstNode.type)) return null;
-  for (const p of sorted) {
-    const n = getNodeAtPath(doc, p);
-    if (!n || n.type !== firstNode.type) return null;
-  }
-
   return sorted;
 };
 
@@ -579,6 +590,64 @@ const hasContents = (
 };
 
 /**
+ * Wrap contiguous paragraphs and lists (typically an Absatz and its list) in a new CONTENT_GROUP
+ * that takes over the first one's number. Null unless the parent can hold a group.
+ */
+export const wrapInContentGroupInDoc = (
+  ids: readonly string[],
+  doc: DocumentRootNode,
+  nodeIndex: Map<string, NodePath>
+): DocumentRootNode | null => {
+  const paths = resolveSiblingRange(ids, nodeIndex);
+  if (!paths) return null;
+  const parentPath = paths[0].slice(0, -1);
+  const parent = parentPath.length === 0 ? doc : getNodeAtPath(doc, parentPath);
+  if (!parent || !canBeChildOf('CONTENT_GROUP', parent.type as ParentType)) return null;
+
+  const nodes = paths.map((p) => getNodeAtPath(doc, p));
+  const isGroupable = (n: DocumentNode | null): n is ContentDocumentNode | ListDocumentNode =>
+    n?.type === 'CONTENT' || n?.type === 'LIST';
+  if (!nodes.every(isGroupable)) return null;
+  const [first, ...rest] = nodes;
+
+  const group: ContentGroupDocumentNode = {
+    id: generateId(),
+    number: first.number,
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: DEFAULT_FORMAT.CONTENT_GROUP,
+    children: [{ ...first, number: null }, ...rest],
+  };
+  return updateChildrenAtPath(doc, parentPath, (siblings) => {
+    const out = [...siblings];
+    out.splice(paths[0][paths[0].length - 1], paths.length, group);
+    return out;
+  });
+};
+
+/**
+ * Replace a CONTENT_GROUP by its children, its number moving onto the first one. Null when that
+ * is not an unnumbered paragraph.
+ */
+const dissolveContentGroup = (
+  doc: DocumentRootNode,
+  path: NodePath,
+  group: ContentGroupDocumentNode
+): DocumentRootNode | null => {
+  const [first, ...rest] = group.children;
+  let children: DocumentNode[] = group.children;
+  if (group.number) {
+    if (first?.type !== 'CONTENT' || first.number) return null;
+    children = [{ ...first, number: group.number }, ...rest];
+  }
+  return updateChildrenAtPath(doc, path.slice(0, -1), (siblings) => {
+    const out = [...siblings];
+    out.splice(path[path.length - 1], 1, ...children);
+    return out;
+  });
+};
+
+/**
  * Extract a list_item from its list and convert to heading or content (pure function, no commit).
  * Returns the new document, or null if the operation can't be performed.
  */
@@ -714,6 +783,11 @@ export const changeNodeTypeInDoc = (
       return newDoc;
     }
     return null;
+  }
+
+  // A content group only dissolves (→ CONTENT); other types would drop its children.
+  if (node.type === 'CONTENT_GROUP') {
+    return targetType === 'CONTENT' ? dissolveContentGroup(doc, path, node) : null;
   }
 
   // Can only convert nodes with contents
