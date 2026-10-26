@@ -3,9 +3,11 @@ import {
   ALLOWED_FORMATS,
   type BlockDocumentNode,
   type ContentDocumentNode,
+  type ContentGroupDocumentNode,
   canBeChildOf,
   canHaveFormat,
   DEFAULT_FORMAT,
+  type DefinitionListDocumentNode,
   DOC_TREE_VERSION,
   type DocumentNode,
   type DocumentRootNode,
@@ -17,6 +19,7 @@ import {
   isValidDocument,
   isValidNode,
   type ListDocumentNode,
+  type ListItemChildNode,
   type ListItemDocumentNode,
   type NodeFormat,
   type NumberedDocumentNode,
@@ -48,7 +51,7 @@ type _TypeAssertions = [
   Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
-  // `DocumentNode` is the union of all seven per-type interfaces.
+  // `DocumentNode` is the union of all nine per-type interfaces.
   Expect<
     Equal<
       DocumentNode,
@@ -59,6 +62,8 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | DefinitionListDocumentNode
+      | ContentGroupDocumentNode
     >
   >,
   // `NumberedDocumentNode` is exactly the non-root nodes, and every one carries a `number`.
@@ -70,9 +75,9 @@ type _TypeAssertions = [
   Expect<Equal<ContentDocumentNode['children'], FootnoteDocumentNode[]>>,
   Expect<Equal<DocumentRootNode['children'], BlockDocumentNode[]>>,
   Expect<Equal<HeadingDocumentNode['children'], BlockDocumentNode[]>>,
-  Expect<Equal<ListItemDocumentNode['children'], BlockDocumentNode[]>>,
+  Expect<Equal<ListItemDocumentNode['children'], ListItemChildNode[]>>,
   // `BlockDocumentNode` is the block-level union; `ParentDocumentNode` is exactly the nodes that
-  // carry `children` (every node type except the two leaves).
+  // carry `children` (every node type except the leaves).
   Expect<
     Equal<
       BlockDocumentNode,
@@ -81,10 +86,15 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | DefinitionListDocumentNode
+      | ContentGroupDocumentNode
     >
   >,
   Expect<
-    Equal<Exclude<DocumentNode, ParentDocumentNode>, FootnoteDocumentNode | ImageDocumentNode>
+    Equal<
+      Exclude<DocumentNode, ParentDocumentNode>,
+      FootnoteDocumentNode | ImageDocumentNode | DefinitionListDocumentNode
+    >
   >,
 ];
 
@@ -1183,5 +1193,69 @@ describe('isValidNode — format field rules', () => {
         ],
       })
     ).toBe(false);
+  });
+});
+
+describe('DEFINITION_LIST', () => {
+  const definitionList = (overrides: Record<string, unknown> = {}) => ({
+    id: 'd1',
+    number: '',
+    type: 'DEFINITION_LIST',
+    contents: { de: 'Bund :: Eidgenossenschaft' },
+    format: 'MARKDOWN',
+    ...overrides,
+  });
+
+  it('is a MARKDOWN-only leaf', () => {
+    expect(isValidNode(definitionList())).toBe(true);
+    expect(isValidNode(definitionList({ children: [] }))).toBe(false);
+    expect(isValidNode(definitionList({ format: 'TEXT' }))).toBe(false);
+  });
+
+  it('is allowed under document, heading and list item only', () => {
+    expect(canBeChildOf('DEFINITION_LIST', 'DOCUMENT')).toBe(true);
+    expect(canBeChildOf('DEFINITION_LIST', 'HEADING')).toBe(true);
+    expect(canBeChildOf('DEFINITION_LIST', 'LIST_ITEM')).toBe(true);
+    expect(canBeChildOf('DEFINITION_LIST', 'CONTENT')).toBe(false);
+    expect(canBeChildOf('DEFINITION_LIST', 'CONTENT_GROUP')).toBe(false);
+  });
+});
+
+describe('CONTENT_GROUP', () => {
+  const content = {
+    id: 'c1',
+    number: null,
+    type: 'CONTENT',
+    contents: {},
+    format: 'TEXT',
+    children: [],
+  };
+  const group = (overrides: Record<string, unknown> = {}) => ({
+    id: 'g1',
+    number: '2',
+    type: 'CONTENT_GROUP',
+    contents: {},
+    format: 'TEXT',
+    children: [content, { id: 'l1', number: null, type: 'LIST', children: [] }],
+    ...overrides,
+  });
+
+  it('is a container that carries contents and a TEXT or NEWLINES format', () => {
+    expect(isValidNode(group())).toBe(true);
+    expect(isValidNode(group({ format: 'NEWLINES' }))).toBe(true);
+    expect(isValidNode(group({ format: 'MARKDOWN' }))).toBe(false);
+    expect(isValidNode(group({ contents: undefined }))).toBe(false);
+    expect(isValidNode(group({ children: undefined }))).toBe(false);
+  });
+
+  it('holds lists, content and images only', () => {
+    expect(canBeChildOf('IMAGE', 'CONTENT_GROUP')).toBe(true);
+    expect(isValidNode(group({ children: [{ ...content, type: 'HEADING' }] }))).toBe(false);
+  });
+
+  it('is allowed under document and heading only', () => {
+    expect(canBeChildOf('CONTENT_GROUP', 'DOCUMENT')).toBe(true);
+    expect(canBeChildOf('CONTENT_GROUP', 'HEADING')).toBe(true);
+    expect(canBeChildOf('CONTENT_GROUP', 'LIST_ITEM')).toBe(false);
   });
 });

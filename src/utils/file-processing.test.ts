@@ -1,6 +1,7 @@
 import * as mammoth from 'mammoth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContentDocumentNode } from '../types/document';
+import { buildDocTreeEnvelope } from './document-utils';
 import {
   createPlainTextDocument,
   deriveNameFromUrl,
@@ -497,4 +498,77 @@ describe('file-processing', () => {
       expect(deriveNameFromUrl('not a url')).toBe('Demokratis document');
     });
   });
+});
+
+it('opens a platform export with a definition list and a content group and exports it unchanged', () => {
+  // Shape as emitted by the platform's JsonEnvelopeV1Serializer.
+  const document = {
+    id: 'root',
+    number: null,
+    type: 'DOCUMENT',
+    children: [
+      {
+        id: 'h1',
+        number: 'Art. 1',
+        type: 'HEADING',
+        contents: { de: 'Begriffe' },
+        format: 'TEXT',
+        children: [
+          {
+            id: 'd1',
+            number: '',
+            type: 'DEFINITION_LIST',
+            contents: { de: 'Bund :: Eidgenossenschaft' },
+            format: 'MARKDOWN',
+          },
+          {
+            id: 'g1',
+            number: '2',
+            type: 'CONTENT_GROUP',
+            contents: {},
+            format: 'TEXT',
+            children: [
+              {
+                id: 'c1',
+                number: null,
+                type: 'CONTENT',
+                contents: { de: 'Es gilt für:' },
+                format: 'TEXT',
+                children: [],
+              },
+              {
+                id: 'l1',
+                number: null,
+                type: 'LIST',
+                children: [
+                  {
+                    id: 'li1',
+                    number: 'a.',
+                    type: 'LIST_ITEM',
+                    children: [
+                      {
+                        id: 'c2',
+                        number: null,
+                        type: 'CONTENT',
+                        contents: { de: 'den Bund.' },
+                        format: 'TEXT',
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const raw = JSON.stringify({
+    DocTreeVersion: 1,
+    metadata: { title: { de: 'Gesetz' } },
+    document,
+  });
+  const { doc } = processJsonEnvelopeString(raw, { name: 'fallback', originalFilename: null });
+  expect(buildDocTreeEnvelope(doc, { language: 'de' }).document).toEqual(document);
 });
