@@ -185,11 +185,11 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         return null; // Document root doesn't render its own content
       }
 
-      if (node.type === 'LIST') {
+      if (node.type === 'LIST' || node.type === 'CONTENT_GROUP') {
         return (
           <div className="flex items-baseline flex-1">
             {renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50')}{' '}
-            <span className="text-gray-400 select-none text-sm">(list)</span>
+            <span className="text-gray-400 select-none text-sm">({node.type.toLowerCase()})</span>
           </div>
         );
       }

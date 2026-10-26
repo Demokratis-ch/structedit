@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { TreeUIStore } from '../stores/TreeUIStore';
+import { hasEditableText } from '../types/document';
 import type { FlattenedNode } from '../types/editor';
 
 export interface ClickModifiers {
@@ -82,19 +83,23 @@ export const useSelection = ({ store, flattenedNodes, nodeIdToFlatIndex }: UseSe
   );
 
   /**
-   * Handle double click to enter edit mode.
+   * Handle double click to enter edit mode, like Enter: text edit for nodes with editable text,
+   * number edit for the rest (LIST / LIST_ITEM / CONTENT_GROUP).
    */
   const handleNodeDoubleClick = useCallback(
     (id: string) => {
+      const index = nodeIdToFlatIndex.get(id);
+      const node = index === undefined ? undefined : flattenedNodes[index]?.node;
+      const isTextEdit = !node || hasEditableText(node);
       store.batch(() => {
-        store.setEditingNumberId(null);
         store.setSelection(new Set([id]));
-        store.setEditingId(id);
+        store.setEditingNumberId(isTextEdit ? null : id);
+        store.setEditingId(isTextEdit ? id : null);
       });
       lastSelectedId.current = id;
       anchorId.current = id;
     },
-    [store]
+    [flattenedNodes, nodeIdToFlatIndex, store]
   );
 
   /**
