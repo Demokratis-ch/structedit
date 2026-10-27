@@ -22,6 +22,7 @@ import {
   type ListStyle,
   mergeNodesInDoc,
   outdentNodeInDoc,
+  type TypeChangeTarget,
 } from '../utils/tree-mutations';
 import {
   buildIndices,
@@ -261,11 +262,7 @@ export const useTreeOperations = ({
    * Processes all nodes sequentially with index rebuilding, committing once at the end.
    */
   const changeNodeTypes = useCallback(
-    (
-      ids: string[],
-      targetType: 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE',
-      listStyle?: ListStyle
-    ) => {
+    (ids: string[], targetType: TypeChangeTarget, listStyle?: ListStyle) => {
       let doc = document;
       let changed = false;
 

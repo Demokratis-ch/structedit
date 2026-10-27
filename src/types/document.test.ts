@@ -24,6 +24,7 @@ import {
   type NodeFormat,
   type NumberedDocumentNode,
   type ParentDocumentNode,
+  type TableDocumentNode,
 } from './document';
 
 /**
@@ -51,7 +52,7 @@ type _TypeAssertions = [
   Expect<Equal<HasKey<ListDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<HeadingDocumentNode, 'number'>, true>>,
   Expect<Equal<HasKey<FootnoteDocumentNode, 'number'>, true>>,
-  // `DocumentNode` is the union of all nine per-type interfaces.
+  // `DocumentNode` is the union of all ten per-type interfaces.
   Expect<
     Equal<
       DocumentNode,
@@ -62,6 +63,7 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | TableDocumentNode
       | DefinitionListDocumentNode
       | ContentGroupDocumentNode
     >
@@ -86,6 +88,7 @@ type _TypeAssertions = [
       | ContentDocumentNode
       | FootnoteDocumentNode
       | ImageDocumentNode
+      | TableDocumentNode
       | DefinitionListDocumentNode
       | ContentGroupDocumentNode
     >
@@ -93,7 +96,7 @@ type _TypeAssertions = [
   Expect<
     Equal<
       Exclude<DocumentNode, ParentDocumentNode>,
-      FootnoteDocumentNode | ImageDocumentNode | DefinitionListDocumentNode
+      FootnoteDocumentNode | ImageDocumentNode | TableDocumentNode | DefinitionListDocumentNode
     >
   >,
 ];
@@ -1257,5 +1260,31 @@ describe('CONTENT_GROUP', () => {
     expect(canBeChildOf('CONTENT_GROUP', 'DOCUMENT')).toBe(true);
     expect(canBeChildOf('CONTENT_GROUP', 'HEADING')).toBe(true);
     expect(canBeChildOf('CONTENT_GROUP', 'LIST_ITEM')).toBe(false);
+  });
+});
+
+describe('TABLE', () => {
+  const table = (overrides: Record<string, unknown> = {}) => ({
+    id: 't1',
+    number: '',
+    type: 'TABLE',
+    contents: { de: '| a |\n| - |\n| 1 |' },
+    format: 'MARKDOWN',
+    ...overrides,
+  });
+
+  it('is a MARKDOWN-only leaf', () => {
+    expect(isValidNode(table())).toBe(true);
+    expect(isValidNode(table({ children: [] }))).toBe(false);
+    expect(isValidNode(table({ format: 'TEXT' }))).toBe(false);
+  });
+
+  it('is allowed under document, heading and list item only', () => {
+    expect(canBeChildOf('TABLE', 'DOCUMENT')).toBe(true);
+    expect(canBeChildOf('TABLE', 'HEADING')).toBe(true);
+    expect(canBeChildOf('TABLE', 'LIST_ITEM')).toBe(true);
+    expect(canBeChildOf('TABLE', 'CONTENT')).toBe(false);
+    expect(canBeChildOf('TABLE', 'LIST')).toBe(false);
+    expect(canBeChildOf('TABLE', 'CONTENT_GROUP')).toBe(false);
   });
 });
