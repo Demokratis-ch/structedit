@@ -500,7 +500,7 @@ describe('file-processing', () => {
   });
 });
 
-it('opens a platform export with a definition list and a content group and exports it unchanged', () => {
+it('opens a platform export with a table, a definition list and a content group and exports it unchanged', () => {
   // Shape as emitted by the platform's JsonEnvelopeV1Serializer.
   const document = {
     id: 'root',
@@ -514,6 +514,15 @@ it('opens a platform export with a definition list and a content group and expor
         contents: { de: 'Begriffe' },
         format: 'TEXT',
         children: [
+          {
+            id: 't1',
+            number: '',
+            type: 'TABLE',
+            contents: {
+              de: '| Begriff | Bedeutung |\n| --- | --- |\n| Bund | Eidgenossenschaft |',
+            },
+            format: 'MARKDOWN',
+          },
           {
             id: 'd1',
             number: '',

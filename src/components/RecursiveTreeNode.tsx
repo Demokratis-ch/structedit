@@ -185,11 +185,11 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
         return null; // Document root doesn't render its own content
       }
 
-      if (node.type === 'LIST') {
+      if (node.type === 'LIST' || node.type === 'CONTENT_GROUP') {
         return (
           <div className="flex items-baseline flex-1">
             {renderNumberBadge(node.number, 'font-medium text-gray-500 border-gray-300 bg-gray-50')}{' '}
-            <span className="text-gray-400 select-none text-sm">(list)</span>
+            <span className="text-gray-400 select-none text-sm">({node.type.toLowerCase()})</span>
           </div>
         );
       }
@@ -211,7 +211,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
       // Nodes with content
       return (
         <div className="flex items-baseline flex-1">
-          {/* Show number badge for headings, footnotes, content and definition lists (dashed placeholder when no number) */}
+          {/* Show number badge for headings, footnotes, content, tables and definition lists (dashed placeholder when no number) */}
           {node.type === 'HEADING' &&
             renderNumberBadge(
               node.number,
@@ -222,7 +222,7 @@ export const RecursiveTreeNode = memo<RecursiveTreeNodeProps>(
               node.number,
               'font-medium text-amber-600 border-amber-200 bg-amber-50'
             )}
-          {(node.type === 'CONTENT' || node.type === 'DEFINITION_LIST') &&
+          {(node.type === 'CONTENT' || node.type === 'TABLE' || node.type === 'DEFINITION_LIST') &&
             renderNumberBadge(node.number, 'font-medium text-gray-600 border-gray-300 bg-gray-50')}
 
           {'contents' in node && (

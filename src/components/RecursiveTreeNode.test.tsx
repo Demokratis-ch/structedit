@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { TreeUIStore } from '../stores/TreeUIStore';
 import type {
   ContentDocumentNode,
+  ContentGroupDocumentNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
@@ -198,6 +199,26 @@ describe('RecursiveTreeNode', () => {
       expect(bullet).not.toBeNull();
       fireEvent.doubleClick(bullet!);
       expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'li-no-num');
+    });
+
+    test('content group shows its number badge and no text block', () => {
+      const onNumberDoubleClick = vi.fn();
+      const node: ContentGroupDocumentNode = {
+        id: 'g',
+        number: '2',
+        type: 'CONTENT_GROUP',
+        format: 'TEXT',
+        contents: {},
+        children: [],
+      };
+      const { getByText, container } = renderWithContext(
+        <RecursiveTreeNode node={node} depth={1} />,
+        { callbacks: { onNumberDoubleClick } }
+      );
+
+      fireEvent.doubleClick(getByText('2'));
+      expect(onNumberDoubleClick).toHaveBeenCalledWith(expect.any(Object), 'g');
+      expect(container.querySelector('[contenteditable]')).toBeNull();
     });
 
     test('footnote with null number renders a dashed placeholder badge', () => {

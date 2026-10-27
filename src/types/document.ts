@@ -57,6 +57,7 @@ export type ContentBearingNodeType =
   | 'CONTENT'
   | 'FOOTNOTE'
   | 'IMAGE'
+  | 'TABLE'
   | 'DEFINITION_LIST'
   | 'CONTENT_GROUP';
 
@@ -127,6 +128,15 @@ export interface ImageDocumentNode {
   format: NodeFormat;
 }
 
+/** A table. A leaf: `contents` is a Markdown pipe table. */
+export interface TableDocumentNode {
+  id: string;
+  number: string | null;
+  type: 'TABLE';
+  contents: LocalizedText;
+  format: NodeFormat;
+}
+
 /** A definition list. A leaf: `contents` holds one `Term :: Value` pair per line, in Markdown. */
 export interface DefinitionListDocumentNode {
   id: string;
@@ -158,6 +168,7 @@ export type DocumentNode =
   | ContentDocumentNode
   | FootnoteDocumentNode
   | ImageDocumentNode
+  | TableDocumentNode
   | DefinitionListDocumentNode
   | ContentGroupDocumentNode;
 
@@ -172,6 +183,7 @@ export type BlockDocumentNode =
   | ContentDocumentNode
   | FootnoteDocumentNode
   | ImageDocumentNode
+  | TableDocumentNode
   | DefinitionListDocumentNode
   | ContentGroupDocumentNode;
 
@@ -237,6 +249,7 @@ export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
   CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
   IMAGE: ['TEXT', 'NEWLINES'],
+  TABLE: ['MARKDOWN'],
   DEFINITION_LIST: ['MARKDOWN'],
   CONTENT_GROUP: ['TEXT', 'NEWLINES'],
 };
@@ -247,6 +260,7 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
   CONTENT: 'TEXT',
   FOOTNOTE: 'TEXT',
   IMAGE: 'TEXT',
+  TABLE: 'MARKDOWN',
   DEFINITION_LIST: 'MARKDOWN',
   CONTENT_GROUP: 'TEXT',
 };
@@ -254,9 +268,10 @@ export const DEFAULT_FORMAT: Record<ContentBearingNodeType, NodeFormat> = {
 export const DOC_TREE_VERSION = 1 as const;
 
 const CONTAINER_TYPES: ('DOCUMENT' | 'LIST' | 'LIST_ITEM')[] = ['DOCUMENT', 'LIST', 'LIST_ITEM'];
-const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE' | 'DEFINITION_LIST')[] = [
+const LEAF_TYPES: ('IMAGE' | 'FOOTNOTE' | 'TABLE' | 'DEFINITION_LIST')[] = [
   'IMAGE',
   'FOOTNOTE',
+  'TABLE',
   'DEFINITION_LIST',
 ];
 const VALID_FORMATS: NodeFormat[] = [
@@ -272,9 +287,27 @@ const VALID_FORMATS: NodeFormat[] = [
  * element types so the drift guard below can compare them against the typed `children` unions.
  */
 const ALLOWED_CHILDREN = {
-  DOCUMENT: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'DEFINITION_LIST', 'CONTENT_GROUP'],
-  HEADING: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'DEFINITION_LIST', 'CONTENT_GROUP'],
-  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'DEFINITION_LIST'],
+  DOCUMENT: [
+    'HEADING',
+    'LIST',
+    'CONTENT',
+    'FOOTNOTE',
+    'IMAGE',
+    'TABLE',
+    'DEFINITION_LIST',
+    'CONTENT_GROUP',
+  ],
+  HEADING: [
+    'HEADING',
+    'LIST',
+    'CONTENT',
+    'FOOTNOTE',
+    'IMAGE',
+    'TABLE',
+    'DEFINITION_LIST',
+    'CONTENT_GROUP',
+  ],
+  LIST_ITEM: ['HEADING', 'LIST', 'CONTENT', 'FOOTNOTE', 'IMAGE', 'TABLE', 'DEFINITION_LIST'],
   LIST: ['LIST_ITEM'],
   CONTENT: ['FOOTNOTE'],
   CONTENT_GROUP: ['LIST', 'CONTENT', 'IMAGE'],
@@ -309,6 +342,15 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
   const allowed = ALLOWED_FORMATS[nodeType];
   return Array.isArray(allowed) && allowed.includes(format);
 };
+
+/**
+ * Whether the user edits this node's text in the tree. A `CONTENT_GROUP`'s `contents` is
+ * wire-only, so it counts as having none.
+ */
+export const hasEditableText = (
+  node: DocumentNode
+): node is Exclude<Extract<DocumentNode, { contents: LocalizedText }>, ContentGroupDocumentNode> =>
+  'contents' in node && node.type !== 'CONTENT_GROUP';
 
 /** Check if a node type can be a valid child of a parent type. */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
@@ -375,7 +417,7 @@ const isValidNodeInternal = (
   };
 
   // Leaf nodes
-  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE' | 'DEFINITION_LIST')) {
+  if (LEAF_TYPES.includes(type as 'IMAGE' | 'FOOTNOTE' | 'TABLE' | 'DEFINITION_LIST')) {
     if (!isValidContents(node.contents)) return false;
     if ('children' in node) return false;
     if (!isValidFormatForType(type as ContentBearingNodeType)) return false;

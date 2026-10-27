@@ -369,6 +369,14 @@ describe('useKeyboardShortcuts — Enter enters edit mode (issue #136)', () => {
           },
         ],
       },
+      {
+        id: 'group',
+        number: '2',
+        type: 'CONTENT_GROUP',
+        format: 'TEXT',
+        contents: {},
+        children: [],
+      },
     ],
   });
 
@@ -382,13 +390,16 @@ describe('useKeyboardShortcuts — Enter enters edit mode (issue #136)', () => {
     expect(result.current.editor.store.getEditingNumberId()).toBeNull();
   });
 
-  test('Enter on a selected list item (no contents) enters number edit mode', () => {
+  test.each([
+    'item',
+    'group',
+  ])('Enter on a selected node without editable text (%s) enters number edit mode', (id) => {
     const result = setup(listAndContent());
-    select(result, 'item');
+    select(result, id);
 
     act(() => result.current.handlers.handleGlobalKeyDown(makeKbd({ key: 'Enter' })));
 
-    expect(result.current.editor.store.getEditingNumberId()).toBe('item');
+    expect(result.current.editor.store.getEditingNumberId()).toBe(id);
     expect(result.current.editor.store.getEditingId()).toBeNull();
   });
 

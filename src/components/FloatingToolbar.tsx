@@ -13,6 +13,7 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  Table,
   Trash2,
   Type,
   X,
@@ -28,6 +29,7 @@ type ToolbarBlockType =
   | 'ol'
   | 'abc'
   | 'FOOTNOTE'
+  | 'TABLE'
   | 'DEFINITION_LIST';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
@@ -75,7 +77,13 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
   'MARKDOWN',
 ];
 
-const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
+const FORMATTABLE_TYPES: ContentBearingNodeType[] = [
+  'HEADING',
+  'CONTENT',
+  'FOOTNOTE',
+  'IMAGE',
+  'TABLE',
+];
 
 export function FloatingToolbar({
   selectedCount,
@@ -180,6 +188,13 @@ export function FloatingToolbar({
         title="Footnote (F)"
       >
         <Asterisk size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('TABLE')}
+        className={typeButtonClass('TABLE')}
+        title="Table (B)"
+      >
+        <Table size={18} />
       </button>
       <button
         onClick={() => onUpdateType('DEFINITION_LIST')}
