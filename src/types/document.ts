@@ -310,6 +310,15 @@ export const canHaveFormat = (nodeType: ContentBearingNodeType, format: NodeForm
   return Array.isArray(allowed) && allowed.includes(format);
 };
 
+/**
+ * Whether the user edits this node's text in the tree. A `CONTENT_GROUP`'s `contents` is
+ * wire-only, so it counts as having none.
+ */
+export const hasEditableText = (
+  node: DocumentNode
+): node is Exclude<Extract<DocumentNode, { contents: LocalizedText }>, ContentGroupDocumentNode> =>
+  'contents' in node && node.type !== 'CONTENT_GROUP';
+
 /** Check if a node type can be a valid child of a parent type. */
 export const canBeChildOf = (childType: DocumentNode['type'], parentType: ParentType): boolean => {
   // Root level (null parent) uses DOCUMENT rules

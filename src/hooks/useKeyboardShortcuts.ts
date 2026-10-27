@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { Language, NodeFormat } from '../types/document';
+import { hasEditableText, type Language, type NodeFormat } from '../types/document';
 import type { TreeEditorHandle } from './useTreeEditor';
 
 /** Check whether the collapsed cursor is at the start or end of `el`. */
@@ -224,13 +224,13 @@ export function useKeyboardShortcuts({
     } else if (e.key === 'Enter' && lastSelectedId.current) {
       // Enter edit mode on the focused selected node (issue #136). Collapse to that single
       // node and edit — mirroring the double-click path (useSelection.handleNodeDoubleClick).
-      // Content-bearing nodes get text edit (caret placed at the end); container nodes that
-      // only carry a number (LIST / LIST_ITEM) get number edit instead.
+      // Nodes with editable text get text edit (caret placed at the end); the rest (LIST /
+      // LIST_ITEM / CONTENT_GROUP) get number edit instead.
       e.preventDefault();
       const id = lastSelectedId.current;
       const fn = flattenedNodes.find((f) => f.node.id === id);
       if (fn) {
-        const isTextEdit = 'contents' in fn.node;
+        const isTextEdit = hasEditableText(fn.node);
         store.batch(() => {
           store.setSelection(new Set([id]));
           if (isTextEdit) {

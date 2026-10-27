@@ -278,6 +278,38 @@ describe('useSelection', () => {
     expect(result.current.lastSelectedId.current).toBe('p1');
   });
 
+  test('handleNodeDoubleClick enters number edit mode on nodes without editable text', () => {
+    harness = createHarness({
+      id: 'root',
+      type: 'DOCUMENT',
+      children: [
+        {
+          id: 'list',
+          number: null,
+          type: 'LIST',
+          children: [{ id: 'item', number: 'a.', type: 'LIST_ITEM', children: [] }],
+        },
+        {
+          id: 'group',
+          number: '2',
+          type: 'CONTENT_GROUP',
+          format: 'TEXT',
+          contents: {},
+          children: [],
+        },
+      ],
+    });
+    const { result } = render();
+
+    for (const id of ['item', 'group']) {
+      act(() => {
+        result.current.handleNodeDoubleClick(id);
+      });
+      expect(harness.store.getEditingNumberId()).toBe(id);
+      expect(harness.store.getEditingId()).toBeNull();
+    }
+  });
+
   test('handleNumberDoubleClick enters number edit mode and clears editingId', () => {
     const { result } = render();
 
