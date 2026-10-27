@@ -500,7 +500,7 @@ describe('file-processing', () => {
   });
 });
 
-it('opens a platform export with a table and exports it unchanged', () => {
+it('opens a platform export with a table, a definition list and a content group and exports it unchanged', () => {
   // Shape as emitted by the platform's JsonEnvelopeV1Serializer.
   const document = {
     id: 'root',
@@ -522,6 +522,52 @@ it('opens a platform export with a table and exports it unchanged', () => {
               de: '| Begriff | Bedeutung |\n| --- | --- |\n| Bund | Eidgenossenschaft |',
             },
             format: 'MARKDOWN',
+          },
+          {
+            id: 'd1',
+            number: '',
+            type: 'DEFINITION_LIST',
+            contents: { de: 'Bund :: Eidgenossenschaft' },
+            format: 'MARKDOWN',
+          },
+          {
+            id: 'g1',
+            number: '2',
+            type: 'CONTENT_GROUP',
+            contents: {},
+            format: 'TEXT',
+            children: [
+              {
+                id: 'c1',
+                number: null,
+                type: 'CONTENT',
+                contents: { de: 'Es gilt für:' },
+                format: 'TEXT',
+                children: [],
+              },
+              {
+                id: 'l1',
+                number: null,
+                type: 'LIST',
+                children: [
+                  {
+                    id: 'li1',
+                    number: 'a.',
+                    type: 'LIST_ITEM',
+                    children: [
+                      {
+                        id: 'c2',
+                        number: null,
+                        type: 'CONTENT',
+                        contents: { de: 'den Bund.' },
+                        format: 'TEXT',
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
