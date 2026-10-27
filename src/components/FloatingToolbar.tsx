@@ -83,6 +83,7 @@ const FORMATTABLE_TYPES: ContentBearingNodeType[] = [
   'FOOTNOTE',
   'IMAGE',
   'TABLE',
+  'DEFINITION_LIST',
 ];
 
 export function FloatingToolbar({
