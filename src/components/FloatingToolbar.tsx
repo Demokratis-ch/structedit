@@ -4,6 +4,7 @@ import {
   Asterisk,
   Bold,
   BookA,
+  Group,
   Heading,
   Italic,
   List,
@@ -30,7 +31,8 @@ type ToolbarBlockType =
   | 'abc'
   | 'FOOTNOTE'
   | 'TABLE'
-  | 'DEFINITION_LIST';
+  | 'DEFINITION_LIST'
+  | 'CONTENT_GROUP';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
 type SelectorNodeType = ToolbarBlockType | 'IMAGE';
@@ -203,6 +205,13 @@ export function FloatingToolbar({
         title="Definition List (D)"
       >
         <BookA size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('CONTENT_GROUP')}
+        className={typeButtonClass('CONTENT_GROUP')}
+        title="Content Group (G)"
+      >
+        <Group size={18} />
       </button>
 
       {showFormatSelector && (

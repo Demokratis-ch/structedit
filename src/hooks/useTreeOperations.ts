@@ -23,6 +23,7 @@ import {
   mergeNodesInDoc,
   outdentNodeInDoc,
   type TypeChangeTarget,
+  wrapInContentGroupInDoc,
 } from '../utils/tree-mutations';
 import {
   buildIndices,
@@ -263,6 +264,12 @@ export const useTreeOperations = ({
    */
   const changeNodeTypes = useCallback(
     (ids: string[], targetType: TypeChangeTarget, listStyle?: ListStyle) => {
+      if (targetType === 'CONTENT_GROUP') {
+        const wrapped = wrapInContentGroupInDoc(ids, document, nodeIndex);
+        if (wrapped) commit(wrapped);
+        return;
+      }
+
       let doc = document;
       let changed = false;
 

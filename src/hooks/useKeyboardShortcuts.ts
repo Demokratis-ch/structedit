@@ -191,6 +191,9 @@ export function useKeyboardShortcuts({
       case 'DEFINITION_LIST':
         targetType = 'DEFINITION_LIST';
         break;
+      case 'CONTENT_GROUP':
+        targetType = 'CONTENT_GROUP';
+        break;
       default:
         return;
     }
@@ -298,6 +301,7 @@ export function useKeyboardShortcuts({
         f: 'FOOTNOTE',
         b: 'TABLE',
         d: 'DEFINITION_LIST',
+        g: 'CONTENT_GROUP',
       };
       const toolbarType = shortcutMap[key];
       if (toolbarType) {

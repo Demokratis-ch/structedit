@@ -85,6 +85,7 @@ export function TreeEditor({ editor, language, onScrollToNode }: TreeEditorProps
     if (nodeType === 'FOOTNOTE') return 'FOOTNOTE';
     if (nodeType === 'TABLE') return 'TABLE';
     if (nodeType === 'DEFINITION_LIST') return 'DEFINITION_LIST';
+    if (nodeType === 'CONTENT_GROUP') return 'CONTENT_GROUP';
     if (nodeType === 'LIST_ITEM') {
       // Check parent list style via the node's number format
       const num = flatNode.node.number;

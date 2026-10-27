@@ -139,6 +139,15 @@ describe('TreeEditor keyboard shortcuts', () => {
       expect(screen.getByTitle('Definition List (D)').className).toContain('bg-blue-600');
     });
 
+    test('G wraps the selected paragraph in a content group', () => {
+      renderTreeEditor();
+      selectFirstNode();
+      fireEvent.keyDown(getContainer(), { key: 't' });
+      fireEvent.keyDown(getContainer(), { key: 'g' });
+      const indicators = [...getContainer().querySelectorAll('.tree-node-type-indicator')];
+      expect(indicators.map((el) => el.textContent)).toContain('CONTENT_GROUP · TEXT');
+    });
+
     test('uppercase keys also work (case insensitive)', () => {
       renderTreeEditor();
       selectFirstNode();

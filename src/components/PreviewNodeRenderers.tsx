@@ -1,4 +1,5 @@
 import type {
+  ContentGroupDocumentNode,
   DefinitionListDocumentNode,
   DocumentNode,
   Language,
@@ -59,6 +60,8 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <TableNode node={node} language={language} />;
     case 'DEFINITION_LIST':
       return <DefinitionListNode node={node} language={language} />;
+    case 'CONTENT_GROUP':
+      return <ContentGroupNode node={node} language={language} headingDepth={headingDepth} />;
     case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
     case 'IMAGE':
@@ -271,6 +274,35 @@ function DefinitionListNode({
     <div className="my-2 flex items-baseline">
       <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
       <MarkupBlock source={node.contents[language] ?? ''} format={node.format} />
+    </div>
+  );
+}
+
+/** A content group: its number starts the first paragraph, else stands above, as on the platform. */
+function ContentGroupNode({
+  node,
+  language,
+  headingDepth,
+}: {
+  node: ContentGroupDocumentNode;
+  language: Language;
+  headingDepth: number;
+}) {
+  const [first, ...rest] = node.children;
+  const inline = first?.type === 'CONTENT';
+  return (
+    <div>
+      {inline ? (
+        <ContentNode
+          node={{ ...first, number: [node.number, first.number].filter(Boolean).join(' ') || null }}
+          language={language}
+        />
+      ) : (
+        <NumberBadgeDisplay value={node.number} className="font-bold" />
+      )}
+      {(inline ? rest : node.children).map((child) => (
+        <PreviewNode key={child.id} node={child} language={language} headingDepth={headingDepth} />
+      ))}
     </div>
   );
 }
