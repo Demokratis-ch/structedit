@@ -246,8 +246,8 @@ export interface DocTreeEnvelope {
  */
 export const ALLOWED_FORMATS: Record<ContentBearingNodeType, NodeFormat[]> = {
   HEADING: ['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL'],
-  CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN'],
-  FOOTNOTE: ['TEXT', 'NEWLINES', 'MARKDOWN'],
+  CONTENT: ['TEXT', 'NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN'],
+  FOOTNOTE: ['TEXT', 'NEWLINES'],
   IMAGE: ['TEXT', 'NEWLINES'],
   TABLE: ['MARKDOWN'],
   DEFINITION_LIST: ['MARKDOWN'],

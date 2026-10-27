@@ -916,8 +916,8 @@ describe('NodeFormat — type and tables', () => {
 
   it('ALLOWED_FORMATS exposes per-type allow-lists', () => {
     expect(ALLOWED_FORMATS.HEADING).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL']);
-    expect(ALLOWED_FORMATS.CONTENT).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
-    expect(ALLOWED_FORMATS.FOOTNOTE).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.CONTENT).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN']);
+    expect(ALLOWED_FORMATS.FOOTNOTE).toEqual(['TEXT', 'NEWLINES']);
     expect(ALLOWED_FORMATS.IMAGE).toEqual(['TEXT', 'NEWLINES']);
   });
 
@@ -946,8 +946,8 @@ describe('canHaveFormat', () => {
     expect(canHaveFormat('CONTENT', 'MARKDOWN_MINIMAL')).toBe(false);
   });
 
-  it('returns true for (footnote, MARKDOWN)', () => {
-    expect(canHaveFormat('FOOTNOTE', 'MARKDOWN')).toBe(true);
+  it('returns false for (footnote, MARKDOWN)', () => {
+    expect(canHaveFormat('FOOTNOTE', 'MARKDOWN')).toBe(false);
   });
 
   it('returns false for (image, MARKDOWN)', () => {
