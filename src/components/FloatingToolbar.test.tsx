@@ -66,7 +66,7 @@ describe('FloatingToolbar — format selector options', () => {
     expect(values).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_MINIMAL']);
   });
 
-  test('lists TEXT, NEWLINES, MARKDOWN for a content node', () => {
+  test('lists TEXT, NEWLINES, MARKDOWN_INLINE, MARKDOWN for a content node', () => {
     render(
       <FloatingToolbar
         {...baseProps}
@@ -77,7 +77,7 @@ describe('FloatingToolbar — format selector options', () => {
     );
     const select = screen.getByTestId('format-selector') as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN']);
+    expect(values).toEqual(['TEXT', 'NEWLINES', 'MARKDOWN_INLINE', 'MARKDOWN']);
   });
 
   test('lists TEXT, NEWLINES for an image', () => {
