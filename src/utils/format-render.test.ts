@@ -277,6 +277,27 @@ describe('renderContent — MARKDOWN', () => {
   });
 });
 
+describe('renderContent — MARKDOWN definition lists', () => {
+  it('renders a paragraph of Term :: Value lines as a <dl>, with inline marks on both sides', () => {
+    expect(renderContent('Bund :: Eidgenossenschaft\n**Kanton** :: Stand', 'MARKDOWN')).toBe(
+      '<dl><dt>Bund</dt><dd>Eidgenossenschaft</dd><dt><strong>Kanton</strong></dt><dd>Stand</dd></dl>'
+    );
+  });
+
+  it('only converts paragraphs whose every line is a pair', () => {
+    expect(renderContent('Begriffe:\n\nBund :: Eidgenossenschaft', 'MARKDOWN')).toBe(
+      '<p>Begriffe:</p>\n<dl><dt>Bund</dt><dd>Eidgenossenschaft</dd></dl>'
+    );
+    expect(renderContent('Bund :: Eidgenossenschaft\nNur Text', 'MARKDOWN')).not.toContain('<dl>');
+  });
+
+  it('splits only at a separator in plain text, with whitespace on both sides', () => {
+    for (const source of ['`a :: b`', '**a :: b**', 'A::B']) {
+      expect(renderContent(source, 'MARKDOWN')).not.toContain('<dl>');
+    }
+  });
+});
+
 describe('renderContent — bare HTML in MARKDOWN source', () => {
   it('drops bare block HTML', () => {
     const html = renderContent('<div>raw block</div>', 'MARKDOWN');

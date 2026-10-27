@@ -185,6 +185,12 @@ export function useKeyboardShortcuts({
       case 'FOOTNOTE':
         targetType = 'FOOTNOTE';
         break;
+      case 'TABLE':
+        targetType = 'TABLE';
+        break;
+      case 'DEFINITION_LIST':
+        targetType = 'DEFINITION_LIST';
+        break;
       case 'CONTENT_GROUP':
         targetType = 'CONTENT_GROUP';
         break;
@@ -293,6 +299,8 @@ export function useKeyboardShortcuts({
         o: 'ol',
         a: 'abc',
         f: 'FOOTNOTE',
+        b: 'TABLE',
+        d: 'DEFINITION_LIST',
         g: 'CONTENT_GROUP',
       };
       const toolbarType = shortcutMap[key];

@@ -1,10 +1,12 @@
 import type {
   ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   DocumentNode,
   Language,
   ListDocumentNode,
   ListItemDocumentNode,
   NodeFormat,
+  TableDocumentNode,
 } from '../types/document';
 import { renderContent } from '../utils/format-render';
 import { NumberBadgeDisplay } from './NumberBadge';
@@ -54,6 +56,10 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <ListNode node={node} language={language} headingDepth={headingDepth} />;
     case 'LIST_ITEM':
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
+    case 'TABLE':
+      return <TableNode node={node} language={language} />;
+    case 'DEFINITION_LIST':
+      return <DefinitionListNode node={node} language={language} />;
     case 'CONTENT_GROUP':
       return <ContentGroupNode node={node} language={language} headingDepth={headingDepth} />;
     case 'FOOTNOTE':
@@ -240,6 +246,35 @@ export function FootnoteSection({
         })}
       </div>
     </details>
+  );
+}
+
+/** A table, horizontally scrollable when wide. */
+function TableNode({ node, language }: { node: TableDocumentNode; language: Language }) {
+  const text = node.contents[language] ?? '';
+  return (
+    <div className="my-2 flex items-baseline">
+      <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
+      <div className="flex-1 min-w-0 overflow-x-auto">
+        <MarkupBlock source={text} format={node.format} />
+      </div>
+    </div>
+  );
+}
+
+/** A definition list; its `Term :: Value` lines render as a `<dl>` (see `renderContent`). */
+function DefinitionListNode({
+  node,
+  language,
+}: {
+  node: DefinitionListDocumentNode;
+  language: Language;
+}) {
+  return (
+    <div className="my-2 flex items-baseline">
+      <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
+      <MarkupBlock source={node.contents[language] ?? ''} format={node.format} />
+    </div>
   );
 }
 

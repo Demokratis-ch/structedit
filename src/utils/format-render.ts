@@ -1,5 +1,5 @@
 import DOMPurify from 'dompurify';
-import { Marked } from 'marked';
+import { Marked, type Token, type Tokens } from 'marked';
 import type { NodeFormat } from '../types/document';
 
 /**
@@ -19,10 +19,64 @@ import type { NodeFormat } from '../types/document';
  * DOMPurify is the second line of defense.
  */
 const SUP_SUB_PASSTHROUGH = /^<\/?(?:sub|sup)>$/;
+
+/** The platform's `Term :: Value` separator (`DefinitionListSyntax`): whitespace on both sides. */
+const DEFINITION_SEPARATOR = /(?:^|[ \t])::(?:[ \t]|$)/;
+
+const textToken = (text: string, from: Tokens.Text): Tokens.Text => ({ ...from, raw: text, text });
+
+/** Split a paragraph's inline tokens into its lines. */
+const splitLines = (tokens: Token[]): Token[][] => {
+  const lines: Token[][] = [[]];
+  for (const token of tokens) {
+    if (token.type === 'br') lines.push([]);
+    else lines[lines.length - 1].push(token);
+  }
+  return lines;
+};
+
+/**
+ * Split a line at the first separator in plain text (not in code, emphasis or links) into term
+ * and value tokens, as the platform's `DefinitionListProcessor` does. `null` unless both sides
+ * have content.
+ */
+const splitDefinition = (line: Token[]): [Token[], Token[]] | null => {
+  for (let i = 0; i < line.length; i++) {
+    const token = line[i];
+    if (token.type !== 'text') continue;
+    const match = DEFINITION_SEPARATOR.exec(token.text);
+    if (!match) continue;
+    const before = token.text.slice(0, match.index).trimEnd();
+    const after = token.text.slice(match.index + match[0].length).trimStart();
+    const term = [
+      ...line.slice(0, i),
+      ...(before ? [textToken(before, token as Tokens.Text)] : []),
+    ];
+    const value = [
+      ...(after ? [textToken(after, token as Tokens.Text)] : []),
+      ...line.slice(i + 1),
+    ];
+    return term.length > 0 && value.length > 0 ? [term, value] : null;
+  }
+  return null;
+};
+
 const markedNoHtml = new Marked({
   renderer: {
     html({ text }: { text: string }) {
       return SUP_SUB_PASSTHROUGH.test(text) ? text : '';
+    },
+    // A paragraph whose every line is a `Term :: Value` pair becomes a `<dl>`, as on the platform.
+    paragraph({ tokens }) {
+      const pairs = splitLines(tokens).map(splitDefinition);
+      if (pairs.some((pair) => pair === null)) return false;
+      const items = (pairs as [Token[], Token[]][])
+        .map(
+          ([term, value]) =>
+            `<dt>${this.parser.parseInline(term)}</dt><dd>${this.parser.parseInline(value)}</dd>`
+        )
+        .join('');
+      return `<dl>${items}</dl>\n`;
     },
   },
 });
@@ -137,6 +191,9 @@ const SANITIZE_CONFIGS: Record<NodeFormat, SanitizeConfig> = {
       'th',
       'td',
       'hr',
+      'dl',
+      'dt',
+      'dd',
       'h1',
       'h2',
       'h3',

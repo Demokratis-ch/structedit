@@ -3,9 +3,11 @@ import { describe, expect, test } from 'vitest';
 import type {
   ContentDocumentNode,
   ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
 import {
   ContentNode,
@@ -260,6 +262,32 @@ describe('ListItemNode', () => {
     expect(screen.getByText('Item body.')).toBeInTheDocument();
     expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
   });
+});
+
+test('PreviewNode renders a table after its number, horizontally scrollable', () => {
+  const node: TableDocumentNode = {
+    id: 't',
+    number: 'Tab. 1',
+    type: 'TABLE',
+    format: 'MARKDOWN',
+    contents: { de: '| a | b |\n| - | - |\n| 1 | 2 |' },
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.textContent?.trim().startsWith('Tab. 1')).toBe(true);
+  expect(container.querySelector('.overflow-x-auto table td')?.textContent).toBe('1');
+});
+
+test('PreviewNode renders a definition list after its number', () => {
+  const node: DefinitionListDocumentNode = {
+    id: 'd',
+    number: '1',
+    type: 'DEFINITION_LIST',
+    format: 'MARKDOWN',
+    contents: { de: 'Bund :: Eidgenossenschaft' },
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.textContent?.trim().startsWith('1')).toBe(true);
+  expect(container.querySelector('dl')?.innerHTML).toBe('<dt>Bund</dt><dd>Eidgenossenschaft</dd>');
 });
 
 test('PreviewNode renders a content group with its number at the start of its first paragraph', () => {

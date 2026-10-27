@@ -3,6 +3,7 @@ import type {
   BlockDocumentNode,
   ContentDocumentNode,
   ContentGroupDocumentNode,
+  DefinitionListDocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
   HeadingDocumentNode,
@@ -10,6 +11,7 @@ import type {
   ListItemDocumentNode,
   NodeFormat,
   NumberedDocumentNode,
+  TableDocumentNode,
 } from '../types/document';
 import { isValidDocument } from '../types/document';
 import type { NodePath } from '../types/editor';
@@ -650,6 +652,56 @@ describe('changeNodeTypeInDoc — parent-validity guard', () => {
       const out = changeNodeTypeInDoc(d, idx(d), id, target);
       if (out) expect(isValidDocument(out)).toBe(true);
     }
+  });
+});
+
+describe('changeNodeTypeInDoc — TABLE', () => {
+  test('converts in place to a MARKDOWN table and lifts children as following siblings', () => {
+    const c: ContentDocumentNode = {
+      ...content('p1', '| a |', '3'),
+      children: [footnote('f1', 'n')],
+    };
+    const d = doc([c]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'TABLE')!;
+    expect(result.children).toEqual([
+      { id: 'p1', number: '3', type: 'TABLE', format: 'MARKDOWN', contents: { de: '| a |' } },
+      footnote('f1', 'n'),
+    ] satisfies (TableDocumentNode | FootnoteDocumentNode)[]);
+    expect(isValidDocument(result)).toBe(true);
+  });
+
+  test('refuses lists and list items', () => {
+    const d = doc([list('l1', [listItem('li1', 'one', '1.')])]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'l1', 'TABLE')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'li1', 'TABLE')).toBeNull();
+  });
+});
+
+describe('changeNodeTypeInDoc — DEFINITION_LIST', () => {
+  test('converts in place to a MARKDOWN definition list and lifts children as following siblings', () => {
+    const c: ContentDocumentNode = {
+      ...content('p1', 'Bund :: Eidgenossenschaft', '3'),
+      children: [footnote('f1', 'n')],
+    };
+    const d = doc([c]);
+    const result = changeNodeTypeInDoc(d, idx(d), 'p1', 'DEFINITION_LIST')!;
+    expect(result.children).toEqual([
+      {
+        id: 'p1',
+        number: '3',
+        type: 'DEFINITION_LIST',
+        format: 'MARKDOWN',
+        contents: { de: 'Bund :: Eidgenossenschaft' },
+      },
+      footnote('f1', 'n'),
+    ] satisfies (DefinitionListDocumentNode | FootnoteDocumentNode)[]);
+    expect(isValidDocument(result)).toBe(true);
+  });
+
+  test('refuses lists and list items', () => {
+    const d = doc([list('l1', [listItem('li1', 'one', '1.')])]);
+    expect(changeNodeTypeInDoc(d, idx(d), 'l1', 'DEFINITION_LIST')).toBeNull();
+    expect(changeNodeTypeInDoc(d, idx(d), 'li1', 'DEFINITION_LIST')).toBeNull();
   });
 });
 

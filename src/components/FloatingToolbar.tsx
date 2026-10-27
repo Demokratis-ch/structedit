@@ -3,6 +3,7 @@ import {
   ArrowUpToLine,
   Asterisk,
   Bold,
+  BookA,
   Group,
   Heading,
   Italic,
@@ -13,6 +14,7 @@ import {
   Strikethrough,
   Subscript,
   Superscript,
+  Table,
   Trash2,
   Type,
   X,
@@ -21,7 +23,16 @@ import { ALLOWED_FORMATS, type ContentBearingNodeType, type NodeFormat } from '.
 import type { InlineMark } from '../utils/inline-mark';
 import { ALT, MOD, SHIFT } from '../utils/platform';
 
-type ToolbarBlockType = 'HEADING' | 'CONTENT' | 'ul' | 'ol' | 'abc' | 'FOOTNOTE' | 'CONTENT_GROUP';
+type ToolbarBlockType =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'ul'
+  | 'ol'
+  | 'abc'
+  | 'FOOTNOTE'
+  | 'TABLE'
+  | 'DEFINITION_LIST'
+  | 'CONTENT_GROUP';
 // Type used purely to drive the format selector — accepts every content-bearing node type
 // (the toolbar buttons themselves still use ToolbarBlockType for type changes).
 type SelectorNodeType = ToolbarBlockType | 'IMAGE';
@@ -68,7 +79,14 @@ export const FORMATS_WITH_MARKS: readonly NodeFormat[] = [
   'MARKDOWN',
 ];
 
-const FORMATTABLE_TYPES: ContentBearingNodeType[] = ['HEADING', 'CONTENT', 'FOOTNOTE', 'IMAGE'];
+const FORMATTABLE_TYPES: ContentBearingNodeType[] = [
+  'HEADING',
+  'CONTENT',
+  'FOOTNOTE',
+  'IMAGE',
+  'TABLE',
+  'DEFINITION_LIST',
+];
 
 export function FloatingToolbar({
   selectedCount,
@@ -173,6 +191,20 @@ export function FloatingToolbar({
         title="Footnote (F)"
       >
         <Asterisk size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('TABLE')}
+        className={typeButtonClass('TABLE')}
+        title="Table (B)"
+      >
+        <Table size={18} />
+      </button>
+      <button
+        onClick={() => onUpdateType('DEFINITION_LIST')}
+        className={typeButtonClass('DEFINITION_LIST')}
+        title="Definition List (D)"
+      >
+        <BookA size={18} />
       </button>
       <button
         onClick={() => onUpdateType('CONTENT_GROUP')}
