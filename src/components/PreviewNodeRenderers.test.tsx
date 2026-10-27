@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import type {
   ContentDocumentNode,
+  DefinitionListDocumentNode,
   HeadingDocumentNode,
   ListDocumentNode,
   ListItemDocumentNode,
@@ -273,4 +274,17 @@ test('PreviewNode renders a table after its number, horizontally scrollable', ()
   const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
   expect(container.textContent?.trim().startsWith('Tab. 1')).toBe(true);
   expect(container.querySelector('.overflow-x-auto table td')?.textContent).toBe('1');
+});
+
+test('PreviewNode renders a definition list after its number', () => {
+  const node: DefinitionListDocumentNode = {
+    id: 'd',
+    number: '1',
+    type: 'DEFINITION_LIST',
+    format: 'MARKDOWN',
+    contents: { de: 'Bund :: Eidgenossenschaft' },
+  };
+  const { container } = render(<PreviewNode node={node} language="de" headingDepth={1} />);
+  expect(container.textContent?.trim().startsWith('1')).toBe(true);
+  expect(container.querySelector('dl')?.innerHTML).toBe('<dt>Bund</dt><dd>Eidgenossenschaft</dd>');
 });

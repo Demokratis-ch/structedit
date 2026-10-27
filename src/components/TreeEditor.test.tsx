@@ -128,6 +128,17 @@ describe('TreeEditor keyboard shortcuts', () => {
       expect(screen.getByTitle('Table (B)').className).toContain('bg-blue-600');
     });
 
+    test('D converts the selected node to a definition list', () => {
+      renderTreeEditor();
+      selectFirstNode();
+      fireEvent.keyDown(getContainer(), { key: 'd' });
+      const wrapper = getNodeWrapper('First Heading');
+      expect(wrapper.querySelector(':scope > .tree-node-type-indicator')?.textContent).toBe(
+        'DEFINITION_LIST · MARKDOWN'
+      );
+      expect(screen.getByTitle('Definition List (D)').className).toContain('bg-blue-600');
+    });
+
     test('uppercase keys also work (case insensitive)', () => {
       renderTreeEditor();
       selectFirstNode();

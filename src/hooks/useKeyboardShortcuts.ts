@@ -188,6 +188,9 @@ export function useKeyboardShortcuts({
       case 'TABLE':
         targetType = 'TABLE';
         break;
+      case 'DEFINITION_LIST':
+        targetType = 'DEFINITION_LIST';
+        break;
       default:
         return;
     }
@@ -294,6 +297,7 @@ export function useKeyboardShortcuts({
         a: 'abc',
         f: 'FOOTNOTE',
         b: 'TABLE',
+        d: 'DEFINITION_LIST',
       };
       const toolbarType = shortcutMap[key];
       if (toolbarType) {

@@ -1,4 +1,5 @@
 import type {
+  DefinitionListDocumentNode,
   DocumentNode,
   Language,
   ListDocumentNode,
@@ -56,6 +57,8 @@ export function PreviewNode({ node, language, headingDepth }: PreviewNodeProps) 
       return <ListItemNode node={node} language={language} headingDepth={headingDepth} />;
     case 'TABLE':
       return <TableNode node={node} language={language} />;
+    case 'DEFINITION_LIST':
+      return <DefinitionListNode node={node} language={language} />;
     case 'FOOTNOTE':
       return null; // Footnotes are rendered by their parent content node
     case 'IMAGE':
@@ -252,6 +255,22 @@ function TableNode({ node, language }: { node: TableDocumentNode; language: Lang
       <div className="flex-1 min-w-0 overflow-x-auto">
         <MarkupBlock source={text} format={node.format} />
       </div>
+    </div>
+  );
+}
+
+/** A definition list; its `Term :: Value` lines render as a `<dl>` (see `renderContent`). */
+function DefinitionListNode({
+  node,
+  language,
+}: {
+  node: DefinitionListDocumentNode;
+  language: Language;
+}) {
+  return (
+    <div className="my-2 flex items-baseline">
+      <NumberBadgeDisplay value={node.number} className="font-bold mr-1" />
+      <MarkupBlock source={node.contents[language] ?? ''} format={node.format} />
     </div>
   );
 }

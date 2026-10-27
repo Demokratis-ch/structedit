@@ -1,6 +1,7 @@
 import type {
   ContentBearingNodeType,
   ContentDocumentNode,
+  DefinitionListDocumentNode,
   DocumentNode,
   DocumentRootNode,
   FootnoteDocumentNode,
@@ -42,7 +43,13 @@ const MERGEABLE_TYPES: ReadonlySet<DocumentNode['type']> = new Set([
   'LIST_ITEM',
 ]);
 
-export type TypeChangeTarget = 'HEADING' | 'CONTENT' | 'LIST' | 'FOOTNOTE' | 'TABLE';
+export type TypeChangeTarget =
+  | 'HEADING'
+  | 'CONTENT'
+  | 'LIST'
+  | 'FOOTNOTE'
+  | 'TABLE'
+  | 'DEFINITION_LIST';
 
 // Most → least permissive. Used to pick the resulting format when merging.
 const FORMAT_RANK: Record<NodeFormat, number> = {
@@ -582,7 +589,8 @@ const hasContents = (
   | ImageDocumentNode
   | HeadingDocumentNode
   | ContentDocumentNode
-  | TableDocumentNode => {
+  | TableDocumentNode
+  | DefinitionListDocumentNode => {
   return 'contents' in node;
 };
 
@@ -689,7 +697,7 @@ export const changeNodeTypeInDoc = (
         number: getNumberForStyle(style, indexInParent),
       }));
     }
-    if (targetType === 'FOOTNOTE' || targetType === 'TABLE') {
+    if (targetType === 'FOOTNOTE' || targetType === 'TABLE' || targetType === 'DEFINITION_LIST') {
       // list_item cannot be converted to a leaf directly
       return null;
     }
@@ -732,11 +740,11 @@ export const changeNodeTypeInDoc = (
   // different container.
   if (!canBeChildOf(targetType, parent.type as ParentType)) return null;
 
-  // Handle conversion to a leaf (footnote, table): lift children as siblings
-  if (targetType === 'FOOTNOTE' || targetType === 'TABLE') {
+  // Handle conversion to a leaf (footnote, table, definition list): lift children as siblings
+  if (targetType === 'FOOTNOTE' || targetType === 'TABLE' || targetType === 'DEFINITION_LIST') {
     if (node.type === targetType) return null;
 
-    const leaf: FootnoteDocumentNode | TableDocumentNode = {
+    const leaf: FootnoteDocumentNode | TableDocumentNode | DefinitionListDocumentNode = {
       id: node.id,
       number: node.number,
       type: targetType,
